@@ -22,9 +22,19 @@ import { validateTeacherCredentials, requestTeacherPasswordReset, setTeacherPass
 import { validateParentCredentials, verifyParentOwnsStudent } from '@/lib/parentAccounts';
 import { getSchoolDirectoryEntry } from '@/lib/schools';
 import { setActiveSchoolContext } from '@/lib/school';
+import { redirect } from 'next/navigation';
 import { createSession, clearSession, getSession } from '@/lib/auth/session';
 import { setCurrentRole } from '@/lib/currentUser';
 
+// Every login action below ends with redirect() (not a client-side
+// router.push()) — this is the officially recommended App Router pattern for
+// exactly this situation. A client-side push/refresh right after a Server
+// Action that just set a cookie can serve a stale entry from Next's Router
+// Cache (e.g. an earlier middleware.js redirect-to-/login this same browser
+// tab cached before signing in), which either silently no-ops or, worse,
+// fires two overlapping fetches for the destination (visible in the Network
+// tab as the same route requested 2-3 times). redirect() thrown from inside
+// the action sidesteps the client router entirely — no stale cache to hit.
 export async function superAdminLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
@@ -32,7 +42,7 @@ export async function superAdminLoginAction({ email, password }) {
   if (error) return { error };
 
   await createSession({ role: 'SuperAdmin', id: superAdmin.id, email: superAdmin.email });
-  return { user: { id: superAdmin.id, name: superAdmin.name, email: superAdmin.email, role: 'SuperAdmin' } };
+  redirect('/super-admin/schools');
 }
 
 export async function schoolAdminLoginAction({ email, password }) {
@@ -49,9 +59,12 @@ export async function schoolAdminLoginAction({ email, password }) {
   if (school) await setActiveSchoolContext(school);
 
   await createSession({ role: 'SchoolAdmin', id: admin.id, schoolId: admin.schoolId, email: admin.email });
-  return {
-    admin: { id: admin.id, name: admin.name, email: admin.email, schoolId: admin.schoolId, schoolName: admin.schoolName },
-  };
+  // Previously a second action the client called separately after this one
+  // resolved (setCurrentRoleAction('SchoolAdmin')) — folded in here since
+  // this action now redirects instead of returning, so there's no longer a
+  // "resolve, then call the next thing" step for the client to chain.
+  await setCurrentRole('SchoolAdmin');
+  redirect('/dashboard');
 }
 
 export async function teacherLoginAction({ email, password }) {
@@ -73,7 +86,7 @@ export async function teacherLoginAction({ email, password }) {
   // Resolves this specific teacher into the "current user" the rest of the
   // app (Attendance's class/section scoping, reports, etc.) reads from.
   await setCurrentRole('Teacher', teacher.id);
-  return { teacher: { id: teacher.id, name: `${teacher.firstName} ${teacher.lastName}`, email: teacher.loginAccess.email } };
+  redirect('/dashboard');
 }
 
 export async function parentLoginAction({ email, password }) {
@@ -88,7 +101,7 @@ export async function parentLoginAction({ email, password }) {
   // the caller can pass in (see requireParent). Starts on the first linked
   // child; switchActiveChildAction changes it after login.
   await createSession({ role: 'Parent', id: parentAccount.id, schoolId, activeStudentId: students[0].id, email: parentAccount.email });
-  return { student: { id: students[0].id, name: `${students[0].firstName} ${students[0].lastName}` } };
+  redirect('/parent');
 }
 
 // Lets a parent with several children linked to one account move between
@@ -106,13 +119,6 @@ export async function switchActiveChildAction(studentId) {
   const { iat, exp, ...rest } = session;
   await createSession({ ...rest, activeStudentId: studentId });
   return { success: true };
-}
-
-// Drives the SchoolAdmin/Teacher dashboard-role toggle (lib/currentUser.js) —
-// a separate concept from the SuperAdmin/SchoolAdmin session cookie above,
-// see SKILL.md.
-export async function setCurrentRoleAction(role) {
-  return setCurrentRole(role === 'Teacher' ? 'Teacher' : 'SchoolAdmin');
 }
 
 export async function logoutAction() {

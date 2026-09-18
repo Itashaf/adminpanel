@@ -11,7 +11,7 @@ import Input from './Input';
 import Form from './Form';
 import RoleToggle from './RoleToggle';
 import { loginSchema } from '@/lib/schemas';
-import { schoolAdminLoginAction, teacherLoginAction, parentLoginAction, setCurrentRoleAction } from '@/app/actions/auth';
+import { schoolAdminLoginAction, teacherLoginAction, parentLoginAction } from '@/app/actions/auth';
 
 const ROLE_ICONS = {
   Admin: <FiShield className="w-4 h-4" />,
@@ -47,48 +47,33 @@ export default function LoginForm() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(loginSchema) });
 
+  // Each action below redirect()s itself on success (see app/actions/auth.js
+  // for why — a client-side router.push() right after a Server Action that
+  // just set a session cookie can hit a stale entry in Next's Router Cache,
+  // e.g. an earlier middleware.js redirect-to-/login this same tab cached
+  // before signing in). So on success these calls never return normally —
+  // only the `{ error }` case for bad credentials ever reaches past the
+  // `await` here.
   const onSubmit = async (data) => {
     setFormError('');
     if (role === 'Admin') {
       // Real, super-admin-assigned credentials (lib/admins.js).
       const result = await schoolAdminLoginAction(data);
-      if (result.error) {
-        setFormError(result.error);
-        return;
-      }
-      await setCurrentRoleAction('SchoolAdmin');
+      if (result.error) setFormError(result.error);
     } else if (role === 'Teacher') {
       // Real, school-admin-assigned credentials (lib/teachers.js's
       // loginAccess) — resolves and sets the specific signed-in teacher as
       // the current user server-side, so Attendance scoping etc. reflect
       // who actually logged in, not a hardcoded demo teacher.
       const result = await teacherLoginAction(data);
-      if (result.error) {
-        setFormError(result.error);
-        return;
-      }
+      if (result.error) setFormError(result.error);
     } else {
       // Parent portal — a real per-request session scoped to exactly one
       // student (see lib/iam.js's requireParent), not the dashboard-role
       // toggle the other two branches use.
       const result = await parentLoginAction(data);
-      if (result.error) {
-        setFormError(result.error);
-        return;
-      }
-      // router.refresh() first — if this browser ever visited /parent (or
-      // /dashboard below) before logging in and got redirected to /login by
-      // middleware.js, Next's client-side Router Cache can hold onto that
-      // earlier redirect and serve it straight from cache on a plain push,
-      // even though the new session cookie is already set. refresh()
-      // discards that cache so the push below actually re-fetches with the
-      // new session.
-      router.refresh();
-      router.push('/parent');
-      return;
+      if (result.error) setFormError(result.error);
     }
-    router.refresh();
-    router.push('/dashboard');
   };
 
   return (

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiShield, FiArrowRight, FiUser } from 'react-icons/fi';
@@ -18,7 +17,6 @@ import { superAdminLoginAction } from '@/app/actions/auth';
 const SUPER_ADMIN_TEST_CREDENTIALS = { email: 'superadmin@edumanage.io', password: 'SuperAdmin@123' };
 
 export default function SuperAdminLoginForm() {
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -28,21 +26,14 @@ export default function SuperAdminLoginForm() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(loginSchema) });
 
+  // superAdminLoginAction redirect()s itself on success (see
+  // app/actions/auth.js) — a client-side router.push() right after would
+  // risk hitting a stale entry in Next's Router Cache. So this only ever
+  // returns normally for the `{ error }` (bad credentials) case.
   const onSubmit = async (data) => {
     setFormError('');
     const result = await superAdminLoginAction(data);
-    if (result.error) {
-      setFormError(result.error);
-      return;
-    }
-    // router.refresh() first — if this browser ever visited
-    // /super-admin/schools before logging in (redirected to /login by
-    // middleware.js), Next's client-side Router Cache can hold onto that
-    // earlier redirect and serve it straight from cache on a plain push,
-    // even though the new session cookie is already set. refresh() discards
-    // that cache so the push below actually re-fetches with the new session.
-    router.refresh();
-    router.push('/super-admin/schools');
+    if (result.error) setFormError(result.error);
   };
 
   return (
