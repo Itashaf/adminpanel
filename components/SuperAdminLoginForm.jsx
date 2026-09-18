@@ -11,11 +11,6 @@ import Form from './Form';
 import { loginSchema } from '@/lib/schemas';
 import { superAdminLoginAction } from '@/app/actions/auth';
 
-// Display-only — lib/auth.js is now server-only (it imports the Prisma
-// client), so this can't be imported into a 'use client' component. Keep
-// this in sync with prisma/seed.js's seeded super admin if either changes.
-const SUPER_ADMIN_TEST_CREDENTIALS = { email: 'superadmin@edumanage.io', password: 'SuperAdmin@123' };
-
 export default function SuperAdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
@@ -93,28 +88,7 @@ export default function SuperAdminLoginForm() {
           />
         </Form>
 
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-gray-100" />
-          <span className="text-xs font-medium text-gray-400">OR</span>
-          <div className="flex-1 h-px bg-gray-100" />
-        </div>
-
-        <div className="flex items-start gap-3 bg-gray-50 rounded-xl px-4 py-3.5">
-          <span className="flex items-center justify-center w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 shrink-0">
-            <FiUser className="w-4 h-4" />
-          </span>
-          <div className="text-xs text-gray-500 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 mb-1.5">Test credentials</p>
-            <p>
-              Email: <span className="font-medium text-gray-700">{SUPER_ADMIN_TEST_CREDENTIALS.email}</span>
-            </p>
-            <p>
-              Password: <span className="font-medium text-gray-700">{SUPER_ADMIN_TEST_CREDENTIALS.password}</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-600">
+        <div className="flex items-center gap-2 mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600">
           <FiUser className="w-4 h-4 text-indigo-500 shrink-0" />
           Signing in as a school admin?{' '}
           <Link href="/login" className="inline-flex items-center gap-1 text-indigo-600 font-medium hover:underline cursor-pointer">

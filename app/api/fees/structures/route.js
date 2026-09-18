@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createFeeStructure, getFeeStructures } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 export async function GET(request) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { searchParams } = new URL(request.url);
   const structures = await getFeeStructures({
     academicSession: searchParams.get('session') || '',
@@ -11,6 +15,9 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const data = await request.json();
 
   if (!data.academicSession || !data.className) {

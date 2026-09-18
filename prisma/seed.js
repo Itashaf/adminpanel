@@ -1,9 +1,14 @@
-// Seeds the same demo accounts the app's login pages already advertise in
-// their "Test credentials" boxes — run via `npm run db:seed`. Safe to re-run
-// (upserts by email), so re-seeding after a `prisma migrate reset` doesn't
-// need any extra steps.
+// Seeds demo School Admin/Teacher/Parent accounts the app's login pages
+// still advertise in their "Test credentials" boxes, plus the one real
+// Super Admin account (its password is never hardcoded here — see
+// SUPER_ADMIN_SEED_PASSWORD below). Run via `npm run db:seed`. Safe to
+// re-run (upserts by email), so re-seeding after a `prisma migrate reset`
+// doesn't need any extra steps — note that upsert's `update: {}` for
+// SuperAdmin means re-running this does NOT rotate an already-existing
+// account's password; rotate that directly against the database instead.
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
@@ -75,7 +80,16 @@ const schools = [
 ];
 
 async function main() {
-  const superAdminPasswordHash = await bcrypt.hash('SuperAdmin@123', 10);
+  // Real production credential — not a placeholder demo value. Set via
+  // SUPER_ADMIN_SEED_PASSWORD so this file never has to hold it in plain
+  // text; falls back to a random one-time password only for a fresh local
+  // seed run that doesn't set the env var (printed to the console so it's
+  // recoverable, never silently lost).
+  const superAdminPassword = process.env.SUPER_ADMIN_SEED_PASSWORD || crypto.randomBytes(12).toString('base64url');
+  if (!process.env.SUPER_ADMIN_SEED_PASSWORD) {
+    console.log(`No SUPER_ADMIN_SEED_PASSWORD set — generated one-time Super Admin password: ${superAdminPassword}`);
+  }
+  const superAdminPasswordHash = await bcrypt.hash(superAdminPassword, 10);
   await prisma.superAdmin.upsert({
     where: { email: 'superadmin@edumanage.io' },
     update: {},

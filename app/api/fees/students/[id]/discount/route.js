@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { applyFeeDiscount, removeFeeDiscount } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 export async function POST(request, { params }) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { id } = await params;
   try {
     const data = await request.json();
@@ -13,6 +17,9 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { id } = await params;
   try {
     const fee = await removeFeeDiscount(id);
