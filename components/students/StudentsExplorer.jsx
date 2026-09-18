@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { FiUploadCloud, FiPlus } from 'react-icons/fi';
+import { FiUploadCloud, FiPlus, FiLoader } from 'react-icons/fi';
 import StudentsHeader from './StudentsHeader';
 import StudentsStats from './StudentsStats';
 import StudentsToolbar from './StudentsToolbar';
@@ -11,38 +11,109 @@ import StudentsTable from './StudentsTable';
 import BulkImportModal from './BulkImportModal';
 import Pagination from '@/components/Pagination';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
+import { getStudentsPage as fetchStudentsPage } from '@/lib/api';
 
 const EMPTY_FILTERS = { search: '', class: '', section: '', status: '' };
-const PAGE_SIZE = 5;
 
-// Owns the title row (with its Bulk Import / Add Student actions), the stats
-// cards, and the table together — not split across sibling server
-// components like before — because Bulk Import's success handler needs to
-// push newly imported students straight into this component's local list
-// (see SKILL.md's optimistic-update rule), and that only works if the
-// button that opens it lives wherever that state does.
-export default function StudentsExplorer({ students, classOptions, initialFilters, canManage = true }) {
-  const [studentsList, setStudentsList] = useState(students);
+// Real query-level pagination (see lib/students.js's getStudentsPage /
+// app/api/students/paged/route.js) — only the current page's rows and a
+// total count ever reach the browser, unlike the old version which fetched
+// the school's entire roster up front and sliced/filtered it client-side
+// (fine at a few hundred students, a real problem well before a few
+// thousand). Every filter/page change now re-fetches from the server
+// instead of re-slicing an in-memory array.
+export default function StudentsExplorer({
+  initialStudents,
+  initialTotal,
+  stats,
+  classOptions,
+  initialFilters,
+  canManage = true,
+  pageSize = 10,
+}) {
+  const [studentsList, setStudentsList] = useState(initialStudents);
+  const [total, setTotal] = useState(initialTotal);
   const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, ...initialFilters }));
   const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const classSections = useClassSections();
 
+  // Keeps this component's local copy in sync whenever the server component
+  // re-fetches (e.g. a router.refresh() elsewhere after adding/editing a
+  // student) — without this, `initialStudents`/`initialTotal` changing on
+  // the parent would never actually reach this component's own state, since
+  // useState only reads its initializer once. Adjusted during render (React's
+  // documented pattern for this — https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  // rather than in a useEffect, which would cause an extra render pass.
+  const [prevInitialStudents, setPrevInitialStudents] = useState(initialStudents);
+  if (initialStudents !== prevInitialStudents) {
+    setPrevInitialStudents(initialStudents);
+    setStudentsList(initialStudents);
+    setTotal(initialTotal);
+  }
+
+  // Skip the very first effect run — the initial page/filters already match
+  // what the server component fetched and passed in as props, so an
+  // immediate re-fetch on mount would just duplicate that request.
+  const isFirstRun = useRef(true);
+  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
+    let cancelled = false;
+    // Debounced so typing in the search box doesn't fire one request per
+    // keystroke — page/filter-dropdown changes still feel instant since
+    // this effect re-runs immediately for those (only `search` benefits
+    // from waiting, but there's no cheap way to debounce just one field of
+    // the same effect without a second effect, so the whole thing waits).
+    const timer = setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        const result = await fetchStudentsPage({ page, pageSize, ...filters });
+        if (!cancelled) {
+          setStudentsList(result.students);
+          setTotal(result.total);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [page, filters, pageSize]);
+
+  const refetchCurrentPage = async () => {
+    setIsLoading(true);
+    try {
+      const result = await fetchStudentsPage({ page, pageSize, ...filters });
+      setStudentsList(result.students);
+      setTotal(result.total);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleStudentDeleted = (id) => {
     setStudentsList((prev) => prev.filter((student) => student.id !== id));
     setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+    setTotal((prev) => Math.max(0, prev - 1));
   };
 
-  const handleImported = (importedStudents) => {
-    setStudentsList((prev) => [...importedStudents, ...prev]);
-    // Newly imported students are prepended, so they land on page 1 — if the
-    // admin was sitting on a later page (or a class/section filter that
-    // excludes the imported rows), they'd otherwise see no change at all and
-    // assume the import silently failed until a hard refresh. Jump back to
-    // an unfiltered page 1 so the import's actual result is immediately visible.
+  const handleImported = () => {
+    // Newly imported students land wherever they sort to on the server —
+    // jump back to an unfiltered page 1 and refetch so the import's actual
+    // result is immediately visible, same reasoning as before this was
+    // server-paginated (an admin sitting on a later page or an excluding
+    // filter would otherwise see no change at all).
     setFilters(EMPTY_FILTERS);
     setPage(1);
+    isFirstRun.current = false;
+    refetchCurrentPage();
   };
 
   const handleFilterChange = (nextFilters) => {
@@ -56,43 +127,14 @@ export default function StudentsExplorer({ students, classOptions, initialFilter
     setPage(1);
   };
 
-  // Derived from studentsList (not a server-computed prop) so it stays in
-  // sync with optimistic add/delete updates without a router.refresh() —
-  // same formula as lib/students.js's getStudentStats().
-  const computedStats = useMemo(() => {
-    const active = studentsList.filter((s) => s.status === 'Active').length;
-    const inactive = studentsList.filter((s) => s.status !== 'Active').length;
-    const thisMonth = new Date().toISOString().slice(0, 7);
-    const newAdmissions = studentsList.filter((s) => s.admissionDate?.startsWith(thisMonth)).length;
-    return { total: studentsList.length, active, newAdmissions, inactive };
-  }, [studentsList]);
-
-  const filteredStudents = useMemo(() => {
-    return studentsList.filter((student) => {
-      const query = filters.search.trim().toLowerCase();
-      const matchesSearch =
-        !query ||
-        `${student.firstName} ${student.lastName}`.toLowerCase().includes(query) ||
-        student.admissionId.toLowerCase().includes(query) ||
-        student.guardian.phone.toLowerCase().includes(query);
-
-      const matchesClass = !filters.class || student.class === filters.class;
-      const matchesSection = !filters.section || student.section === filters.section;
-      const matchesStatus = !filters.status || student.status === filters.status;
-
-      return matchesSearch && matchesClass && matchesSection && matchesStatus;
-    });
-  }, [studentsList, filters]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
-  const pagedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const toggleSelectAll = () => {
-    const pageIds = pagedStudents.map((student) => student.id);
+    const pageIds = studentsList.map((student) => student.id);
     const allSelected = pageIds.every((id) => selectedIds.includes(id));
     setSelectedIds((prev) =>
       allSelected ? prev.filter((id) => !pageIds.includes(id)) : [...new Set([...prev, ...pageIds])]
@@ -125,7 +167,7 @@ export default function StudentsExplorer({ students, classOptions, initialFilter
         )}
       </div>
 
-      <StudentsStats stats={computedStats} />
+      <StudentsStats stats={stats} />
 
       <div className="space-y-4">
         <StudentsToolbar
@@ -145,10 +187,16 @@ export default function StudentsExplorer({ students, classOptions, initialFilter
           />
         )}
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {pagedStudents.length > 0 ? (
+        <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10">
+              <FiLoader className="w-5 h-5 text-indigo-600 animate-spin" />
+            </div>
+          )}
+
+          {studentsList.length > 0 ? (
             <StudentsTable
-              students={pagedStudents}
+              students={studentsList}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
@@ -161,13 +209,7 @@ export default function StudentsExplorer({ students, classOptions, initialFilter
 
           {totalPages > 1 && (
             <div className="px-6 py-4 border-t border-gray-100">
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-                totalCount={filteredStudents.length}
-                pageSize={PAGE_SIZE}
-              />
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} />
             </div>
           )}
         </div>
