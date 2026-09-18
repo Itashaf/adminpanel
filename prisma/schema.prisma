@@ -161,9 +161,17 @@ model SchoolAdmin {
   lastPasswordResetAt  DateTime?
 }
 
+// TransferredOut/Graduated exist so a student who has ever had a fee,
+// payment, or exam record generated (which cascades or restricts on
+// delete — see Student's relations below) can be taken off the active
+// roster without a hard delete, which would otherwise either crash on the
+// FK constraint or, if forced through, destroy financial/academic history
+// a school is required to retain. See lib/students.js's deleteStudent().
 enum StudentStatus {
   Active
   Inactive
+  TransferredOut
+  Graduated
 }
 
 // Was lib/students.js's in-memory `globalThis.__STUDENTS_BY_SCHOOL__` (see

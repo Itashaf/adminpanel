@@ -42,9 +42,13 @@ export async function DELETE(request, { params }) {
   if (authError) return authError;
 
   const { id } = await params;
-  const removed = await deleteStudent(id, await resolveSchoolId());
-  if (!removed) {
-    return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+  try {
+    const removed = await deleteStudent(id, await resolveSchoolId());
+    if (!removed) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+    return NextResponse.json({ removed: true });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
-  return NextResponse.json({ removed: true });
 }

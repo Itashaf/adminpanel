@@ -5,13 +5,17 @@ import { getCurrentUserInfo } from '@/lib/iam';
 export async function GET(request, { params }) {
   const { studentId } = await params;
 
-  // Every other role here follows this app's existing (documented, lax)
-  // convention of no per-route auth check — but a Parent session must never
-  // be able to read another family's fees just by changing the URL, since
-  // this is the one route that's actually reachable by someone outside the
-  // single-admin-persona demo. See lib/iam.js's requireParent.
+  // Requires SOME real signed-in actor — the old `actor?.role === 'Parent'
+  // && ...` check was skipped entirely when `actor` was null (no session at
+  // all), letting an unauthenticated caller read any student's fees by
+  // guessing/enumerating a studentId. A Parent session additionally must
+  // never be able to read another family's fees just by changing the URL.
+  // See lib/iam.js's requireParent.
   const actor = await getCurrentUserInfo();
-  if (actor?.role === 'Parent' && actor.studentId !== studentId) {
+  if (!actor) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+  if (actor.role === 'Parent' && actor.studentId !== studentId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

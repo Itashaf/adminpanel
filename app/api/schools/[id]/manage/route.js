@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { getSchoolDirectoryEntry } from '@/lib/schools';
 import { setActiveSchoolContext } from '@/lib/school';
 import { setCurrentRole } from '@/lib/currentUser';
+import { requireSuperAdmin } from '@/lib/iam';
 
 export async function POST(request, { params }) {
+  const { error: authError } = await requireSuperAdmin();
+  if (authError) return authError;
+
   const { id } = await params;
 
   const entry = await getSchoolDirectoryEntry(id);
