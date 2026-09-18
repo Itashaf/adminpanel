@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { updateSession } from '@/lib/academicSessions';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 export async function PUT(request, { params }) {
+  const { error: authError } = await requireSchoolAdmin();
+  if (authError) return authError;
+
   const { id } = await params;
   const data = await request.json();
 

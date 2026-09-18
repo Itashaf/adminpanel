@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { updateAdminStatus } from '@/lib/admins';
+import { requireSuperAdmin } from '@/lib/iam';
 
 export async function PATCH(request, { params }) {
+  const { error: authError } = await requireSuperAdmin();
+  if (authError) return authError;
+
   const { id } = await params;
   const { status } = await request.json();
 
