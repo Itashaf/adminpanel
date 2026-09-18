@@ -3,6 +3,16 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Pinned to exactly Vercel's build runtime — with no binaryTargets set,
+  // Prisma has been observed bundling more than one platform's query engine
+  // binary (~20MB each) into the generated client, and since this app has
+  // 119 separate app/api/**/route.js files (each its own Vercel Serverless
+  // Function), even one extra unnecessary binary multiplies across all of
+  // them. This is the direct, evidence-backed cause of a 0 -> ~670MB
+  // "Functions Storage" jump the same day builds started succeeding (see
+  // Vercel's Usage > Functions Storage graph) — not a runtime data-growth
+  // issue, a build-time one.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
