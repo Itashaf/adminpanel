@@ -1,0 +1,1046 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Single platform-level super admin account. There is exactly one row today
+// (see prisma/seed.js), matching the previous lib/auth.js hardcoded-credential
+// stub this replaces — kept as a table (not an env-var check) so a real
+// admin-management UI can be added later without another migration.
+model SuperAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum AdminStatus {
+  Active
+  Inactive
+}
+
+// The Schools Directory a super admin manages — was lib/schools.js's
+// in-memory `globalThis.__SCHOOLS__` array. `studentCount`/`teacherCount`
+// are still just informational integers set at creation, not a live
+// aggregate over real Student/Teacher records — this app's Students/
+// Teachers/Classes data is single-tenant (one shared in-memory dataset for
+// whichever school is "active", see lib/school.js), so a real per-school
+// count isn't possible until that data is made multi-tenant too.
+model School {
+  id                 String       @id @default(cuid())
+  name               String
+  code               String       @unique
+  principalName      String       @default("")
+  email              String
+  phone              String
+  displayName        String
+  logoUrl            String       @default("")
+  website            String       @default("")
+  addressLine1       String       @default("")
+  addressLine2       String       @default("")
+  city               String       @default("")
+  state              String       @default("")
+  country            String       @default("")
+  pinCode            String       @default("")
+  primaryColor       String       @default("")
+  secondaryColor     String       @default("")
+  timezone           String       @default("Asia/Kolkata")
+  currency           String       @default("INR")
+  dateFormat         String       @default("DD/MM/YYYY")
+  studentIdPrefix    String       @default("STD")
+  teacherIdPrefix    String       @default("TCH")
+  // See lib/attendance.js's computeAttendanceAccess(), the only place these
+  // two are actually read/enforced.
+  attendanceDeadlineTime     String @default("14:00")
+  attendanceEditGraceMinutes Int    @default(30)
+  // Tie-break convention for exam rank (see lib/examResults.js's
+  // computeRanks): "Skip" = competition ranking (1,1,3 — a tie's rank
+  // consumes the positions it ties for), "Dense" = dense ranking (1,1,2 —
+  // the next rank is always previous+1). No settings UI toggle exists for
+  // this yet; it's read here so one can be added later without another
+  // migration.
+  examRankTieMode            String @default("Skip")
+  status             SchoolStatus @default(Active)
+  currentSessionName String
+  studentCount       Int          @default(0)
+  teacherCount       Int          @default(0)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @default(now()) @updatedAt
+  admin              SchoolAdmin?
+  students           Student[]
+  teachers           Teacher[]
+  classes            Class[]
+  sections           Section[]
+  attendanceRecords  Attendance[]
+  feeStructures      FeeStructure[]
+  studentFees        StudentFee[]
+  payments           Payment[]
+  notices            Notice[]
+  calendarEvents     CalendarEvent[]
+  homework           Homework[]
+  pushTokens         PushToken[]
+  academicSessions   AcademicSession[]
+  parentAccounts     ParentAccount[]
+  parentNotifications ParentNotification[]
+  teacherNotifications TeacherNotification[]
+  exams              Exam[]
+  examSchedules      ExamSchedule[]
+  examMarks          ExamMark[]
+  examResults        ExamResult[]
+  examAuditLogs      ExamAuditLog[]
+  examOptionalEnrollments ExamOptionalEnrollment[]
+  gradeScales        GradeScale[]
+  subjects           Subject[]
+  timeTables         TimeTable[]
+}
+
+// A real login account for a parent/guardian — decoupled from any one
+// Student so it can link several siblings under one email+password (see
+// ParentStudentLink). Set up from a Student's "Portal Access" action
+// (components/students/SetPortalAccessDialog.jsx): entering an email that
+// already has an account here just links this student to it instead of
+// creating a second account, which is what makes "one login, several kids"
+// work — no separate multi-select UI needed, the admin just re-enters the
+// same parent email for each sibling.
+model ParentAccount {
+  id           String              @id @default(cuid())
+  schoolId     String
+  school       School              @relation(fields: [schoolId], references: [id])
+  email        String
+  name         String
+  passwordHash String
+  photoUrl     String?
+  createdAt    DateTime            @default(now())
+  students     ParentStudentLink[]
+
+  @@unique([schoolId, email])
+}
+
+model ParentStudentLink {
+  id              String        @id @default(cuid())
+  parentAccountId String
+  parentAccount   ParentAccount @relation(fields: [parentAccountId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  @@unique([parentAccountId, studentId])
+}
+
+enum SchoolStatus {
+  Active
+  Inactive
+}
+
+// One admin account per school. `schoolId` is now a real foreign key into
+// School — previously it intentionally had none, back when Schools still
+// lived in lib/schools.js's in-memory store and could only be joined at the
+// application layer (see lib/admins.js's decorateAdmin, which still does
+// that join explicitly rather than an `include` — kept as-is to avoid
+// touching working code beyond what this migration needed).
+model SchoolAdmin {
+  id                   String      @id @default(cuid())
+  schoolId             String      @unique
+  school               School      @relation(fields: [schoolId], references: [id])
+  name                 String
+  email                String      @unique
+  passwordHash         String
+  status               AdminStatus @default(Active)
+  permissions          Json
+  photoUrl             String?
+  createdAt            DateTime    @default(now())
+  lastPasswordResetAt  DateTime?
+}
+
+enum StudentStatus {
+  Active
+  Inactive
+}
+
+// Was lib/students.js's in-memory `globalThis.__STUDENTS_BY_SCHOOL__` (see
+// lib/schoolScope.js) — now real per-school rows via `schoolId`, replacing
+// the in-memory Map keyed by active school. Nested per-student data
+// (guardian, address, fee details, etc.) stays as Json rather than its own
+// tables — none of it is ever queried/filtered on independently of the
+// student it belongs to, so normalizing it would only add join overhead for
+// no benefit here.
+model Student {
+  id                  String        @id @default(cuid())
+  schoolId            String
+  school              School        @relation(fields: [schoolId], references: [id])
+  admissionId         String
+  photoUrl            String?
+  firstName           String
+  lastName            String
+  initials            String
+  class               String
+  section             String
+  academicSession     String
+  admissionDate       String
+  dob                 String
+  gender              String
+  bloodGroup          String        @default("")
+  nationality         String        @default("")
+  aadhaarNumber       String        @default("")
+  aadhaarDocumentName String        @default("")
+  // The actual uploaded file for the student's own Aadhaar — DocumentName
+  // above is just the filename shown in the form, kept for backward
+  // compatibility with rows saved before this existed. Guardian/secondary
+  // guardian Aadhaar documents live inside their own Json blobs below
+  // (aadhaarDocumentUrl key), same reasoning.
+  aadhaarDocumentUrl  String?
+  whatsappNumber      String        @default("")
+  status              StudentStatus @default(Active)
+  previousSchool      Json?
+  guardian            Json?
+  secondaryGuardian   Json?
+  emergencyContacts   Json?
+  address             Json?
+  feeDetails          Json?
+  // Father Photo / Mother Photo / Birth Certificate / SLC / Other Document —
+  // grouped as one flexible bag (fatherPhotoUrl, motherPhotoUrl,
+  // birthCertificateUrl, slcUrl, otherDocumentUrl) rather than five more
+  // scalar columns, same convention as guardian/address/feeDetails above.
+  documents           Json?
+  // Parent portal login now lives on ParentAccount (see that model's
+  // comment) — one account can link several siblings, which a per-Student
+  // email+password column could never express.
+  parentLinks         ParentStudentLink[]
+  parentNotifications ParentNotification[]
+  examMarks           ExamMark[]
+  examResults         ExamResult[]
+  examOptionalEnrollments ExamOptionalEnrollment[]
+  // A standing (recurring) fee discount — e.g. sibling or staff-child — set
+  // once here rather than re-applied on every term. Copied onto each new
+  // StudentFee at generation time (see lib/fees.js's generateStudentFees);
+  // never retroactively touches an already-generated fee on its own — that's
+  // the explicit, separate "apply to pending fees" action (see
+  // applyStandingDiscountToPendingFees), so an admin isn't surprised by
+  // discounts silently changing fees they already reviewed.
+  discountType        DiscountType?
+  discountValue       Int?
+  discountReason      String?
+  createdAt           DateTime      @default(now())
+  studentFees         StudentFee[]
+  payments            Payment[]
+
+  @@unique([schoolId, admissionId])
+  @@map("Students")
+}
+
+enum FeeTerm {
+  T1
+  T2
+  T3
+  T4
+}
+
+enum StudentFeeStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  RAZORPAY
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// A template, scoped to a school + academic session + class — NOT a real
+// relation to lib/classes.js's in-memory Class store (which has no
+// relational integrity of its own). `academicSession`/`className` are plain
+// strings matching how Student.class/Student.academicSession already work,
+// not FKs — same convention Student itself uses.
+// One structure covers the WHOLE academic year for a class — its four
+// FeeStructureTerm rows (Q1-Q4) each hold their own independent item list
+// (see lib/fees.js's createFeeStructure), not four separate structures.
+model FeeStructure {
+  id              String             @id @default(cuid())
+  schoolId        String
+  school          School             @relation(fields: [schoolId], references: [id])
+  academicSession String
+  className       String
+  name            String
+  terms           FeeStructureTerm[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([schoolId, academicSession, className])
+}
+
+model FeeStructureTerm {
+  id             String             @id @default(cuid())
+  feeStructureId String
+  feeStructure   FeeStructure       @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  term           FeeTerm
+  items          FeeStructureItem[]
+
+  @@unique([feeStructureId, term])
+}
+
+// `required` and the late-fee columns are captured for future student-level
+// applicability / enforcement (see the Fee Structure form's "Required or
+// Optional" and "Late Fee" sections) — nothing reads them yet: generated
+// StudentFeeItem rows stay a plain name+amount snapshot, same as before.
+model FeeStructureItem {
+  id                 String           @id @default(cuid())
+  feeStructureTermId String
+  feeStructureTerm   FeeStructureTerm @relation(fields: [feeStructureTermId], references: [id], onDelete: Cascade)
+  name               String
+  amount             Int
+  required           Boolean          @default(true)
+  lateFeeEnabled     Boolean          @default(false)
+  lateFeeGraceDays   Int?
+  lateFeeType        LateFeeType?
+  lateFeeAmount      Int?
+  lateFeeMaxAmount   Int?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+enum LateFeeType {
+  FIXED
+  PER_DAY
+}
+
+// A generated, per-student, per-term fee record — its StudentFeeItems are
+// copied from a FeeStructure at generation time (see lib/fees.js's
+// generateStudentFees), not referenced live, so editing/deleting the source
+// FeeStructure afterward never changes an already-generated StudentFee.
+model StudentFee {
+  id              String           @id @default(cuid())
+  schoolId        String
+  school          School           @relation(fields: [schoolId], references: [id])
+  studentId       String
+  student         Student          @relation(fields: [studentId], references: [id])
+  academicSession String
+  term            FeeTerm
+  totalAmount     Int
+  paidAmount      Int              @default(0)
+  status          StudentFeeStatus @default(PENDING)
+  discountType    DiscountType?
+  discountValue   Int?
+  discountReason  String?
+  items           StudentFeeItem[]
+  payments        Payment[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([studentId, academicSession, term])
+}
+
+enum DiscountType {
+  FIXED
+  PERCENT
+}
+
+model StudentFeeItem {
+  id           String     @id @default(cuid())
+  studentFeeId String
+  studentFee   StudentFee @relation(fields: [studentFeeId], references: [id], onDelete: Cascade)
+  name         String
+  amount       Int
+}
+
+// MVP: no partial payments, so one successful Payment always pays a
+// StudentFee in full — see lib/fees.js's collectManualPayment /
+// verifyRazorpayPayment, both of which set StudentFee.paidAmount =
+// totalAmount and status = PAID inside the same transaction that creates
+// this row. razorpayOrderId/razorpayPaymentId are unique so a duplicate
+// verify call or webhook redelivery can be detected and short-circuited
+// instead of creating a second Payment row (see Rule 8 / idempotency).
+enum TeacherStatus {
+  Active
+  Inactive
+}
+
+enum TeacherAccountStatus {
+  Active
+  Suspended
+}
+
+// Was lib/teachers.js's in-memory `globalThis.__TEACHERS_BY_SCHOOL__` (see
+// lib/schoolScope.js) — now real per-school rows via `schoolId`, same
+// convention as Student: nested one-off groups (education, bankDetails,
+// emergencyContact, address) stay as Json since nothing queries into them
+// independently. `assignments` also stays Json (a plain array of
+// {academicSession, class, section, status}) rather than its own table —
+// lib/iam.js only ever reads a teacher's own assignments list wholesale, it
+// never queries "who teaches Class 8B" across teachers.
+// Login credentials split out of that Json (unlike the old in-memory
+// loginAccess.password) into a real bcrypt hash, matching
+// SchoolAdmin.passwordHash / Student.portalPasswordHash.
+model Teacher {
+  id                 String               @id @default(cuid())
+  schoolId           String
+  school             School               @relation(fields: [schoolId], references: [id])
+  employeeId         String
+  firstName          String
+  middleName         String               @default("")
+  lastName           String
+  initials           String
+  dob                String               @default("")
+  gender             String
+  bloodGroup         String               @default("")
+  phone              String               @default("")
+  email              String               @default("")
+  aadhaarNumber      String               @default("")
+  aadhaarDocumentName String              @default("")
+  // The actual uploaded file for the teacher's Aadhaar — DocumentName above
+  // is just the filename shown in the form, kept for backward compatibility
+  // with rows saved before this existed.
+  aadhaarDocumentUrl String?
+  maritalStatus      String               @default("")
+  nationality        String               @default("")
+  panNumber          String               @default("")
+  isFresher          Boolean              @default(false)
+  education          Json?
+  bankDetails        Json?
+  emergencyContact   Json?
+  // 10th / 12th / Graduation / Work Experience certificates — grouped as one
+  // flexible bag (tenthCertificateUrl, twelfthCertificateUrl,
+  // graduationCertificateUrl, workExperienceCertificateUrl), same convention
+  // as education/bankDetails/emergencyContact above.
+  documents          Json?
+  joiningDate        String
+  relievingDate      String               @default("")
+  qualification      String               @default("")
+  specialization     String               @default("")
+  experience         String               @default("")
+  employmentType     String               @default("Full Time")
+  status             TeacherStatus        @default(Active)
+  designation        String               @default("Teacher")
+  address            Json?
+  assignments        Json?
+  loginEnabled       Boolean              @default(false)
+  loginEmail         String               @default("")
+  loginPasswordHash  String?
+  loginAccountStatus TeacherAccountStatus @default(Suspended)
+  passwordSetToken   String?              @unique
+  passwordSetTokenExpiresAt DateTime?
+  photoUrl           String?
+  createdAt          DateTime             @default(now())
+  classTeacherOf     Section[]
+  notifications      TeacherNotification[]
+
+  @@unique([schoolId, employeeId])
+  @@map("Teachers")
+}
+
+enum ClassStatus {
+  Active
+  Inactive
+}
+
+enum SectionStatus {
+  Active
+  Inactive
+}
+
+// Was lib/classes.js's in-memory `globalThis.__CLASSES_BY_SCHOOL__`/
+// `__SECTIONS_BY_SCHOOL__` (see lib/schoolScope.js) — now real per-school
+// rows via `schoolId`, same convention as Student/Teacher. `subjects` is a
+// native Postgres `String[]` (not Json) since it's always just a flat list
+// of subject-name strings, never a nested shape.
+model Class {
+  id              String      @id @default(cuid())
+  schoolId        String
+  school          School      @relation(fields: [schoolId], references: [id])
+  name            String
+  level           String
+  academicSession String
+  status          ClassStatus @default(Active)
+  subjects        String[]
+  createdAt       DateTime    @default(now())
+  sections        Section[]
+
+  @@unique([schoolId, academicSession, name])
+  @@map("Classes")
+}
+
+// Per-school master subject list — the picker options behind every
+// SUBJECT_OPTIONS-style dropdown/pill-grid in the app (Class.subjects,
+// ExamSchedule.subject, Homework.subject, Teacher.assignments). Renaming
+// here does NOT cascade into those already-stored strings (they're plain
+// strings, not a foreign key) — deleteSubject() in lib/subjects.js blocks
+// deletion while any of them still reference the name, so a rename only
+// affects future selections until the admin manually re-picks it.
+enum SubjectType {
+  Theory
+  Practical
+}
+
+model Subject {
+  id        String      @id @default(cuid())
+  schoolId  String
+  school    School      @relation(fields: [schoolId], references: [id])
+  name      String
+  code      String      @default("")
+  type      SubjectType @default(Theory)
+  createdAt DateTime    @default(now())
+
+  @@unique([schoolId, name])
+  @@map("Subjects")
+}
+
+// One row per class+section+session — `schedule` is a plain Json map of
+// { Monday: [...], Tuesday: [...], ... }, each day an ordered array of period
+// entries (drag-and-drop reordering just rewrites this array's order, saved
+// whole rather than field-by-field — see lib/timetable.js). A lunch/other
+// break is stored as just another entry in that same array (`type: 'Break'`
+// instead of `'Period'`), which is what makes it draggable to any position in
+// the day using the exact same reorder logic as a subject period — no
+// separate "break slot" concept to keep in sync. Kept as Json rather than its
+// own PeriodEntry table for the same reason as Teacher.assignments/
+// Class.subjects: nothing ever needs to query "which periods teach X" across
+// classes, only ever read/written as one whole day at a time.
+model TimeTable {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id])
+  className       String
+  sectionName     String   @default("")
+  academicSession String
+  schedule        Json
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([schoolId, className, sectionName, academicSession])
+  @@map("TimeTables")
+}
+
+// `classTeacherId` is a real foreign key into Teacher — both sides are now
+// migrated (see lib/teachers.js), so unlike the old in-memory version (a
+// bare string id with no relational integrity, which could and did go stale
+// — see SKILL.md), an invalid teacher id is now rejected at the DB level
+// instead of silently rendering "Unassigned". `onDelete: SetNull` so
+// deleting a teacher clears the section's class-teacher slot rather than
+// failing the delete or cascading. The "one teacher = class teacher of at
+// most one section per session" rule is still an application-level check
+// (lib/classes.js's assignSectionTeacher), not a DB constraint — Postgres/
+// Prisma has no native partial-unique-index support here.
+model Section {
+  id              String        @id @default(cuid())
+  schoolId        String
+  school          School        @relation(fields: [schoolId], references: [id])
+  classId         String
+  class           Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name            String
+  academicSession String
+  classTeacherId  String?
+  classTeacher    Teacher?      @relation(fields: [classTeacherId], references: [id], onDelete: SetNull)
+  room            String        @default("")
+  capacity        Int           @default(0)
+  boys            Int           @default(0)
+  girls           Int           @default(0)
+  status          SectionStatus @default(Active)
+  createdAt       DateTime      @default(now())
+
+  @@unique([classId, academicSession, name])
+  @@map("Sections")
+}
+
+// Was lib/attendance.js's in-memory `globalThis.__ATTENDANCE_BY_SCHOOL__`
+// (see lib/schoolScope.js) — now real per-school rows via `schoolId`. One row
+// per class+section+date (the actual saved marking session), not one row
+// per student per day — `records` (a Json array of {studentId, status,
+// remark}) stays exactly that shape since nothing ever queries into it
+// independently of the (date, className, sectionName) it belongs to;
+// normalizing to one row per student per day would multiply row count by
+// class size for no query benefit here. A day with no `Attendance` row at
+// all (the common case — most of the school year) falls back to
+// `syntheticStatusFor()`'s deterministic PRNG, unchanged from the in-memory
+// version.
+model Attendance {
+  id               String   @id @default(cuid())
+  schoolId         String
+  school           School   @relation(fields: [schoolId], references: [id])
+  academicSession  String
+  date             String
+  className        String
+  sectionName      String
+  markedBy         String
+  markedAt         DateTime
+  manuallyUnlocked Boolean  @default(false)
+  records          Json
+  createdAt        DateTime @default(now())
+
+  @@unique([schoolId, academicSession, date, className, sectionName])
+  @@map("Attendance")
+}
+
+// Was lib/notices.js's in-memory `globalThis.__NOTICES_BY_SCHOOL__` (see
+// lib/schoolScope.js) — now real per-school rows, same convention as
+// Attendance. `postedByTeacherId` is a plain string (not a real FK) since a
+// notice must survive that teacher later being removed — same reasoning as
+// keeping Section.classTeacherId's history intact isn't a concern here since
+// this is just historical attribution, never joined back on.
+// Academics > Calendar (see lib/calendarEvents.js). category/color are plain
+// Strings, not Prisma enums — same convention as Notice.audience/priority —
+// so lib/calendarEventConstants.js's client-safe arrays stay the single
+// source of truth. color defaults from category (see CATEGORY_COLOR_MAP) but
+// is independently overridable via the drawer's own Color Selector.
+model CalendarEvent {
+  id               String   @id @default(cuid())
+  schoolId         String
+  school           School   @relation(fields: [schoolId], references: [id])
+  title            String
+  category         String
+  color            String
+  startDate        String
+  endDate          String
+  appliesToType    String   @default("Whole School")
+  // Multiple classes ('Specific Class': string[] of class names) or multiple
+  // class+section pairs ('Specific Section': {class, section}[]) — replaced
+  // the old single appliesToClass/appliesToSection strings so one event can
+  // target more than one class/section at once.
+  appliesToClasses  Json    @default("[]")
+  appliesToSections Json    @default("[]")
+  description      String   @default("")
+  isVisible        Boolean  @default(true)
+  academicSession  String   @default("")
+  createdAt        DateTime @default(now())
+
+  @@map("CalendarEvents")
+}
+
+model Notice {
+  id                String   @id @default(cuid())
+  schoolId          String
+  school            School   @relation(fields: [schoolId], references: [id])
+  title             String
+  message           String
+  audience          String
+  academicSession   String   @default("")
+  className         String   @default("")
+  sectionName       String   @default("")
+  priority          String   @default("Normal")
+  expiryDate        String   @default("")
+  postedByName      String
+  postedByRole      String
+  postedByTeacherId String?
+  attachmentUrl     String?
+  attachmentName    String?
+  attachmentSize    Int?
+  createdAt         DateTime @default(now())
+
+  @@map("Notices")
+}
+
+// assignedByTeacherId stays a plain String, not a relation, for the same
+// reason as Notice.postedByTeacherId — historical attribution that must
+// survive that teacher later being removed.
+model Homework {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id])
+  academicSession     String
+  className           String
+  sectionName         String
+  subject             String
+  title               String
+  description         String   @default("")
+  assignedDate        String
+  assignedByName      String
+  assignedByTeacherId String?
+  createdAt           DateTime @default(now())
+
+  @@index([schoolId, academicSession, className, sectionName])
+  @@map("Homeworks")
+}
+
+// Was lib/academicSessions.js's in-memory `globalThis.__ACADEMIC_SESSIONS_BY_SCHOOL__`
+// (see lib/schoolScope.js) — now real per-school rows, same convention as
+// Notice/Attendance. Exactly one row per school should have status "Active"
+// at a time (enforced in code by setActiveSession, not a DB constraint —
+// same tradeoff as Section's one-class-teacher-per-section rule).
+model AcademicSession {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  name        String
+  startDate   String
+  endDate     String
+  description String   @default("")
+  status      String   @default("Upcoming")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@unique([schoolId, name])
+  @@map("AcademicSessions")
+}
+
+enum ExamStatus {
+  Draft
+  Published
+  Completed
+}
+
+// One exam "event" (e.g. "Half Yearly 2025") spanning several classes over a
+// date range. `classes` is a flat String[] of applicable class names, same
+// convention as Class.subjects — never a nested shape since it's only ever
+// read as a whole list, never filtered element-by-element in a query.
+// Per-class/section/subject scheduling lives in ExamSchedule, not here.
+model Exam {
+  id              String         @id @default(cuid())
+  schoolId        String
+  school          School         @relation(fields: [schoolId], references: [id])
+  name            String
+  academicSession String
+  examType        String
+  startDate       String
+  endDate         String
+  classes         String[]
+  description     String         @default("")
+  status          ExamStatus     @default(Draft)
+  // A Re-Test/Improvement/Supplementary exam (whatever the admin types into
+  // examType, e.g. "Re-Exam") is just an ordinary Exam row that additionally
+  // points at the exam it's retaking — its own ExamSchedule rows only ever
+  // need to cover whichever students/subjects are actually being retested,
+  // never a full duplicate of the parent's date sheet. `retakeResultPolicy`
+  // says how to reconcile the two exams' ExamResult for the same student
+  // once both exist (see lib/examResults.js's getEffectiveExamResult) —
+  // each exam's own ExamResult row is never rewritten by the other, this
+  // only affects which one counts as "the" result when asked.
+  parentExamId    String?
+  parentExam      Exam?          @relation("ExamRetake", fields: [parentExamId], references: [id])
+  retakes         Exam[]         @relation("ExamRetake")
+  retakeResultPolicy String       @default("Latest")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  schedules       ExamSchedule[]
+  marks           ExamMark[]
+  results         ExamResult[]
+  auditLogs       ExamAuditLog[]
+
+  @@index([schoolId, academicSession])
+  @@map("Exams")
+}
+
+// One row per exam+class+section+subject — the actual date sheet entry a
+// teacher enters marks against. `sectionName` may be blank to mean "the
+// whole class" (mirrors Notice's className/sectionName convention) only when
+// the exam doesn't need per-section date-sheet variation; ExamMark still
+// always resolves down to individual students regardless.
+model ExamSchedule {
+  id           String     @id @default(cuid())
+  schoolId     String
+  school       School     @relation(fields: [schoolId], references: [id])
+  examId       String
+  exam         Exam       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject      String
+  className    String
+  sectionName  String     @default("")
+  examDate     String
+  startTime    String     @default("")
+  endTime      String     @default("")
+  maxMarks     Int
+  passingMarks Int
+  examMode     String     @default("Theory")
+  room         String     @default("")
+  invigilator  String     @default("")
+  // How this subject is marked — "Numeric" (the original/default, feeds
+  // ExamMark.marksObtained) vs "Grade" (ExamMark.gradeValue, e.g. A/B/C) vs
+  // "Remarks" (ExamMark.remarksValue, e.g. "Excellent"/"Good"). Non-Numeric
+  // schedules still go through the same Draft→Submitted→Approved pipeline,
+  // they just aren't counted in generateExamResults' numeric total/%.
+  markingType  String     @default("Numeric")
+  // True when this row also carries a separate practical component, entered
+  // and passed independently of the theory marksObtained above (see
+  // ExamMark.practicalMarksObtained) — "Theory + Practical pass separately"
+  // rather than one combined number.
+  hasPractical            Boolean @default(false)
+  practicalMaxMarks       Int     @default(0)
+  practicalPassingMarks   Int     @default(0)
+  // True when only some students in the class take this subject (Class
+  // 11/12-style optional/elective) — which ones is recorded in
+  // ExamOptionalEnrollment; a non-optional schedule (the default) still
+  // applies to every student in className+sectionName, unchanged.
+  isOptional   Boolean    @default(false)
+  // Multiplier applied to both marksObtained and maxMarks when
+  // generateExamResults sums a student's total — default 1 for every
+  // existing/new row leaves today's equal-weighted sum untouched; only an
+  // admin explicitly setting a different weight changes the calculation.
+  weight       Float      @default(1)
+  createdAt    DateTime   @default(now())
+  marks        ExamMark[]
+  optionalEnrollments ExamOptionalEnrollment[]
+
+  @@unique([examId, className, sectionName, subject])
+  @@index([schoolId, examId])
+  @@map("ExamSchedules")
+}
+
+// Which students actually take one optional/elective ExamSchedule (only
+// meaningful when that schedule's isOptional is true) — e.g. Student A is
+// enrolled in "Computer Science", Student B in "Physical Education", both
+// alternatives within the same class. A student with no enrollment row for
+// an optional schedule is simply not expected to have marks for it —
+// getMarksSheet excludes them from that roster, and generateExamResults
+// excludes that schedule from their applicable-schedules set entirely
+// (never blocks their result waiting for a subject they never took).
+model ExamOptionalEnrollment {
+  id             String       @id @default(cuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  examScheduleId String
+  examSchedule   ExamSchedule @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([examScheduleId, studentId])
+  @@map("ExamOptionalEnrollments")
+}
+
+// "Rejected" deliberately doesn't exist here — a reject sends a mark back to
+// "UnderReview" (with rejectionReason set), not to a dead-end status, since
+// the teacher must still be able to edit and resubmit it (see
+// lib/examMarks.js's rejectMarks/saveExamMarks). A prior version of this
+// enum had an unused "Rejected" value no code path ever assigned; removed
+// rather than wired up, since repurposing "UnderReview" everywhere it's
+// already relied on (verification UI badges/filters, unlock/progress
+// queries) for a purely cosmetic rename risked far more than it fixed.
+enum ExamMarkStatus {
+  Draft
+  Submitted
+  UnderReview
+  Approved
+  Published
+}
+
+// One row per student per ExamSchedule — the actual marks-entry unit. Kept
+// relational (not a Json array on ExamSchedule, unlike Attendance.records)
+// because marks need independent per-student status tracking (Draft →
+// Submitted → Approved → Published) and per-student verification/rejection,
+// not just a snapshot written once and read back whole.
+model ExamMark {
+  id                 String         @id @default(cuid())
+  schoolId           String
+  school             School         @relation(fields: [schoolId], references: [id])
+  examId             String
+  exam               Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examScheduleId     String
+  examSchedule       ExamSchedule   @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
+  studentId          String
+  student            Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  marksObtained      Float?
+  // "Absent" here has never meant "scored 0" — marksObtained stays null
+  // whenever isAbsent is true (see lib/examMarks.js's saveExamMarks), so a
+  // genuine zero score and an absence were always distinguishable in the
+  // data; isAbsent itself is now just a convenience flag derived from
+  // attendanceStatus (true for anything other than "Present" — Absent,
+  // Medical, Exempted, ReExam), kept so every existing isAbsent-only reader
+  // (grid displays, generateExamResults) keeps working unchanged.
+  isAbsent           Boolean        @default(false)
+  attendanceStatus   String         @default("Present")
+  // Only meaningful when the parent ExamSchedule.markingType is "Grade" or
+  // "Remarks" respectively — marksObtained/practicalMarksObtained stay null
+  // for those rows, this is what actually got entered instead.
+  gradeValue         String         @default("")
+  remarksValue       String         @default("")
+  // Only meaningful when the parent ExamSchedule.hasPractical is true —
+  // graded and passed independently of marksObtained (the theory mark).
+  practicalMarksObtained Float?
+  status             ExamMarkStatus @default(Draft)
+  rejectionReason    String         @default("")
+  enteredByTeacherId String?
+  enteredAt          DateTime?
+  verifiedByAdminId  String?
+  verifiedAt         DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@unique([examScheduleId, studentId])
+  @@index([schoolId, examId])
+  @@map("ExamMarks")
+}
+
+// One row per student per Exam — the aggregated, calculated result (total,
+// percentage, grade, pass/fail) derived from that student's Approved
+// ExamMarks. Recomputed (not incrementally patched) whenever admin
+// regenerates/publishes a result, so it's always safe to fully overwrite.
+model ExamResult {
+  id            String    @id @default(cuid())
+  schoolId      String
+  school        School    @relation(fields: [schoolId], references: [id])
+  examId        String
+  exam          Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  totalMarks    Float     @default(0)
+  totalMaxMarks Float     @default(0)
+  percentage    Float     @default(0)
+  grade         String    @default("")
+  isPass        Boolean   @default(true)
+  status        String    @default("Draft")
+  publishedAt   DateTime?
+  // Frozen at generateExamResults() time from the student's class/section
+  // *then* — never re-derived from the live Student row afterward, unlike
+  // getExamResults' old behavior of joining Student purely for display.
+  // Without this, a student promoted or transferred to a new class/section
+  // after the exam would show that new class/section against an old exam's
+  // result. Every ExamResult row is only ever created by
+  // generateExamResults, so this is always populated — no fallback needed.
+  className     String    @default("")
+  sectionName   String    @default("")
+  // Rank among the same exam+class+section group, by percentage descending
+  // — recomputed for every affected student whenever generateExamResults
+  // runs (see lib/examResults.js's computeRanks), using the school's own
+  // School.examRankTieMode for how ties resolve (1,1,3 vs 1,1,2). Null for
+  // any result generated before rank support existed, until the next
+  // regenerate.
+  rank          Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([examId, studentId])
+  @@map("ExamResults")
+}
+
+// Append-only action history for one Exam — was entirely missing before
+// (ExamMark/ExamResult only ever tracked the *last* actor/timestamp via
+// enteredByTeacherId/verifiedByAdminId, never earlier states or a full
+// timeline). Every row is a fact that happened, never updated or deleted
+// once written; `meta` holds action-specific detail (e.g. a rejection's
+// {studentId, subject, reason}) without needing a column per action type.
+model ExamAuditLog {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  action    String
+  actorId   String?
+  actorRole String   @default("")
+  actorName String   @default("")
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, examId, createdAt])
+  @@map("ExamAuditLogs")
+}
+
+// School-configurable grading scale (min%–max% → letter grade + pass/fail),
+// since no grading system existed anywhere in the codebase before this
+// module — lib/exams.js seeds a sensible default scale per school on first
+// use rather than hardcoding grade boundaries into the calculation itself.
+model GradeScale {
+  id         String   @id @default(cuid())
+  schoolId   String
+  school     School   @relation(fields: [schoolId], references: [id])
+  minPercent Float
+  maxPercent Float
+  grade      String
+  isPass     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId])
+  @@map("GradeScales")
+}
+
+// A mobile device's Expo push token, scoped to whichever owner (Teacher,
+// Parent — Student.id, or SchoolAdmin) it was registered under — see
+// lib/pushTokens.js and app/api/notifications/register-token/route.js.
+// `token` is globally unique (Expo issues one per device+app install, not
+// per owner), so re-registering on app open upserts the same row rather than
+// accumulating duplicates for the same device.
+model PushToken {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  ownerRole String
+  ownerId   String
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+
+  @@map("PushTokens")
+}
+
+// Persistent in-app notification feed for the Parent Portal bell — separate
+// from PushToken (which only fires a transient mobile push) and from Notice
+// (school-wide/class content an admin manages). A row here is one event a
+// specific student's parent should see, read/unread tracked per row. Created
+// alongside a Notice/Homework's existing push fan-out (see
+// lib/parentNotifications.js), never edited by an admin directly.
+model ParentNotification {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  link      String?
+  // The Notice/Homework row this was generated from (e.g. a Notice.id) — lets
+  // deleting that source row clean up the notifications it created, instead
+  // of them outliving it forever as a decoupled log. Null for anything not
+  // tied to one specific source row.
+  sourceId  String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([studentId, isRead])
+  @@index([sourceId])
+  @@map("ParentNotifications")
+}
+
+// One row per recipient Teacher — same shape/convention as
+// ParentNotification (per-recipient read state, optional sourceId back to
+// the Notice/Exam row this was generated from). Powers the Teacher
+// dashboard's unread bell-count badge.
+model TeacherNotification {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  link      String?
+  sourceId  String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([teacherId, isRead])
+  @@index([sourceId])
+  @@map("TeacherNotifications")
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  schoolId           String
+  school             School        @relation(fields: [schoolId], references: [id])
+  studentId          String
+  student            Student       @relation(fields: [studentId], references: [id])
+  studentFeeId       String
+  studentFee         StudentFee    @relation(fields: [studentFeeId], references: [id])
+  amount             Int
+  method             PaymentMethod
+  status             PaymentStatus @default(PENDING)
+  razorpayOrderId    String?       @unique
+  razorpayPaymentId  String?       @unique
+  paidAt             DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}

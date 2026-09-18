@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 9999px;
+}
+
+/* Sidebar nav (components/dashboard/Sidebar.jsx) scrolls when a submenu's
+   expansion pushes it past the viewport height — a thin scrollbar there
+   still showed despite an earlier Tailwind arbitrary-variant hide attempt
+   ([&::-webkit-scrollbar]:hidden), because Tailwind's generated utilities
+   land at the top of this file (via the @import above) and the *-scoped
+   rules above override them on the tie. Defined here, after those, so it
+   always wins regardless of specificity. */
+.sidebar-nav-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-nav-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Fallback @page for printable reports (see
+   components/students/StudentListReport.jsx) — matches its initial mode
+   (full-detail, landscape). The component itself injects a <style> tag
+   overriding this with the correct orientation for whichever mode
+   (full-detail vs Blank Sheet) is actually showing, using a single
+   *unnamed* @page rule swapped at runtime rather than two named @page
+   rules — named pages (CSS Paged Media's `page` property) aren't reliably
+   honored by real browsers' print dialogs, which can fall back to the
+   printer's own paper orientation and clip content sized for the other
+   orientation. This fallback only matters for the instant before that
+   effect runs. Margin shorthand is top/bottom then left/right. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 18mm 10mm;
+  }
+}
