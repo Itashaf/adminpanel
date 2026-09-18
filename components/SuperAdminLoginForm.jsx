@@ -35,6 +35,13 @@ export default function SuperAdminLoginForm() {
       setFormError(result.error);
       return;
     }
+    // router.refresh() first — if this browser ever visited
+    // /super-admin/schools before logging in (redirected to /login by
+    // middleware.js), Next's client-side Router Cache can hold onto that
+    // earlier redirect and serve it straight from cache on a plain push,
+    // even though the new session cookie is already set. refresh() discards
+    // that cache so the push below actually re-fetches with the new session.
+    router.refresh();
     router.push('/super-admin/schools');
   };
 

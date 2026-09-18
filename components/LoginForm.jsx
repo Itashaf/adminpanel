@@ -76,9 +76,18 @@ export default function LoginForm() {
         setFormError(result.error);
         return;
       }
+      // router.refresh() first — if this browser ever visited /parent (or
+      // /dashboard below) before logging in and got redirected to /login by
+      // middleware.js, Next's client-side Router Cache can hold onto that
+      // earlier redirect and serve it straight from cache on a plain push,
+      // even though the new session cookie is already set. refresh()
+      // discards that cache so the push below actually re-fetches with the
+      // new session.
+      router.refresh();
       router.push('/parent');
       return;
     }
+    router.refresh();
     router.push('/dashboard');
   };
 
