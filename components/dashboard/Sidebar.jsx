@@ -11,7 +11,6 @@ import {
   FiUserPlus,
   FiLayers,
   FiCalendar,
-  FiShield,
   FiSettings,
   FiChevronDown,
   FiX,
@@ -100,7 +99,6 @@ const ADMIN_NAV_ITEMS = [
       { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
     ],
   },
-  { label: 'Users & Roles', href: '/dashboard/roles', icon: FiShield },
   { label: 'School Settings', href: '/dashboard/settings', icon: FiSettings },
 ];
 
