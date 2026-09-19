@@ -252,6 +252,13 @@ model Student {
   payments            Payment[]
 
   @@unique([schoolId, admissionId])
+  // Every roster/count query in the app filters on this exact combination
+  // (class attendance rosters, exam-marks alerts, notice recipients, the
+  // paginated students table) — previously only the admissionId unique
+  // index existed, so these all fell back to a scan over the
+  // schoolId-prefixed rows. Degrades linearly as a school's student count
+  // grows; this index keeps it a direct lookup.
+  @@index([schoolId, academicSession, class, section, status])
   @@map("Students")
 }
 

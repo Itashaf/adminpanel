@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateTeacherCredentials } from '@/lib/teachers';
 import { signSessionToken } from '@/lib/auth/jwt';
+import { checkLoginRateLimit } from '@/lib/auth/loginRateLimit';
 
 // Token-returning counterpart to app/actions/auth.js's teacherLoginAction —
 // that Server Action only flips lib/currentUser.js's in-memory dashboard
@@ -14,6 +15,14 @@ export async function POST(request) {
   const { email, password } = await request.json();
   if (!email || !password) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+
+  const rateLimit = checkLoginRateLimit(request, email);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many login attempts. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } }
+    );
   }
 
   const { teacher, schoolId, error } = await validateTeacherCredentials(email, password);

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getPrintableClassSections } from '@/lib/printMarksheet';
-import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
 
 export async function GET() {
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentActor());
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }

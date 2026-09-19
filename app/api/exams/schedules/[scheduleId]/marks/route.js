@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getMarksSheet, saveExamMarks } from '@/lib/examMarks';
-import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
 
 // GET /api/exams/schedules/[scheduleId]/marks — the full student roster for
 // this schedule with any already-entered marks, the exact shape the Teacher
 // marks-entry screen (Phase 3) renders.
 export async function GET(request, { params }) {
   const { scheduleId } = await params;
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentActor());
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
@@ -31,7 +32,8 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentActor());
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
 
   try {
     const saved = await saveExamMarks(scheduleId, rows, currentUser, { submit: Boolean(submit) });

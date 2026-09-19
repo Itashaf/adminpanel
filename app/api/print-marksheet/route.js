@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPrintableClassSections, getPrintableRoster } from '@/lib/printMarksheet';
-import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
 
 // GET /api/print-marksheet?className=...&sectionName=...
 export async function GET(request) {
@@ -8,7 +8,8 @@ export async function GET(request) {
   const className = searchParams.get('className');
   const sectionName = searchParams.get('sectionName');
 
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentActor());
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }

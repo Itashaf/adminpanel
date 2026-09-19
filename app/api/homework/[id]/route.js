@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updateHomework, deleteHomework } from '@/lib/homework';
-import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
 
 export async function PUT(request, { params }) {
   const { id } = await params;
@@ -12,7 +12,8 @@ export async function PUT(request, { params }) {
 
   // See app/api/homework/route.js's POST for why the real session takes
   // priority over the dashboard toggle here.
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentActor());
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
 
   try {
     const homework = await updateHomework(id, data, currentUser);
@@ -27,7 +28,8 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const { id } = await params;
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentActor());
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
 
   try {
     const deleted = await deleteHomework(id, currentUser);

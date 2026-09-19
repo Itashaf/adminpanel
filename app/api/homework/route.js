@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createHomework, getVisibleHomework } from '@/lib/homework';
-import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
 
 // GET /api/homework — mirrors app/api/notices/route.js's GET: real signed-in
 // session only (mobile Teacher/Parent JWT or web SchoolAdmin cookie), scoped
@@ -32,7 +32,8 @@ export async function POST(request) {
   // provides). Fall back to the toggle only when there's no real session at
   // all (e.g. a SchoolAdmin previewing "as Teacher" without a real teacher
   // login).
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentActor());
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
 
   try {
     const homework = await createHomework(data, currentUser);
