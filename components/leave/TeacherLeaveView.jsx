@@ -18,10 +18,12 @@ function formatDate(dateString) {
 
 const EMPTY_FORM = { leaveType: 'Casual', startDate: '', endDate: '', reason: '' };
 
-function ApplyLeaveModal({ isOpen, onClose, onSuccess }) {
+function ApplyLeaveModal({ isOpen, onClose, onSuccess, balance }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const balanceForType = balance.find((b) => b.leaveType === form.leaveType);
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
@@ -65,6 +67,13 @@ function ApplyLeaveModal({ isOpen, onClose, onSuccess }) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type</label>
           <Dropdown options={LEAVE_TYPE_OPTIONS} value={form.leaveType} onChange={(v) => setForm({ ...form, leaveType: v })} />
+          {balanceForType && (
+            <p className="text-xs text-gray-400 mt-1.5">
+              {balanceForType.quota === null
+                ? 'No annual limit for this leave type.'
+                : `${balanceForType.remaining} of ${balanceForType.quota} day(s) remaining this year.`}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -121,7 +130,32 @@ function LeaveRow({ leave }) {
   );
 }
 
-export default function TeacherLeaveView({ leaves }) {
+function BalanceCard({ balance }) {
+  const isUnlimited = balance.quota === null;
+  const usedTotal = balance.usedApproved + balance.usedPending;
+  const pct = isUnlimited || balance.quota === 0 ? 0 : Math.min(100, Math.round((usedTotal / balance.quota) * 100));
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <p className="text-xs font-medium text-gray-500">{balance.leaveType} Leave</p>
+      <p className="text-lg font-bold text-gray-900 mt-1">
+        {isUnlimited ? 'Unlimited' : `${balance.remaining} / ${balance.quota}`}
+      </p>
+      {!isUnlimited && (
+        <>
+          <div className="h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+            <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5">
+            {balance.usedApproved} used{balance.usedPending > 0 ? `, ${balance.usedPending} pending` : ''}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function TeacherLeaveView({ leaves, balance = [] }) {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -142,6 +176,14 @@ export default function TeacherLeaveView({ leaves }) {
         <Button label="Apply for Leave" icon={<FiPlus className="w-4 h-4" />} onClick={() => setShowModal(true)} />
       </div>
 
+      {balance.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {balance.map((b) => (
+            <BalanceCard key={b.leaveType} balance={b} />
+          ))}
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {leaves.length === 0 ? (
           <div className="text-center py-16 px-6">
@@ -155,7 +197,7 @@ export default function TeacherLeaveView({ leaves }) {
         )}
       </div>
 
-      <ApplyLeaveModal isOpen={showModal} onClose={() => setShowModal(false)} onSuccess={handleSuccess} />
+      <ApplyLeaveModal isOpen={showModal} onClose={() => setShowModal(false)} onSuccess={handleSuccess} balance={balance} />
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
     </div>
   );

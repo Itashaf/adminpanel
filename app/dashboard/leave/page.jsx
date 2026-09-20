@@ -1,6 +1,6 @@
 import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
-import { getAllLeaveRequests, getLeavesForTeacher } from '@/lib/teacherLeaves';
+import { getAllLeaveRequests, getLeavesForTeacher, getLeaveBalance } from '@/lib/teacherLeaves';
 import TeacherLeaveView from '@/components/leave/TeacherLeaveView';
 import AdminLeaveView from '@/components/leave/AdminLeaveView';
 
@@ -24,8 +24,10 @@ export default async function LeavePage() {
   const schoolId = await resolveSchoolId();
 
   if (currentUser.role === 'Teacher') {
-    const leaves = currentUser.teacherId ? await getLeavesForTeacher(currentUser.teacherId, schoolId) : [];
-    return <TeacherLeaveView leaves={leaves} />;
+    const [leaves, balance] = currentUser.teacherId
+      ? await Promise.all([getLeavesForTeacher(currentUser.teacherId, schoolId), getLeaveBalance(currentUser.teacherId, schoolId)])
+      : [[], []];
+    return <TeacherLeaveView leaves={leaves} balance={balance} />;
   }
 
   const leaves = await getAllLeaveRequests(schoolId);
