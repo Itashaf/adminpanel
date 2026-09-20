@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
 import { requireParent } from '@/lib/iam';
-import { getAllCalendarEvents } from '@/lib/calendarEvents';
+import { getStudentById } from '@/lib/students';
+import { getCalendarEventsForStudent } from '@/lib/calendarEvents';
 
-// School-wide, same as the teacher-facing route — every parent at the
-// school sees the same calendar. Only isVisible events reach the client.
+// Scoped to the active child's class/section — same rule as the Parent web
+// portal's app/parent/calendar/page.jsx (Whole School always shows,
+// Specific Class needs the child's class, Specific Section needs an exact
+// class+section match). Previously this returned every isVisible event
+// school-wide, unlike the web portal; kept in sync with it now.
 export async function GET() {
   const { actor, error } = await requireParent();
   if (error) return error;
 
-  const events = await getAllCalendarEvents(actor.schoolId);
-  return NextResponse.json(events.filter((e) => e.isVisible));
+  const student = await getStudentById(actor.studentId, actor.schoolId);
+  if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+
+  const events = await getCalendarEventsForStudent(actor.schoolId, student);
+  return NextResponse.json(events);
 }

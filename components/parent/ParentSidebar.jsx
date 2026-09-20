@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FaGraduationCap } from 'react-icons/fa';
+import { FaGraduationCap, FaRegCalendarAlt } from 'react-icons/fa';
 import {
   FiHome,
   FiCreditCard,
@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { label: 'Attendance', href: '/parent/attendance', icon: FiCalendar },
   { label: 'Homework', href: '/parent/homework', icon: FiBook },
   { label: 'Notices', href: '/parent/notices', icon: FiBell },
+  { label: 'Calendar', href: '/parent/calendar', icon: FaRegCalendarAlt },
   { label: 'Exams', href: '/parent/exams', icon: FiFileText },
   { label: 'My Profile', href: '/parent/profile', icon: FiUser },
 ];
