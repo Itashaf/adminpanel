@@ -10,14 +10,17 @@ import MyClassesCard from '@/components/dashboard/MyClassesCard';
 import TeacherQuickLists from '@/components/dashboard/TeacherQuickLists';
 import { getDashboardOverview, getTeacherDashboardOverview } from '@/lib/dashboard';
 import { getCurrentUser } from '@/lib/currentUser';
-import { getCurrentActor } from '@/lib/iam';
+import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
 
 export const metadata = {
   title: 'Dashboard | SchoolApp 360',
 };
 
 export default async function DashboardPage() {
-  const currentUser = await getCurrentUser();
+  // Real session first — carries classTeacherOf (see lib/iam.js), which
+  // getTeacherDashboardOverview needs for a Class Teacher with zero subject
+  // assignments of their own. The dashboard-toggle fallback never has it.
+  const currentUser = (await getCurrentUserInfo()) || (await getCurrentUser());
 
   if (currentUser.role === 'Teacher') {
     return <TeacherDashboard currentUser={currentUser} />;

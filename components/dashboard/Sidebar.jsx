@@ -99,6 +99,7 @@ const ADMIN_NAV_ITEMS = [
       { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
     ],
   },
+  { label: 'Leave Requests', href: '/dashboard/leave', icon: FiClock },
   { label: 'School Settings', href: '/dashboard/settings', icon: FiSettings },
 ];
 
@@ -138,9 +139,10 @@ const TEACHER_NAV_ITEMS = [
   { label: 'My Exams', href: '/dashboard/exams/list', icon: FiClipboard },
   { label: 'Marks Entry', href: '/dashboard/marks-entry', icon: FiEdit3 },
   { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
+  { label: 'My Leave', href: '/dashboard/leave', icon: FiClock },
 ];
 
-function NavLink({ label, href, icon: Icon, isActive }) {
+function NavLink({ label, href, icon: Icon, isActive, badge }) {
   return (
     <Link
       href={href}
@@ -151,7 +153,12 @@ function NavLink({ label, href, icon: Icon, isActive }) {
       }`}
     >
       <Icon className="w-[18px] h-[18px]" />
-      {label}
+      <span className="flex-1">{label}</span>
+      {badge > 0 && (
+        <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -189,7 +196,7 @@ function NavGroup({ item, pathname, isExpanded, onToggle }) {
   );
 }
 
-export default function Sidebar({ isOpen = false, onClose, school, role }) {
+export default function Sidebar({ isOpen = false, onClose, school, role, pendingLeaveCount = 0 }) {
   const pathname = usePathname();
   const displayName = school?.displayName || 'SchoolApp 360';
   const navItems = role === 'Teacher' ? TEACHER_NAV_ITEMS : ADMIN_NAV_ITEMS;
@@ -251,7 +258,12 @@ export default function Sidebar({ isOpen = false, onClose, school, role }) {
                 onToggle={() => setExpandedLabel((prev) => (prev === item.label ? null : item.label))}
               />
             ) : (
-              <NavLink key={item.href} {...item} isActive={pathname === item.href.split('?')[0]} />
+              <NavLink
+                key={item.href}
+                {...item}
+                isActive={pathname === item.href.split('?')[0]}
+                badge={item.href === '/dashboard/leave' ? pendingLeaveCount : undefined}
+              />
             )
           )}
         </nav>

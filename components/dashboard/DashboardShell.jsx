@@ -4,12 +4,18 @@ import { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
-export default function DashboardShell({ children, school, activeSession, sessions, currentUser, userInfo }) {
+export default function DashboardShell({ children, school, activeSession, sessions, currentUser, userInfo, pendingLeaveCount = 0 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="flex flex-1 h-full overflow-hidden bg-gray-50 print:h-auto print:overflow-visible print:bg-white">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} school={school} role={currentUser?.role} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        school={school}
+        role={currentUser?.role}
+        pendingLeaveCount={pendingLeaveCount}
+      />
       <div className="flex flex-col flex-1 min-w-0">
         <Topbar
           onMenuClick={() => setIsSidebarOpen(true)}

@@ -111,6 +111,7 @@ model School {
   gradeScales        GradeScale[]
   subjects           Subject[]
   timeTables         TimeTable[]
+  teacherLeaves      TeacherLeave[]
 }
 
 // A real login account for a parent/guardian — decoupled from any one
@@ -464,9 +465,38 @@ model Teacher {
   createdAt          DateTime             @default(now())
   classTeacherOf     Section[]
   notifications      TeacherNotification[]
+  leaveRequests      TeacherLeave[]
 
   @@unique([schoolId, employeeId])
   @@map("Teachers")
+}
+
+enum LeaveStatus {
+  Pending
+  Approved
+  Rejected
+}
+
+// A Teacher's own leave application — created by the Teacher, reviewed by a
+// SchoolAdmin/SuperAdmin. `reviewedByName` is a plain string (not a relation)
+// same convention as Homework.assignedByName, since the reviewer is always
+// an Admin, never another Teacher row this model would need to join to.
+model TeacherLeave {
+  id             String      @id @default(cuid())
+  schoolId       String
+  school         School      @relation(fields: [schoolId], references: [id])
+  teacherId      String
+  teacher        Teacher     @relation(fields: [teacherId], references: [id])
+  leaveType      String      @default("Casual")
+  startDate      String
+  endDate        String
+  reason         String
+  status         LeaveStatus @default(Pending)
+  reviewedByName String      @default("")
+  reviewNote     String      @default("")
+  reviewedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 enum ClassStatus {

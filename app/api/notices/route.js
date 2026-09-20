@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createNotice, getVisibleNotices } from '@/lib/notices';
-import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
 
 // GET /api/notices — same visibility rule as the web dashboard's notice
 // board: everyone sees "Whole School" notices, a Teacher additionally sees
@@ -26,7 +26,13 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const currentUser = await getCurrentActor();
+  // A real Teacher session must be scoped by their own classTeacherOf —
+  // getCurrentActor() alone resolves to the web dashboard's role-preview
+  // toggle, which never carries that field (same fix as app/api/homework's
+  // POST) and would leave a real Class Teacher unable to post to their own
+  // section, or worse, let the toggle's stale class silently apply instead.
+  const sessionUser = await getCurrentUserInfo();
+  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
 
   try {
     const notice = await createNotice(data, currentUser);

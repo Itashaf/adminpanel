@@ -89,13 +89,16 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
   const audience = watch('audience');
   const selectedClass = watch('className');
 
-  // A Teacher can only ever post to one of their own assigned class+section
-  // pairs — the audience is always "Class", never "Whole School", and the
-  // class/section dropdowns only ever offer their own assignments.
+  // A Teacher can only ever post to one of their own Class-Teacher sections
+  // — the audience is always "Class", never "Whole School", and the
+  // class/section dropdowns only ever offer sections they're the Class
+  // Teacher of (currentUser.classTeacherOf, from Section.classTeacherId),
+  // never a class they merely teach a subject in (currentUser.assignedClasses
+  // — that's Homework's, broader, rule, not Notices').
   const teacherClassOptions = useMemo(() => {
     if (!isTeacher) return [];
-    return [...new Set((currentUser.assignedClasses || []).map((a) => a.class))].map((c) => ({ value: c, label: c }));
-  }, [isTeacher, currentUser.assignedClasses]);
+    return [...new Set((currentUser.classTeacherOf || []).map((a) => a.class))].map((c) => ({ value: c, label: c }));
+  }, [isTeacher, currentUser.classTeacherOf]);
 
   const classSections = useClassSections();
 
@@ -106,13 +109,13 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
   const sectionOptions = useMemo(() => {
     if (!selectedClass) return [];
     if (isTeacher) {
-      return (currentUser.assignedClasses || [])
+      return (currentUser.classTeacherOf || [])
         .filter((a) => a.class === selectedClass)
         .map((a) => ({ value: a.section, label: `Section ${a.section}` }));
     }
     // Admin can also target the whole class (every section) by leaving this unset.
     return [{ value: '', label: 'All Sections' }, ...getSectionOptions(classSections, selectedClass)];
-  }, [selectedClass, isTeacher, currentUser.assignedClasses, classSections]);
+  }, [selectedClass, isTeacher, currentUser.classTeacherOf, classSections]);
 
   useEffect(() => {
     if (!isOpen) return;

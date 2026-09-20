@@ -21,6 +21,12 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const isTeacher = currentUser.role === 'Teacher';
+  // A Teacher can post a notice only for a section they're the Class Teacher
+  // of (see lib/notices.js's assertScopeAllowed) — a Teacher with no
+  // classTeacherOf entries at all (never a Class Teacher anywhere) has
+  // nothing to post to, so stays read-only same as before.
+  const isClassTeacher = isTeacher && (currentUser.classTeacherOf || []).length > 0;
+  const canPost = !isTeacher || isClassTeacher;
   const classSections = useClassSections();
 
   const classOptions = useMemo(() => {
@@ -55,9 +61,10 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
     setPage(1);
   };
 
-  // Notices are read-only for a Teacher — only a SchoolAdmin can post, edit
-  // or delete, unlike Homework which a Teacher manages for their own class.
-  const canManageFor = () => !isTeacher;
+  // A SchoolAdmin can manage any notice. A Teacher can only manage (edit/
+  // delete) a notice they themselves posted, as their own section's Class
+  // Teacher — never another teacher's or an Admin's notice.
+  const canManageFor = (notice) => !isTeacher || notice.postedByTeacherId === currentUser.teacherId;
 
   return (
     <div className="space-y-6">
@@ -65,11 +72,13 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Notices</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {isTeacher
+            {isClassTeacher
+              ? 'School-wide announcements, and post updates for your own class.'
+              : isTeacher
               ? 'School-wide announcements and updates for your classes.'
               : 'Post and manage announcements for the school or a specific class.'}
           </p>
-          {isTeacher && (
+          {isTeacher && !isClassTeacher && (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-full px-3 py-1 mt-2">
               <FiUserCheck className="w-3.5 h-3.5" />
               Read-only — showing whole-school notices and your assigned classes
@@ -77,7 +86,7 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
           )}
         </div>
 
-        {!isTeacher && (
+        {canPost && (
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
@@ -90,7 +99,7 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
       </div>
 
       {notices.length === 0 ? (
-        <NoticesEmptyState onPostNotice={isTeacher ? undefined : () => setShowAddModal(true)} />
+        <NoticesEmptyState onPostNotice={canPost ? () => setShowAddModal(true) : undefined} />
       ) : (
         <>
           <NoticesFiltersBar

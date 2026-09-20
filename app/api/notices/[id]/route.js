@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { updateNotice, deleteNotice, getNoticeById } from '@/lib/notices';
-import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
+
+// A real Teacher session must be scoped by their own classTeacherOf/teacherId
+// (for the scope check and the postedByTeacherId ownership check) —
+// getCurrentActor() alone resolves to the web dashboard's role-preview
+// toggle, which never carries classTeacherOf (same fix as app/api/notices'
+// POST and app/api/homework's POST).
+async function resolveActor() {
+  const sessionUser = await getCurrentUserInfo();
+  return sessionUser || (await mergeWithDashboardActor(sessionUser));
+}
 
 // GET /api/notices/:id — see app/api/notices/route.js's GET for why this
 // uses getCurrentUserInfo() rather than getCurrentActor(). A Teacher asking
@@ -29,7 +39,7 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const currentUser = await getCurrentActor();
+  const currentUser = await resolveActor();
 
   try {
     const notice = await updateNotice(id, data, currentUser);
@@ -44,7 +54,7 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const { id } = await params;
-  const currentUser = await getCurrentActor();
+  const currentUser = await resolveActor();
 
   try {
     const deleted = await deleteNotice(id, currentUser);
