@@ -11,6 +11,15 @@ import { getStaffAttendance, saveStaffAttendance } from '@/lib/api';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
+// Not a real selectable attendance status (STATUS_ORDER/STATUS_META only
+// ever hold Present/Absent/Leave, shared with Student attendance) — purely a
+// display state for a teacher nobody has accounted for yet on this date.
+const NOT_MARKED_META = { label: 'Not Marked', pill: 'bg-gray-100 text-gray-500', dot: 'bg-gray-300' };
+
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
 // Decorative-only sparkline (no historical series exists to chart honestly)
 // — same convention as components/dashboard/StatCard.jsx's own, just with
 // its own accent colors since that component's ACCENTS map only has
@@ -42,6 +51,14 @@ function StatCard({ label, value, pct, icon, iconBg, barColor }) {
 
 function formatDateTime(iso) {
   return new Date(iso).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+}
+
+function CheckInCell({ checkInAt }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-full px-2.5 py-1">
+      Checked in {formatTime(checkInAt)}
+    </span>
+  );
 }
 
 function RemarkCell({ value, onSave }) {
@@ -83,7 +100,7 @@ function RemarkCell({ value, onSave }) {
 }
 
 function TeacherTableRow({ teacher, serialNumber, status, remark, onStatusChange, onRemarkChange }) {
-  const statusMeta = STATUS_META[status] || STATUS_META.Present;
+  const statusMeta = STATUS_META[status] || NOT_MARKED_META;
 
   return (
     <tr className="hover:bg-gray-50/60 transition">
@@ -109,7 +126,11 @@ function TeacherTableRow({ teacher, serialNumber, status, remark, onStatusChange
         </span>
       </td>
       <td className="py-3 pr-4">
-        <RemarkCell value={remark} onSave={(v) => onRemarkChange(teacher.teacherId, v)} />
+        {teacher.checkInAt ? (
+          <CheckInCell checkInAt={teacher.checkInAt} />
+        ) : (
+          <RemarkCell value={remark} onSave={(v) => onRemarkChange(teacher.teacherId, v)} />
+        )}
       </td>
       <td className="py-3 pr-6">
         <div className="flex items-center justify-end gap-1.5">
@@ -182,7 +203,11 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
     return [{ value: '', label: 'All Subjects' }, ...subjects.map((s) => ({ value: s, label: s }))];
   }, [data.roster]);
 
-  const statusOptions = [{ value: '', label: 'All Status' }, ...STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label }))];
+  const statusOptions = [
+    { value: '', label: 'All Status' },
+    ...STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label })),
+    { value: 'NotMarked', label: 'Not Marked' },
+  ];
 
   const filteredRoster = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -193,7 +218,8 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
         t.name.toLowerCase().includes(query) ||
         t.employeeId.toLowerCase().includes(query) ||
         t.subject?.toLowerCase().includes(query);
-      const matchesStatus = !statusFilter || status === statusFilter;
+      const matchesStatus =
+        !statusFilter || (statusFilter === 'NotMarked' ? !status : status === statusFilter);
       const matchesSubject = !subjectFilter || t.subject === subjectFilter;
       return matchesSearch && matchesStatus && matchesSubject;
     });
@@ -215,14 +241,24 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
     setError('');
-    try {
-      const payload = data.roster.map((t) => ({
+    // Only teachers with an explicit status (self-checked-in, on an approved
+    // leave, or an admin actually clicked a P/A/LV button) get saved — a
+    // still-"Not Marked" teacher is left that way rather than silently
+    // defaulted to Present just because Save was clicked.
+    const payload = data.roster
+      .filter((t) => records[t.teacherId]?.status)
+      .map((t) => ({
         teacherId: t.teacherId,
-        status: records[t.teacherId]?.status || 'Present',
-        remark: records[t.teacherId]?.remark || '',
+        status: records[t.teacherId].status,
+        remark: records[t.teacherId].remark || '',
       }));
+    if (payload.length === 0) {
+      setError('Mark at least one teacher’s attendance before saving.');
+      return;
+    }
+    setIsSaving(true);
+    try {
       const result = await saveStaffAttendance(date, payload);
       setData((prev) => ({ ...prev, isMarked: true, markedBy: result.markedBy, markedAt: result.markedAt }));
       setToastMessage('Staff attendance saved.');
