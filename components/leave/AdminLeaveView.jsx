@@ -49,7 +49,7 @@ function RejectModal({ leave, onClose, onConfirm }) {
   );
 }
 
-function LeaveRow({ leave, onApprove, onReject }) {
+function LeaveRow({ leave, onApprove, onReject, balanceForType }) {
   const dateLabel =
     leave.endDate !== leave.startDate ? `${formatDate(leave.startDate)} – ${formatDate(leave.endDate)}` : formatDate(leave.startDate);
 
@@ -61,6 +61,16 @@ function LeaveRow({ leave, onApprove, onReject }) {
             <p className="text-sm font-semibold text-gray-900">{leave.teacherName}</p>
             <span className="text-xs text-gray-400">{leave.leaveType}</span>
             <LeaveStatusBadge status={leave.status} />
+            {balanceForType && balanceForType.quota !== null && (
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  balanceForType.remaining <= 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
+                }`}
+                title={`${leave.leaveType} leave used this year (Approved + Pending)`}
+              >
+                {balanceForType.remaining}/{balanceForType.quota} left this year
+              </span>
+            )}
           </div>
           <p className="text-xs text-gray-500 mt-1">{dateLabel}</p>
           <p className="text-sm text-gray-600 mt-2">{leave.reason}</p>
@@ -97,7 +107,7 @@ function LeaveRow({ leave, onApprove, onReject }) {
   );
 }
 
-export default function AdminLeaveView({ leaves }) {
+export default function AdminLeaveView({ leaves, balanceByTeacher = {} }) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState('');
   const [rejectingLeave, setRejectingLeave] = useState(null);
@@ -151,7 +161,13 @@ export default function AdminLeaveView({ leaves }) {
           </div>
         ) : (
           filtered.map((leave) => (
-            <LeaveRow key={leave.id} leave={leave} onApprove={(id) => handleReview(id, 'Approved')} onReject={setRejectingLeave} />
+            <LeaveRow
+              key={leave.id}
+              leave={leave}
+              onApprove={(id) => handleReview(id, 'Approved')}
+              onReject={setRejectingLeave}
+              balanceForType={(balanceByTeacher[leave.teacherId] || []).find((b) => b.leaveType === leave.leaveType)}
+            />
           ))
         )}
       </div>

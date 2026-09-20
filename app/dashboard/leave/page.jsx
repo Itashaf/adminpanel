@@ -31,5 +31,13 @@ export default async function LeavePage() {
   }
 
   const leaves = await getAllLeaveRequests(schoolId);
-  return <AdminLeaveView leaves={leaves} />;
+
+  // One balance lookup per distinct teacher (not per leave row) — a teacher
+  // with several requests shares one entry, so an admin reviewing a busy
+  // queue doesn't pay for the same query repeated.
+  const teacherIds = [...new Set(leaves.map((l) => l.teacherId))];
+  const balances = await Promise.all(teacherIds.map((id) => getLeaveBalance(id, schoolId)));
+  const balanceByTeacher = Object.fromEntries(teacherIds.map((id, i) => [id, balances[i]]));
+
+  return <AdminLeaveView leaves={leaves} balanceByTeacher={balanceByTeacher} />;
 }
