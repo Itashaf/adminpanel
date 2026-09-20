@@ -8,9 +8,13 @@ import AttendanceOverviewCard from '@/components/dashboard/AttendanceOverviewCar
 import PromoBanner from '@/components/dashboard/PromoBanner';
 import MyClassesCard from '@/components/dashboard/MyClassesCard';
 import TeacherQuickLists from '@/components/dashboard/TeacherQuickLists';
+import TeacherCheckInCard from '@/components/dashboard/TeacherCheckInCard';
 import { getDashboardOverview, getTeacherDashboardOverview } from '@/lib/dashboard';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
+import { getTeacherCheckInStatus } from '@/lib/teacherAttendance';
+import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { toLocalDateStr } from '@/lib/attendance';
 
 export const metadata = {
   title: 'Dashboard | SchoolApp 360',
@@ -83,14 +87,19 @@ export default async function DashboardPage() {
 // classes' student counts and attendance status, their own active homework,
 // and a peek at notices/homework — never the school-wide numbers above.
 async function TeacherDashboard({ currentUser }) {
-  const [{ classRows, stats, recentNotices, upcomingHomework }, actor] = await Promise.all([
+  const [{ classRows, stats, recentNotices, upcomingHomework }, actor, checkInStatus] = await Promise.all([
     getTeacherDashboardOverview(currentUser),
     getCurrentActor(),
+    currentUser.teacherId
+      ? getTeacherCheckInStatus(currentUser.teacherId, await resolveSchoolId(), toLocalDateStr(new Date()))
+      : null,
   ]);
 
   return (
     <div className="space-y-6">
       <WelcomeBanner name={actor?.name || currentUser.name} />
+
+      {checkInStatus && <TeacherCheckInCard initialStatus={checkInStatus} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard
