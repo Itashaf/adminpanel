@@ -112,6 +112,7 @@ model School {
   subjects           Subject[]
   timeTables         TimeTable[]
   teacherLeaves      TeacherLeave[]
+  teacherAttendances TeacherAttendance[]
 }
 
 // A real login account for a parent/guardian — decoupled from any one
@@ -497,6 +498,26 @@ model TeacherLeave {
   reviewedAt     DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+}
+
+// One row per school per date, same convention as the Student Attendance
+// model (records Json, not a row-per-teacher table) — bulk save/edit is one
+// upsert instead of N per teacher, and reading a date is one query. `records`
+// is an array of {teacherId, status} ('Present'/'Absent'/'Leave', the exact
+// same 3 values components/attendance/statusStyles.js already defines for
+// Students, reused as-is for visual/behavioral consistency).
+model TeacherAttendance {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  date      String
+  markedBy  String
+  markedAt  DateTime
+  records   Json
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, date])
+  @@map("TeacherAttendance")
 }
 
 enum ClassStatus {

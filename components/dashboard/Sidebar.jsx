@@ -77,6 +77,7 @@ const ADMIN_NAV_ITEMS = [
     children: [
       { label: 'Attendance Reports', href: '/dashboard/attendance/reports', icon: FiBarChart2 },
       { label: 'Daily Attendance', href: '/dashboard/attendance/daily', icon: FiCheckSquare },
+      { label: 'Staff Attendance', href: '/dashboard/attendance/staff', icon: FiUser },
     ],
   },
   {
