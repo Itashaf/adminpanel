@@ -102,6 +102,7 @@ model School {
   parentAccounts     ParentAccount[]
   parentNotifications ParentNotification[]
   teacherNotifications TeacherNotification[]
+  adminNotifications AdminNotification[]
   exams              Exam[]
   examSchedules      ExamSchedule[]
   examMarks          ExamMark[]
@@ -1101,6 +1102,30 @@ model TeacherNotification {
   @@index([teacherId, isRead])
   @@index([sourceId])
   @@map("TeacherNotifications")
+}
+
+// School-wide, not per-admin — every SchoolAdmin account at a school shares
+// the same inbox and the same read state (no per-admin AdminNotification
+// join table), same simplification a small school's 1-2 admin accounts make
+// reasonable; a school with many admin accounts would need per-admin read
+// state to not have one admin's "read" hide something a second admin never
+// saw. Currently only fed by lib/teacherLeaves.js's applyForLeave (see
+// notifyAdminsOfNewLeaveRequest) — the Topbar bell this powers was purely
+// decorative before (a static dot, no click handler at all).
+model AdminNotification {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  type      String
+  title     String
+  message   String
+  link      String?
+  sourceId  String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, isRead])
+  @@map("AdminNotifications")
 }
 
 model Payment {

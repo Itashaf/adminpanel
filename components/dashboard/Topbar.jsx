@@ -7,6 +7,7 @@ import { FiSearch, FiBell, FiMenu, FiChevronDown, FiUser, FiLogOut, FiGrid, FiAr
 import DropdownMenu from '@/components/DropdownMenu';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import SessionSwitcher from './SessionSwitcher';
+import NotificationBell from './NotificationBell';
 import { logoutAction } from '@/app/actions/auth';
 
 function initialsFor(name) {
@@ -106,10 +107,19 @@ export default function Topbar({ onMenuClick, activeSession, sessions, role, use
 
       <div className="flex items-center gap-2 sm:gap-4 ml-auto">
         <SessionSwitcher sessions={sessions || []} activeSession={activeSession} canSwitch={!isTeacher} />
-        <button type="button" className="relative text-gray-500 hover:text-gray-700 cursor-pointer">
-          <FiBell className="w-5 h-5" />
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
-        </button>
+        {isTeacher ? (
+          // Teacher notifications are the mobile app's TeacherNotification
+          // system (see lib/teacherNotifications.js) — this bell is
+          // AdminNotification-backed (see NotificationBell.jsx), a
+          // SchoolAdmin/SuperAdmin-only inbox, so a Teacher on the web
+          // dashboard keeps the old static bell rather than hitting an API
+          // that would just 403 for them.
+          <button type="button" className="relative text-gray-500 hover:text-gray-700 cursor-pointer">
+            <FiBell className="w-5 h-5" />
+          </button>
+        ) : (
+          <NotificationBell />
+        )}
         <DropdownMenu
           trigger={
             <span className="flex items-center gap-2">
