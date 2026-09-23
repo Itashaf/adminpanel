@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 :root {
+  /* Forces browser-native UI (scrollbars, form controls, the native date/
+     color pickers) to render light regardless of OS/browser dark-mode
+     preference — without this, some of those still auto-darken even after
+     removing the @media block below. */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -12,13 +17,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* No dark-mode block on purpose — every component here hardcodes light-mode
+   Tailwind colors (bg-white cards, text-gray-900, etc.), never dark: variants
+   or these CSS vars. The stock create-next-app dark-mode media query used to
+   flip --foreground to near-white on a dark OS/browser theme, which then
+   inherited into any text with no explicit Tailwind color class — landing
+   white-on-white against this app's always-light card backgrounds. */
 body {
   background: var(--background);
   color: var(--foreground);
