@@ -2,8 +2,25 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { FiUsers, FiCheckCircle, FiClock, FiAlertCircle, FiSearch, FiUser, FiEye, FiEdit2, FiPlay, FiZap, FiLayers, FiSave, FiBarChart2 } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
+import {
+  FiUsers,
+  FiCheckCircle,
+  FiClock,
+  FiAlertCircle,
+  FiSearch,
+  FiUser,
+  FiEye,
+  FiEdit2,
+  FiPlay,
+  FiZap,
+  FiLayers,
+  FiSave,
+  FiBarChart2,
+  FiMoreVertical,
+} from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
+import DropdownMenu from '@/components/DropdownMenu';
 import Toast from '@/components/Toast';
 import QuickAssessmentModal from './QuickAssessmentModal';
 import { getSectionOptions } from '@/lib/hooks/useClassSections';
@@ -16,6 +33,19 @@ import {
   OVERALL_PERFORMANCE_STYLES,
   BEHAVIOUR_CATEGORIES,
 } from '@/lib/assessmentConstants';
+
+// Quick-glance fill state for a roster row's Academic/Behaviour/
+// Participation columns — a filled green check vs. an empty gray ring, no
+// label needed at this size (the column header already says what it is).
+function SectionStatusDot({ filled }) {
+  return filled ? (
+    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-600">
+      <FiCheckCircle className="w-3.5 h-3.5" />
+    </span>
+  ) : (
+    <span className="inline-block w-5 h-5 rounded-full border-2 border-gray-200" />
+  );
+}
 
 function MiniChipRow({ options, value, onChange, styles }) {
   return (
@@ -88,6 +118,7 @@ export default function AssessmentDashboard({
   subjects,
   recentlyAssessed,
 }) {
+  const router = useRouter();
   const [className, setClassName] = useState(defaultClass);
   const [sectionName, setSectionName] = useState(defaultSection);
   const [month, setMonth] = useState(defaultMonth);
@@ -305,27 +336,32 @@ export default function AssessmentDashboard({
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  <th className="py-3 pl-6 pr-4">Student Name</th>
-                  <th className="py-3 pr-4">Admission No</th>
-                  <th className="py-3 pr-4">Class</th>
-                  <th className="py-3 pr-4">Status</th>
+                  <th className="py-3 pl-6 pr-3 w-8">#</th>
+                  <th className="py-3 pr-4">Student Name</th>
+                  <th className="py-3 pr-4 text-center">Attendance</th>
                   {bulkMode ? (
                     <>
                       <th className="py-3 pr-4">Behaviour Rating</th>
                       <th className="py-3 pr-4">Performance Rating</th>
                     </>
                   ) : (
-                    <th className="py-3 pr-4">Last Updated</th>
+                    <>
+                      <th className="py-3 pr-4 text-center">Academic</th>
+                      <th className="py-3 pr-4 text-center">Behaviour</th>
+                      <th className="py-3 pr-4 text-center">Participation</th>
+                    </>
                   )}
+                  <th className="py-3 pr-4">Status</th>
                   <th className="py-3 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredRoster.map((r) => {
+                {filteredRoster.map((r, index) => {
                   const change = bulkChanges[r.studentId] || {};
                   return (
                     <tr key={r.studentId} className="hover:bg-gray-50/60 transition">
-                      <td className="py-3 pl-6 pr-4">
+                      <td className="py-3 pl-6 pr-3 text-gray-400">{index + 1}</td>
+                      <td className="py-3 pr-4">
                         <div className="flex items-center gap-2.5">
                           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
                             {r.photoUrl ? (
@@ -334,15 +370,16 @@ export default function AssessmentDashboard({
                               <FiUser className="w-3.5 h-3.5" />
                             )}
                           </span>
-                          <span className="font-medium text-gray-900">{r.name}</span>
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{r.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{r.admissionId}</p>
+                          </div>
                         </div>
                       </td>
-                      <td className="py-3 pr-4 text-gray-500">{r.admissionId}</td>
-                      <td className="py-3 pr-4 text-gray-500">
-                        {className} - {sectionName}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${ASSESSMENT_STATUS_STYLES[r.status]}`}>{r.status}</span>
+                      <td className="py-3 pr-4 text-center">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {r.attendancePercentage != null ? `${r.attendancePercentage}%` : '—'}
+                        </span>
                       </td>
                       {bulkMode ? (
                         <>
@@ -368,30 +405,32 @@ export default function AssessmentDashboard({
                           </td>
                         </>
                       ) : (
-                        <td className="py-3 pr-4 text-gray-500">{formatDate(r.updatedAt)}</td>
+                        <>
+                          <td className="py-3 pr-4 text-center">
+                            <SectionStatusDot filled={r.sections.academic} />
+                          </td>
+                          <td className="py-3 pr-4 text-center">
+                            <SectionStatusDot filled={r.sections.behaviour} />
+                          </td>
+                          <td className="py-3 pr-4 text-center">
+                            <SectionStatusDot filled={r.sections.participation} />
+                          </td>
+                        </>
                       )}
+                      <td className="py-3 pr-4">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${ASSESSMENT_STATUS_STYLES[r.status]}`}>{r.status}</span>
+                      </td>
                       <td className="py-3 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {!bulkMode && (
-                            <button
-                              type="button"
-                              onClick={() => setQuickTarget(r)}
-                              title="Complete in 30 Seconds"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 transition cursor-pointer"
-                            >
-                              <FiZap className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                        <div className="flex items-center justify-end gap-1.5">
                           <Link
                             href={`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+                              r.status === 'Completed'
+                                ? 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                                : 'text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90'
+                            }`}
                           >
-                            {r.status === 'Not Started' ? (
-                              <>
-                                <FiPlay className="w-3.5 h-3.5" />
-                                Start
-                              </>
-                            ) : r.status === 'Completed' ? (
+                            {r.status === 'Completed' ? (
                               <>
                                 <FiEye className="w-3.5 h-3.5" />
                                 View
@@ -399,10 +438,23 @@ export default function AssessmentDashboard({
                             ) : (
                               <>
                                 <FiEdit2 className="w-3.5 h-3.5" />
-                                Edit
+                                Fill
                               </>
                             )}
                           </Link>
+                          {!bulkMode && (
+                            <DropdownMenu
+                              trigger={<FiMoreVertical className="w-4 h-4" />}
+                              items={[
+                                { label: 'Complete in 30s', icon: <FiZap className="w-4 h-4" />, onClick: () => setQuickTarget(r) },
+                                {
+                                  label: 'Open Full Form',
+                                  icon: <FiPlay className="w-4 h-4" />,
+                                  onClick: () => router.push(`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`),
+                                },
+                              ]}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>

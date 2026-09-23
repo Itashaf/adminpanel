@@ -19,6 +19,12 @@ import {
 
 const AUTOSAVE_DELAY = 1500;
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const MONTH_LABEL = (month) => MONTH_NAMES[month - 1];
+
 function emptyForm(existing, subjects) {
   return {
     overallPerformance: existing?.overallPerformance || '',
@@ -408,10 +414,10 @@ function ReviewStep({ form, autoFill, goToStep }) {
   );
 }
 
-export default function AssessmentWizard({ studentId, month, year, data }) {
+export default function AssessmentWizard({ studentId, month, year, data, prevStudentId, nextStudentId, initialStep = 0 }) {
   const router = useRouter();
   const { student, subjects, autoFill, assessment } = data;
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(Math.max(0, Math.min(WIZARD_STEPS.length - 1, initialStep)));
   const [form, setForm] = useState(() => emptyForm(assessment, subjects));
   const [status, setStatus] = useState(assessment?.status === 'Completed' ? 'Completed' : assessment ? 'Draft' : 'Not Started');
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved
@@ -484,6 +490,15 @@ export default function AssessmentWizard({ studentId, month, year, data }) {
     router.push('/dashboard/assessments');
   };
 
+  // Previous/Next Student — same class roster, same month (see this page's
+  // server component), staying on whichever step the teacher is currently
+  // on rather than resetting to Overview each time.
+  const goToStudent = (id) => {
+    if (!id) return;
+    if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    router.push(`/dashboard/assessments/${id}?month=${month}&year=${year}&step=${step}`);
+  };
+
   // Keyboard navigation — Left/Right steps through the wizard, Ctrl/Cmd+S
   // saves a draft immediately instead of waiting for the debounce. Ignored
   // while typing in a text field so arrow keys/selection still work there.
@@ -528,6 +543,44 @@ export default function AssessmentWizard({ studentId, month, year, data }) {
             {saveState === 'saving' ? 'Saving...' : isDirty ? 'Unsaved changes' : saveState === 'saved' ? 'Saved' : ''}
           </span>
         </div>
+      </div>
+
+      {/* Previous/Next Student — same class roster, same month, keeps
+          whichever step is currently open (see goToStudent). */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => goToStudent(prevStudentId)}
+          disabled={!prevStudentId}
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition shrink-0"
+        >
+          <FiChevronLeft className="w-4 h-4" />
+        </button>
+
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
+            {student.photoUrl ? (
+              <img src={student.photoUrl} alt={student.name} className="w-full h-full object-cover" />
+            ) : (
+              <FiUser className="w-4 h-4" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-gray-900 truncate">{student.name}</p>
+            <p className="text-xs text-gray-400 truncate">
+              {student.className} - {student.sectionName} • {MONTH_LABEL(month)} {year}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => goToStudent(nextStudentId)}
+          disabled={!nextStudentId}
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition shrink-0"
+        >
+          <FiChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Step indicator */}

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentUser } from '@/lib/currentUser';
-import { getAssessmentForStudent } from '@/lib/studentAssessments';
+import { getAssessmentForStudent, getAssessmentsForClass } from '@/lib/studentAssessments';
 import AssessmentWizard from '@/components/assessments/AssessmentWizard';
 
 export const metadata = {
@@ -27,5 +27,31 @@ export default async function AssessmentWizardPage({ params, searchParams }) {
   }
   if (!data) notFound();
 
-  return <AssessmentWizard studentId={studentId} month={month} year={year} data={data} />;
+  // Same class's roster, same month — lets the wizard offer Previous/Next
+  // Student arrows without a second navigation round-trip back to the
+  // dashboard. Best-effort: if this fails (shouldn't, same scope check just
+  // passed) the wizard simply renders without those arrows.
+  let neighbours = { prevStudentId: null, nextStudentId: null };
+  try {
+    const { roster } = await getAssessmentsForClass(currentUser, {
+      className: data.student.className,
+      sectionName: data.student.sectionName,
+      academicSession: data.student.academicSession,
+      month,
+      year,
+    });
+    const index = roster.findIndex((r) => r.studentId === studentId);
+    if (index !== -1) {
+      neighbours = {
+        prevStudentId: roster[index - 1]?.studentId || null,
+        nextStudentId: roster[index + 1]?.studentId || null,
+      };
+    }
+  } catch {
+    // See comment above.
+  }
+
+  const initialStep = Number(query.step) || 0;
+
+  return <AssessmentWizard studentId={studentId} month={month} year={year} data={data} initialStep={initialStep} {...neighbours} />;
 }
