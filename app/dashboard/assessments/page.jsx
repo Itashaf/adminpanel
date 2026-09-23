@@ -42,7 +42,14 @@ export default async function AssessmentsPage() {
   const defaultMonth = now.getMonth() + 1;
   const defaultYear = now.getFullYear();
 
-  let initialData = { roster: [], stats: { total: 0, completed: 0, pending: 0, needsAttention: 0, completionPercent: 0 } };
+  let initialData = {
+    roster: [],
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 1,
+    stats: { total: 0, completed: 0, pending: 0, needsAttention: 0, completionPercent: 0 },
+  };
   if (defaultClass && defaultSection) {
     try {
       initialData = await getAssessmentsForClass(currentUser, {

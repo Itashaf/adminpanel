@@ -20,13 +20,16 @@ export async function GET(request) {
   const academicSession = searchParams.get('session');
   const month = Number(searchParams.get('month'));
   const year = Number(searchParams.get('year'));
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize')) || 20));
+  const search = searchParams.get('search') || '';
 
   if (!className || !sectionName || !academicSession || !month || !year) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
   try {
-    const result = await getAssessmentsForClass(currentUser, { className, sectionName, academicSession, month, year });
+    const result = await getAssessmentsForClass(currentUser, { className, sectionName, academicSession, month, year, page, pageSize, search });
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 403 });

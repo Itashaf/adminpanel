@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -18,6 +18,8 @@ import {
   FiSave,
   FiBarChart2,
   FiMoreVertical,
+  FiChevronLeft,
+  FiChevronRight,
 } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
 import DropdownMenu from '@/components/DropdownMenu';
@@ -65,6 +67,8 @@ function MiniChipRow({ options, value, onChange, styles }) {
     </div>
   );
 }
+
+const PAGE_SIZE = 20;
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -124,6 +128,8 @@ export default function AssessmentDashboard({
   const [month, setMonth] = useState(defaultMonth);
   const [year, setYear] = useState(defaultYear);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [data, setData] = useState(initialData);
   const [isLoading, setIsLoading] = useState(false);
   const [quickTarget, setQuickTarget] = useState(null);
@@ -140,6 +146,17 @@ export default function AssessmentDashboard({
       }))
     : getSectionOptions(classSections, className);
 
+  // Debounce the search box (400ms) so it doesn't hit the API on every
+  // keystroke — search now runs server-side (see getAssessmentsForClass)
+  // so it has to be a real request, not a client-side filter.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
   useEffect(() => {
     if (isFirstRun.current) {
       isFirstRun.current = false;
@@ -150,7 +167,16 @@ export default function AssessmentDashboard({
     (async () => {
       setIsLoading(true);
       try {
-        const result = await getClassAssessments({ className, sectionName, academicSession, month, year });
+        const result = await getClassAssessments({
+          className,
+          sectionName,
+          academicSession,
+          month,
+          year,
+          page,
+          pageSize: PAGE_SIZE,
+          search: debouncedSearch,
+        });
         if (!cancelled) setData(result);
       } catch {
         // Filters just keep showing the previous roster.
@@ -161,12 +187,21 @@ export default function AssessmentDashboard({
     return () => {
       cancelled = true;
     };
-  }, [className, sectionName, month, year, academicSession]);
+  }, [className, sectionName, month, year, academicSession, page, debouncedSearch]);
 
   const reload = async () => {
     if (!className || !sectionName) return;
     try {
-      const result = await getClassAssessments({ className, sectionName, academicSession, month, year });
+      const result = await getClassAssessments({
+        className,
+        sectionName,
+        academicSession,
+        month,
+        year,
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+      });
       setData(result);
     } catch {
       // Keep whatever was last shown.
@@ -179,13 +214,23 @@ export default function AssessmentDashboard({
       ? [...new Set(teacherScope.filter((a) => a.class === value).map((a) => a.section))]
       : (classSections[value] || []);
     setSectionName(nextSections[0] || '');
+    setPage(1);
   };
 
-  const filteredRoster = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return data.roster;
-    return data.roster.filter((r) => r.name.toLowerCase().includes(query) || r.admissionId.toLowerCase().includes(query));
-  }, [data.roster, search]);
+  const handleSectionChange = (value) => {
+    setSectionName(value);
+    setPage(1);
+  };
+
+  const handleMonthChange = (value) => {
+    setMonth(Number(value));
+    setPage(1);
+  };
+
+  const handleYearChange = (value) => {
+    setYear(Number(value));
+    setPage(1);
+  };
 
   const { stats } = data;
   const bulkChangeCount = Object.keys(bulkChanges).length;
@@ -301,13 +346,13 @@ export default function AssessmentDashboard({
           <Dropdown options={classOptions} value={className} onChange={handleClassChange} placeholder="Class" />
         </div>
         <div className="w-40">
-          <Dropdown options={sectionOptions} value={sectionName} onChange={setSectionName} placeholder="Section" />
+          <Dropdown options={sectionOptions} value={sectionName} onChange={handleSectionChange} placeholder="Section" />
         </div>
         <div className="w-40">
-          <Dropdown options={MONTH_OPTIONS} value={String(month)} onChange={(v) => setMonth(Number(v))} />
+          <Dropdown options={MONTH_OPTIONS} value={String(month)} onChange={handleMonthChange} />
         </div>
         <div className="w-28">
-          <Dropdown options={yearOptions()} value={String(year)} onChange={(v) => setYear(Number(v))} />
+          <Dropdown options={yearOptions()} value={String(year)} onChange={handleYearChange} />
         </div>
         <button
           type="button"
@@ -329,7 +374,7 @@ export default function AssessmentDashboard({
           <div className="text-center py-16 text-sm text-gray-400">Loading...</div>
         ) : !className || !sectionName ? (
           <div className="text-center py-16 text-sm text-gray-500">Select a class and section to view assessments.</div>
-        ) : filteredRoster.length === 0 ? (
+        ) : data.roster.length === 0 ? (
           <div className="text-center py-16 text-sm text-gray-500">No students found.</div>
         ) : (
           <div className="overflow-x-auto">
@@ -356,11 +401,11 @@ export default function AssessmentDashboard({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredRoster.map((r, index) => {
+                {data.roster.map((r, index) => {
                   const change = bulkChanges[r.studentId] || {};
                   return (
                     <tr key={r.studentId} className="hover:bg-gray-50/60 transition">
-                      <td className="py-3 pl-6 pr-3 text-gray-400">{index + 1}</td>
+                      <td className="py-3 pl-6 pr-3 text-gray-400">{(data.page - 1) * data.pageSize + index + 1}</td>
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-2.5">
                           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
@@ -462,6 +507,34 @@ export default function AssessmentDashboard({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        {!isLoading && className && sectionName && data.roster.length > 0 && (
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t border-gray-100">
+            <p className="text-xs text-gray-500">
+              Showing {(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.total)} of {data.total}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={data.page <= 1}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+              >
+                <FiChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-medium text-gray-600 min-w-[70px] text-center">
+                Page {data.page} of {data.totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                disabled={data.page >= data.totalPages}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+              >
+                <FiChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
