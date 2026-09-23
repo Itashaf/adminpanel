@@ -52,6 +52,15 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function timeAgo(iso) {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 function StatCard({ label, value, icon, iconBg, sub }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -77,6 +86,7 @@ export default function AssessmentDashboard({
   defaultMonth,
   defaultYear,
   subjects,
+  recentlyAssessed,
 }) {
   const [className, setClassName] = useState(defaultClass);
   const [sectionName, setSectionName] = useState(defaultSection);
@@ -218,6 +228,31 @@ export default function AssessmentDashboard({
           />
         </div>
       </div>
+
+      {recentlyAssessed?.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Recently Assessed</p>
+          <div className="flex items-center gap-3 overflow-x-auto pb-1">
+            {recentlyAssessed.map((r) => (
+              <Link
+                key={`${r.studentId}-${r.month}-${r.year}`}
+                href={`/dashboard/assessments/${r.studentId}?month=${r.month}&year=${r.year}`}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/40 transition cursor-pointer shrink-0"
+              >
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${r.status === 'Completed' ? 'bg-green-500' : 'bg-amber-500'}`}
+                />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-gray-900 truncate max-w-[140px]">{r.name}</p>
+                  <p className="text-[11px] text-gray-400">
+                    {r.className} - {r.sectionName} • {timeAgo(r.updatedAt)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[220px]">

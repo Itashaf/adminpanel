@@ -415,6 +415,7 @@ export default function AssessmentWizard({ studentId, month, year, data }) {
   const [form, setForm] = useState(() => emptyForm(assessment, subjects));
   const [status, setStatus] = useState(assessment?.status === 'Completed' ? 'Completed' : assessment ? 'Draft' : 'Not Started');
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved
+  const [isDirty, setIsDirty] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const isFirstRun = useRef(true);
   const debounceTimer = useRef(null);
@@ -426,6 +427,7 @@ export default function AssessmentWizard({ studentId, month, year, data }) {
         const result = await saveStudentAssessment(studentId, month, year, { ...form, attendancePercentage: autoFill.attendancePercentage }, submit);
         setStatus(result.status === 'COMPLETED' ? 'Completed' : 'Draft');
         setSaveState('saved');
+        setIsDirty(false);
         return result;
       } catch (err) {
         setSaveState('idle');
@@ -443,11 +445,25 @@ export default function AssessmentWizard({ studentId, month, year, data }) {
       isFirstRun.current = false;
       return;
     }
+    setIsDirty(true);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => persist(false), AUTOSAVE_DELAY);
     return () => clearTimeout(debounceTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form]);
+
+  // Unsaved-changes warning — only a real risk in the ~1.5s autosave window
+  // (or if a save request itself is in flight/failed), but real
+  // nonetheless: a closed tab or refresh right then loses that edit.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const goToStep = (index) => setStep(Math.max(0, Math.min(WIZARD_STEPS.length - 1, index)));
 
@@ -463,13 +479,39 @@ export default function AssessmentWizard({ studentId, month, year, data }) {
     if (result) setToastMessage('Draft saved.');
   };
 
+  const handleBack = () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return;
+    router.push('/dashboard/assessments');
+  };
+
+  // Keyboard navigation — Left/Right steps through the wizard, Ctrl/Cmd+S
+  // saves a draft immediately instead of waiting for the debounce. Ignored
+  // while typing in a text field so arrow keys/selection still work there.
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName;
+      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA';
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveDraft();
+        return;
+      }
+      if (isTyping) return;
+      if (e.key === 'ArrowRight') goToStep(step + 1);
+      if (e.key === 'ArrowLeft') goToStep(step - 1);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   const stepProps = { form, setForm, student, autoFill };
 
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <button type="button" onClick={() => router.push('/dashboard/assessments')} className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer">
+          <button type="button" onClick={handleBack} className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer">
             ← Back to Assessments
           </button>
           <h1 className="text-2xl font-bold text-gray-900 mt-1">Monthly Assessment</h1>
@@ -483,7 +525,7 @@ export default function AssessmentWizard({ studentId, month, year, data }) {
             {status}
           </span>
           <span className="text-xs text-gray-400">
-            {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved' : ''}
+            {saveState === 'saving' ? 'Saving...' : isDirty ? 'Unsaved changes' : saveState === 'saved' ? 'Saved' : ''}
           </span>
         </div>
       </div>
