@@ -1181,6 +1181,7 @@ model StudentAssessment {
   month                Int
   year                 Int
   attendancePercentage Float?
+  attendanceDetail     Json?
   overallPerformance   String            @default("")
   overallTags          String[]          @default([])
   overallRemark        String            @default("")

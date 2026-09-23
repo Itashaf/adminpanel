@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiUser, FiCheck, FiChevronLeft, FiChevronRight, FiSave, FiSend, FiTrendingUp } from 'react-icons/fi';
+import { FiUser, FiCheck, FiChevronLeft, FiChevronRight, FiSave, FiSend, FiTrendingUp, FiHome, FiCheckCircle } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import { saveStudentAssessment } from '@/lib/api';
 import {
@@ -25,8 +25,13 @@ const MONTH_NAMES = [
 ];
 const MONTH_LABEL = (month) => MONTH_NAMES[month - 1];
 
-function emptyForm(existing, subjects) {
+function emptyForm(existing, subjects, autoFill) {
   return {
+    attendanceDetail: {
+      totalWorkingDays: existing?.attendanceDetail?.totalWorkingDays ?? autoFill?.totalWorkingDays ?? '',
+      daysPresent: existing?.attendanceDetail?.daysPresent ?? autoFill?.daysPresent ?? '',
+      remark: existing?.attendanceDetail?.remark || '',
+    },
     overallPerformance: existing?.overallPerformance || '',
     overallTags: existing?.overallTags || [],
     overallRemark: existing?.overallRemark || '',
@@ -134,16 +139,87 @@ function StudentCard({ student, autoFill }) {
 // Step 1 — attendance is auto-pulled from the real Attendance records (see
 // autoFill.attendancePercentage), so this step is a confirmation display,
 // not manual entry.
-function AttendanceStep({ student, autoFill }) {
+function attendanceRatingFor(percent) {
+  if (percent == null) return null;
+  if (percent >= 90) return 'Excellent';
+  if (percent >= 75) return 'Good';
+  if (percent >= 60) return 'Average';
+  return 'Needs Improvement';
+}
+
+// Total Working Days / Days Present start out auto-filled from real
+// attendance records (autoFill, via emptyForm) but stay teacher-editable —
+// the % below recomputes live from whatever's currently typed, same
+// RATING_LEVELS/RATING_STYLES scale the Behaviour/Academics steps use for
+// its qualitative badge.
+function AttendanceStep({ form, setForm, month, year }) {
+  const { totalWorkingDays, daysPresent } = form.attendanceDetail;
+  const percent =
+    totalWorkingDays !== '' && daysPresent !== '' && Number(totalWorkingDays) > 0
+      ? Math.round((Number(daysPresent) / Number(totalWorkingDays)) * 1000) / 10
+      : null;
+  const rating = attendanceRatingFor(percent);
+
+  const update = (patch) => setForm((prev) => ({ ...prev, attendanceDetail: { ...prev.attendanceDetail, ...patch } }));
+
   return (
-    <div className="space-y-6">
-      <StudentCard student={student} autoFill={autoFill} />
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Attendance this month</p>
-        <p className="text-5xl font-bold text-indigo-700">
-          {autoFill.attendancePercentage != null ? `${autoFill.attendancePercentage}%` : '—'}
-        </p>
-        <p className="text-xs text-gray-400 mt-2">Pulled automatically from daily attendance records.</p>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+      <div className="flex items-start gap-3">
+        <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
+          <FiHome className="w-5 h-5" />
+        </span>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Monthly Attendance</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Enter the total working days and days present for {MONTH_LABEL(month)} {year}.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Total Working Days</label>
+          <input
+            type="number"
+            min="0"
+            value={totalWorkingDays}
+            onChange={(e) => update({ totalWorkingDays: e.target.value })}
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Days Present</label>
+          <input
+            type="number"
+            min="0"
+            value={daysPresent}
+            onChange={(e) => update({ daysPresent: e.target.value })}
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div className="bg-green-50 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+          <p className="text-xs font-medium text-gray-500">Attendance %</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{percent != null ? `${percent}%` : '—'}</p>
+          {rating && (
+            <span
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full mt-1.5 border ${RATING_STYLES[rating]}`}
+            >
+              <FiCheckCircle className="w-3 h-3" />
+              {rating}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Remarks (Optional)</label>
+        <textarea
+          rows={3}
+          value={form.attendanceDetail.remark}
+          onChange={(e) => update({ remark: e.target.value })}
+          placeholder="Add any remarks about attendance..."
+          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
       </div>
     </div>
   );
@@ -425,7 +501,9 @@ function ReviewStep({ form, autoFill, goToStep }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <ReviewSection title="Attendance" onEdit={() => goToStep(0)}>
-        <p className="text-sm text-gray-700">Attendance {autoFill.attendancePercentage ?? '—'}%</p>
+        <p className="text-sm text-gray-700">
+          {form.attendanceDetail.daysPresent || '—'} / {form.attendanceDetail.totalWorkingDays || '—'} days present
+        </p>
       </ReviewSection>
 
       <ReviewSection title="Co-Curricular" onEdit={() => goToStep(1)}>
@@ -482,7 +560,7 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
   const router = useRouter();
   const { student, subjects, autoFill, assessment } = data;
   const [step, setStep] = useState(Math.max(0, Math.min(WIZARD_STEPS.length - 1, initialStep)));
-  const [form, setForm] = useState(() => emptyForm(assessment, subjects));
+  const [form, setForm] = useState(() => emptyForm(assessment, subjects, autoFill));
   const [status, setStatus] = useState(assessment?.status === 'COMPLETED' ? 'Completed' : assessment ? 'Draft' : 'Not Started');
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved
   const [isDirty, setIsDirty] = useState(false);
@@ -494,7 +572,16 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
     async (submit = false) => {
       setSaveState('saving');
       try {
-        const result = await saveStudentAssessment(studentId, month, year, { ...form, attendancePercentage: autoFill.attendancePercentage }, submit);
+        // attendancePercentage is computed from the Attendance step's own
+        // Total Working Days / Days Present fields (teacher-editable, see
+        // AttendanceStep) — falls back to the auto-pulled figure only while
+        // those fields are still empty (a fresh, untouched assessment).
+        const { totalWorkingDays, daysPresent } = form.attendanceDetail;
+        const computedPercent =
+          totalWorkingDays !== '' && daysPresent !== '' && Number(totalWorkingDays) > 0
+            ? Math.round((Number(daysPresent) / Number(totalWorkingDays)) * 1000) / 10
+            : autoFill.attendancePercentage;
+        const result = await saveStudentAssessment(studentId, month, year, { ...form, attendancePercentage: computedPercent }, submit);
         setStatus(result.status === 'COMPLETED' ? 'Completed' : 'Draft');
         setSaveState('saved');
         setIsDirty(false);
@@ -584,7 +671,7 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const stepProps = { form, setForm, student, autoFill };
+  const stepProps = { form, setForm, student, autoFill, month, year };
 
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-6 pb-24'}>
