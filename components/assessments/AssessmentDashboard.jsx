@@ -24,6 +24,7 @@ import {
 import Dropdown from '@/components/Dropdown';
 import Toast from '@/components/Toast';
 import QuickAssessmentModal from './QuickAssessmentModal';
+import AssessmentDrawer from './AssessmentDrawer';
 import { getSectionOptions } from '@/lib/hooks/useClassSections';
 import { getClassAssessments, saveStudentAssessment } from '@/lib/api';
 import { RATING_LEVELS, RATING_STYLES, OVERALL_PERFORMANCE_OPTIONS, OVERALL_PERFORMANCE_STYLES, BEHAVIOUR_CATEGORIES } from '@/lib/assessmentConstants';
@@ -162,6 +163,7 @@ export default function AssessmentDashboard({
   const [data, setData] = useState(initialData);
   const [isLoading, setIsLoading] = useState(false);
   const [quickTarget, setQuickTarget] = useState(null);
+  const [viewTarget, setViewTarget] = useState(null); // { studentId } — drives the right-side AssessmentDrawer
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkChanges, setBulkChanges] = useState({}); // studentId -> { behaviour, overallPerformance }
   const [isSavingBulk, setIsSavingBulk] = useState(false);
@@ -531,13 +533,14 @@ export default function AssessmentDashboard({
                               'Fill Record'
                             )}
                           </Link>
-                          <Link
-                            href={`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`}
+                          <button
+                            type="button"
+                            onClick={() => setViewTarget({ studentId: r.studentId })}
                             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition cursor-pointer"
                           >
                             <FiEye className="w-3.5 h-3.5" />
                             View
-                          </Link>
+                          </button>
                           {!bulkMode && r.status !== 'Completed' && (
                             <button
                               type="button"
@@ -615,6 +618,17 @@ export default function AssessmentDashboard({
           reload();
         }}
       />
+
+      {viewTarget && (
+        <AssessmentDrawer
+          key={viewTarget.studentId}
+          studentId={viewTarget.studentId}
+          initialMonth={month}
+          initialYear={year}
+          onClose={() => setViewTarget(null)}
+          onSaved={reload}
+        />
+      )}
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
     </div>

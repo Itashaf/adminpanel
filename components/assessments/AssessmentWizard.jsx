@@ -414,12 +414,18 @@ function ReviewStep({ form, autoFill, goToStep }) {
   );
 }
 
-export default function AssessmentWizard({ studentId, month, year, data, prevStudentId, nextStudentId, initialStep = 0 }) {
+// `embedded` — used when this renders inside AssessmentDrawer.jsx (the
+// roster table's right-side off-canvas "View" panel) instead of its own
+// page. The drawer supplies its own student header + month nav, so the
+// page-only chrome (back link, title, Previous/Next Student bar) is
+// skipped, and the sticky footer switches from viewport-fixed to the
+// drawer's own scroll container so it doesn't render behind the sidebar.
+export default function AssessmentWizard({ studentId, month, year, data, prevStudentId, nextStudentId, initialStep = 0, embedded = false }) {
   const router = useRouter();
   const { student, subjects, autoFill, assessment } = data;
   const [step, setStep] = useState(Math.max(0, Math.min(WIZARD_STEPS.length - 1, initialStep)));
   const [form, setForm] = useState(() => emptyForm(assessment, subjects));
-  const [status, setStatus] = useState(assessment?.status === 'Completed' ? 'Completed' : assessment ? 'Draft' : 'Not Started');
+  const [status, setStatus] = useState(assessment?.status === 'COMPLETED' ? 'Completed' : assessment ? 'Draft' : 'Not Started');
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved
   const [isDirty, setIsDirty] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -523,65 +529,69 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
   const stepProps = { form, setForm, student, autoFill };
 
   return (
-    <div className="space-y-6 pb-24">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <button type="button" onClick={handleBack} className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer">
-            ← Back to Assessments
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900 mt-1">Monthly Assessment</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
-              status === 'Completed' ? 'bg-green-50 text-green-700' : status === 'Draft' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            {status}
-          </span>
-          <span className="text-xs text-gray-400">
-            {saveState === 'saving' ? 'Saving...' : isDirty ? 'Unsaved changes' : saveState === 'saved' ? 'Saved' : ''}
-          </span>
-        </div>
-      </div>
-
-      {/* Previous/Next Student — same class roster, same month, keeps
-          whichever step is currently open (see goToStudent). */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => goToStudent(prevStudentId)}
-          disabled={!prevStudentId}
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition shrink-0"
-        >
-          <FiChevronLeft className="w-4 h-4" />
-        </button>
-
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
-            {student.photoUrl ? (
-              <img src={student.photoUrl} alt={student.name} className="w-full h-full object-cover" />
-            ) : (
-              <FiUser className="w-4 h-4" />
-            )}
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 truncate">{student.name}</p>
-            <p className="text-xs text-gray-400 truncate">
-              {student.className} - {student.sectionName} • {MONTH_LABEL(month)} {year}
-            </p>
+    <div className={embedded ? 'space-y-6' : 'space-y-6 pb-24'}>
+      {!embedded && (
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <button type="button" onClick={handleBack} className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer">
+              ← Back to Assessments
+            </button>
+            <h1 className="text-2xl font-bold text-gray-900 mt-1">Monthly Assessment</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
+                status === 'Completed' ? 'bg-green-50 text-green-700' : status === 'Draft' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              {status}
+            </span>
+            <span className="text-xs text-gray-400">
+              {saveState === 'saving' ? 'Saving...' : isDirty ? 'Unsaved changes' : saveState === 'saved' ? 'Saved' : ''}
+            </span>
           </div>
         </div>
+      )}
 
-        <button
-          type="button"
-          onClick={() => goToStudent(nextStudentId)}
-          disabled={!nextStudentId}
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition shrink-0"
-        >
-          <FiChevronRight className="w-4 h-4" />
-        </button>
-      </div>
+      {!embedded && (
+        // Previous/Next Student — same class roster, same month, keeps
+        // whichever step is currently open (see goToStudent).
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => goToStudent(prevStudentId)}
+            disabled={!prevStudentId}
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition shrink-0"
+          >
+            <FiChevronLeft className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
+              {student.photoUrl ? (
+                <img src={student.photoUrl} alt={student.name} className="w-full h-full object-cover" />
+              ) : (
+                <FiUser className="w-4 h-4" />
+              )}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-gray-900 truncate">{student.name}</p>
+              <p className="text-xs text-gray-400 truncate">
+                {student.className} - {student.sectionName} • {MONTH_LABEL(month)} {year}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => goToStudent(nextStudentId)}
+            disabled={!nextStudentId}
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition shrink-0"
+          >
+            <FiChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Step indicator */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 overflow-x-auto">
@@ -617,8 +627,15 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
       {step === 4 && <ParentStep {...stepProps} />}
       {step === 5 && <ReviewStep form={form} autoFill={autoFill} goToStep={goToStep} />}
 
-      {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30">
+      {/* Sticky footer — viewport-fixed on the full page, but sticky within
+          the drawer's own scroll container when embedded (a viewport-fixed
+          footer would render behind the sidebar instead of inside the
+          panel). */}
+      <div
+        className={`bg-white border-t border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30 ${
+          embedded ? 'sticky bottom-0 -mx-4 sm:-mx-6' : 'fixed bottom-0 left-0 right-0 lg:left-64'
+        }`}
+      >
         <button
           type="button"
           onClick={() => goToStep(step - 1)}
