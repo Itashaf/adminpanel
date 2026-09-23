@@ -2,11 +2,39 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { FiUsers, FiCheckCircle, FiClock, FiAlertCircle, FiSearch, FiUser, FiEye, FiEdit2, FiPlay } from 'react-icons/fi';
+import { FiUsers, FiCheckCircle, FiClock, FiAlertCircle, FiSearch, FiUser, FiEye, FiEdit2, FiPlay, FiZap, FiLayers, FiSave } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
+import Toast from '@/components/Toast';
+import QuickAssessmentModal from './QuickAssessmentModal';
 import { getSectionOptions } from '@/lib/hooks/useClassSections';
-import { getClassAssessments } from '@/lib/api';
-import { ASSESSMENT_STATUS_STYLES } from '@/lib/assessmentConstants';
+import { getClassAssessments, saveStudentAssessment } from '@/lib/api';
+import {
+  ASSESSMENT_STATUS_STYLES,
+  RATING_LEVELS,
+  RATING_STYLES,
+  OVERALL_PERFORMANCE_OPTIONS,
+  OVERALL_PERFORMANCE_STYLES,
+  BEHAVIOUR_CATEGORIES,
+} from '@/lib/assessmentConstants';
+
+function MiniChipRow({ options, value, onChange, styles }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChange(option)}
+          className={`px-2 py-1 rounded-full text-[11px] font-medium border transition cursor-pointer whitespace-nowrap ${
+            value === option ? styles[option] : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -48,6 +76,7 @@ export default function AssessmentDashboard({
   defaultSection,
   defaultMonth,
   defaultYear,
+  subjects,
 }) {
   const [className, setClassName] = useState(defaultClass);
   const [sectionName, setSectionName] = useState(defaultSection);
@@ -56,6 +85,11 @@ export default function AssessmentDashboard({
   const [search, setSearch] = useState('');
   const [data, setData] = useState(initialData);
   const [isLoading, setIsLoading] = useState(false);
+  const [quickTarget, setQuickTarget] = useState(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkChanges, setBulkChanges] = useState({}); // studentId -> { behaviour, overallPerformance }
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const isFirstRun = useRef(true);
 
   const sectionOptions = isTeacher
@@ -88,6 +122,16 @@ export default function AssessmentDashboard({
     };
   }, [className, sectionName, month, year, academicSession]);
 
+  const reload = async () => {
+    if (!className || !sectionName) return;
+    try {
+      const result = await getClassAssessments({ className, sectionName, academicSession, month, year });
+      setData(result);
+    } catch {
+      // Keep whatever was last shown.
+    }
+  };
+
   const handleClassChange = (value) => {
     setClassName(value);
     const nextSections = isTeacher
@@ -103,6 +147,34 @@ export default function AssessmentDashboard({
   }, [data.roster, search]);
 
   const { stats } = data;
+  const bulkChangeCount = Object.keys(bulkChanges).length;
+
+  // Applies one uniform rating across every real category/subject — same
+  // shortcut convention QuickAssessmentModal uses, and marks each row
+  // COMPLETED directly (per the spec: assess 40+ students, only open one
+  // individually if detailed remarks are actually needed).
+  const handleSaveAllBulk = async () => {
+    setIsSavingBulk(true);
+    try {
+      await Promise.all(
+        Object.entries(bulkChanges).map(([studentId, change]) => {
+          if (!change.behaviour && !change.overallPerformance) return null;
+          const behaviour = change.behaviour
+            ? Object.fromEntries(BEHAVIOUR_CATEGORIES.map((cat) => [cat.key, change.behaviour]))
+            : undefined;
+          return saveStudentAssessment(studentId, month, year, { overallPerformance: change.overallPerformance, behaviour }, true);
+        })
+      );
+      setToastMessage(`${bulkChangeCount} assessment(s) saved.`);
+      setBulkChanges({});
+      setBulkMode(false);
+      await reload();
+    } catch (err) {
+      setToastMessage(err.message);
+    } finally {
+      setIsSavingBulk(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -160,6 +232,19 @@ export default function AssessmentDashboard({
         <div className="w-28">
           <Dropdown options={yearOptions()} value={String(year)} onChange={(v) => setYear(Number(v))} />
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setBulkMode((prev) => !prev);
+            setBulkChanges({});
+          }}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer whitespace-nowrap ${
+            bulkMode ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          <FiLayers className="w-4 h-4" />
+          Bulk Assessment Mode
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -178,63 +263,141 @@ export default function AssessmentDashboard({
                   <th className="py-3 pr-4">Admission No</th>
                   <th className="py-3 pr-4">Class</th>
                   <th className="py-3 pr-4">Status</th>
-                  <th className="py-3 pr-4">Last Updated</th>
+                  {bulkMode ? (
+                    <>
+                      <th className="py-3 pr-4">Behaviour Rating</th>
+                      <th className="py-3 pr-4">Performance Rating</th>
+                    </>
+                  ) : (
+                    <th className="py-3 pr-4">Last Updated</th>
+                  )}
                   <th className="py-3 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredRoster.map((r) => (
-                  <tr key={r.studentId} className="hover:bg-gray-50/60 transition">
-                    <td className="py-3 pl-6 pr-4">
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
-                          {r.photoUrl ? (
-                            <img src={r.photoUrl} alt={r.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <FiUser className="w-3.5 h-3.5" />
+                {filteredRoster.map((r) => {
+                  const change = bulkChanges[r.studentId] || {};
+                  return (
+                    <tr key={r.studentId} className="hover:bg-gray-50/60 transition">
+                      <td className="py-3 pl-6 pr-4">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
+                            {r.photoUrl ? (
+                              <img src={r.photoUrl} alt={r.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <FiUser className="w-3.5 h-3.5" />
+                            )}
+                          </span>
+                          <span className="font-medium text-gray-900">{r.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 pr-4 text-gray-500">{r.admissionId}</td>
+                      <td className="py-3 pr-4 text-gray-500">
+                        {className} - {sectionName}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${ASSESSMENT_STATUS_STYLES[r.status]}`}>{r.status}</span>
+                      </td>
+                      {bulkMode ? (
+                        <>
+                          <td className="py-3 pr-4">
+                            <MiniChipRow
+                              options={RATING_LEVELS}
+                              styles={RATING_STYLES}
+                              value={change.behaviour}
+                              onChange={(v) =>
+                                setBulkChanges((prev) => ({ ...prev, [r.studentId]: { ...prev[r.studentId], behaviour: v } }))
+                              }
+                            />
+                          </td>
+                          <td className="py-3 pr-4">
+                            <MiniChipRow
+                              options={OVERALL_PERFORMANCE_OPTIONS}
+                              styles={OVERALL_PERFORMANCE_STYLES}
+                              value={change.overallPerformance}
+                              onChange={(v) =>
+                                setBulkChanges((prev) => ({ ...prev, [r.studentId]: { ...prev[r.studentId], overallPerformance: v } }))
+                              }
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <td className="py-3 pr-4 text-gray-500">{formatDate(r.updatedAt)}</td>
+                      )}
+                      <td className="py-3 pr-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {!bulkMode && (
+                            <button
+                              type="button"
+                              onClick={() => setQuickTarget(r)}
+                              title="Complete in 30 Seconds"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 transition cursor-pointer"
+                            >
+                              <FiZap className="w-3.5 h-3.5" />
+                            </button>
                           )}
-                        </span>
-                        <span className="font-medium text-gray-900">{r.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 pr-4 text-gray-500">{r.admissionId}</td>
-                    <td className="py-3 pr-4 text-gray-500">
-                      {className} - {sectionName}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${ASSESSMENT_STATUS_STYLES[r.status]}`}>{r.status}</span>
-                    </td>
-                    <td className="py-3 pr-4 text-gray-500">{formatDate(r.updatedAt)}</td>
-                    <td className="py-3 pr-6 text-right">
-                      <Link
-                        href={`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
-                      >
-                        {r.status === 'Not Started' ? (
-                          <>
-                            <FiPlay className="w-3.5 h-3.5" />
-                            Start
-                          </>
-                        ) : r.status === 'Completed' ? (
-                          <>
-                            <FiEye className="w-3.5 h-3.5" />
-                            View
-                          </>
-                        ) : (
-                          <>
-                            <FiEdit2 className="w-3.5 h-3.5" />
-                            Edit
-                          </>
-                        )}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                          <Link
+                            href={`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
+                          >
+                            {r.status === 'Not Started' ? (
+                              <>
+                                <FiPlay className="w-3.5 h-3.5" />
+                                Start
+                              </>
+                            ) : r.status === 'Completed' ? (
+                              <>
+                                <FiEye className="w-3.5 h-3.5" />
+                                View
+                              </>
+                            ) : (
+                              <>
+                                <FiEdit2 className="w-3.5 h-3.5" />
+                                Edit
+                              </>
+                            )}
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {bulkMode && bulkChangeCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30">
+          <p className="text-sm text-gray-600">{bulkChangeCount} student(s) with pending changes</p>
+          <button
+            type="button"
+            onClick={handleSaveAllBulk}
+            disabled={isSavingBulk}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 disabled:opacity-60 cursor-pointer transition"
+          >
+            <FiSave className="w-4 h-4" />
+            {isSavingBulk ? 'Saving...' : `Save All (${bulkChangeCount})`}
+          </button>
+        </div>
+      )}
+
+      <QuickAssessmentModal
+        isOpen={Boolean(quickTarget)}
+        onClose={() => setQuickTarget(null)}
+        student={quickTarget}
+        month={month}
+        year={year}
+        subjects={subjects}
+        onSuccess={(message) => {
+          setQuickTarget(null);
+          setToastMessage(message);
+          reload();
+        }}
+      />
+
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
     </div>
   );
 }
