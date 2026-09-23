@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createNotice, getVisibleNotices } from '@/lib/notices';
-import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
 
 // GET /api/notices — same visibility rule as the web dashboard's notice
 // board: everyone sees "Whole School" notices, a Teacher additionally sees
@@ -26,13 +26,17 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  // A real Teacher session must be scoped by their own classTeacherOf —
-  // getCurrentActor() alone resolves to the web dashboard's role-preview
-  // toggle, which never carries that field (same fix as app/api/homework's
-  // POST) and would leave a real Class Teacher unable to post to their own
-  // section, or worse, let the toggle's stale class silently apply instead.
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  // Real session required, full stop — `sessionUser || mergeWithDashboardActor(sessionUser)`
+  // only ever reaches the toggle when sessionUser is null (the `||` short-
+  // circuits otherwise), which is exactly the unauthenticated case: the
+  // toggle's own fallback (lib/currentUser.js) defaults to
+  // `{ role: 'SchoolAdmin' }` with zero credentials, so that pattern let
+  // anyone POST a notice as SchoolAdmin (or as whatever teacher the process-
+  // wide toggle happened to be set to) with no session at all.
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   try {
     const notice = await createNotice(data, currentUser);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUserInfo, mergeWithDashboardActor, requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo, requireSchoolAdmin } from '@/lib/iam';
 import { applyForLeave, getAllLeaveRequests, getLeavesForTeacher } from '@/lib/teacherLeaves';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
@@ -22,15 +22,19 @@ export async function GET(request) {
   return NextResponse.json(leaves);
 }
 
-// POST /api/leaves — same real-session-first pattern as app/api/homework's
-// POST: a real Teacher session takes priority, falling back to the web
-// dashboard's role-preview toggle only when there's no real session at all.
+// POST /api/leaves — real session required, full stop. The old
+// `sessionUser || mergeWithDashboardActor(sessionUser)` pattern only ever
+// reached the toggle when unauthenticated (defaulting to SchoolAdmin, which
+// this route's own role check would reject) or — if some other browser
+// activity on the server had left the toggle set to a specific Teacher —
+// let an unauthenticated request apply for leave AS that teacher.
 export async function POST(request) {
   const data = await request.json();
 
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
-
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
   if (currentUser.role !== 'Teacher' || !currentUser.teacherId) {
     return NextResponse.json({ error: 'Only teachers can apply for leave.' }, { status: 403 });
   }

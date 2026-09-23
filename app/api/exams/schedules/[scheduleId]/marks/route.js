@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getMarksSheet, saveExamMarks } from '@/lib/examMarks';
-import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
 
 // GET /api/exams/schedules/[scheduleId]/marks — the full student roster for
 // this schedule with any already-entered marks, the exact shape the Teacher
 // marks-entry screen (Phase 3) renders.
 export async function GET(request, { params }) {
   const { scheduleId } = await params;
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  // Real session required. The old `sessionUser ||
+  // mergeWithDashboardActor(sessionUser)` pattern's `if (!currentUser)` check
+  // below was dead code — mergeWithDashboardActor(null) always returns the
+  // dashboard toggle's object (default `{ role: 'SchoolAdmin' }`), never
+  // null, so an unauthenticated caller sailed through as SchoolAdmin and
+  // could read/tamper with any exam's marks (saveExamMarks's Teacher-only
+  // submit-lock is bypassed entirely for the SchoolAdmin role).
+  const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
@@ -32,8 +38,10 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   try {
     const saved = await saveExamMarks(scheduleId, rows, currentUser, { submit: Boolean(submit) });

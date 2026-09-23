@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createHomework, getVisibleHomework } from '@/lib/homework';
-import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
 
 // GET /api/homework — mirrors app/api/notices/route.js's GET: real signed-in
 // session only (mobile Teacher/Parent JWT or web SchoolAdmin cookie), scoped
@@ -27,13 +27,16 @@ export async function POST(request) {
   // scoped to their own classes — getCurrentActor() alone resolves to the
   // web dashboard's role-preview toggle, a global flag with no idea which
   // teacher is actually signed in on this device, which silently let any
-  // mobile Teacher assign homework to any class in the school (see
-  // getCurrentUserInfo's Teacher branch for the fix this real session now
-  // provides). Fall back to the toggle only when there's no real session at
-  // all (e.g. a SchoolAdmin previewing "as Teacher" without a real teacher
-  // login).
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  // mobile Teacher assign homework to any class in the school. Real session
+  // is required, full stop — the old `sessionUser ||
+  // mergeWithDashboardActor(sessionUser)` fallback only ever reached the
+  // toggle when unauthenticated (the `||` short-circuits otherwise), and the
+  // toggle defaults to `{ role: 'SchoolAdmin' }` with zero credentials,
+  // which let anyone create/edit/delete homework with no session at all.
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   try {
     const homework = await createHomework(data, currentUser);

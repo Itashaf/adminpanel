@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPrintableClassSections, getPrintableRoster } from '@/lib/printMarksheet';
-import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
 
 // GET /api/print-marksheet?className=...&sectionName=...
 export async function GET(request) {
@@ -8,8 +8,9 @@ export async function GET(request) {
   const className = searchParams.get('className');
   const sectionName = searchParams.get('sectionName');
 
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  // Real session required — see app/api/print-marksheet/classes/route.js for
+  // why the old toggle-fallback pattern let this leak unauthenticated.
+  const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }

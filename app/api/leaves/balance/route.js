@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUserInfo, mergeWithDashboardActor, requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo, requireSchoolAdmin } from '@/lib/iam';
 import { getLeaveBalance } from '@/lib/teacherLeaves';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
@@ -11,8 +11,13 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const year = searchParams.get('year') ? Number(searchParams.get('year')) : undefined;
 
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  // Real session required — was previously vulnerable to an unauthenticated
+  // caller reading whatever teacher the process-wide toggle happened to be
+  // set to (see app/api/leaves/route.js's POST for the same root cause).
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   if (currentUser.role === 'Teacher') {
     // resolveSchoolId(), not currentUser.schoolId — the dashboard-toggle

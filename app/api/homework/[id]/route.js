@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updateHomework, deleteHomework } from '@/lib/homework';
-import { getCurrentUserInfo, mergeWithDashboardActor } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
 
 export async function PUT(request, { params }) {
   const { id } = await params;
@@ -10,10 +10,12 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  // See app/api/homework/route.js's POST for why the real session takes
-  // priority over the dashboard toggle here.
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  // Real session required — see app/api/homework/route.js's POST for why the
+  // old toggle-fallback pattern let anyone edit any homework unauthenticated.
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   try {
     const homework = await updateHomework(id, data, currentUser);
@@ -28,8 +30,10 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const { id } = await params;
-  const sessionUser = await getCurrentUserInfo();
-  const currentUser = sessionUser || (await mergeWithDashboardActor(sessionUser));
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   try {
     const deleted = await deleteHomework(id, currentUser);
