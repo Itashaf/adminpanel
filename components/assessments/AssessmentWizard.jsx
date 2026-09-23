@@ -2,7 +2,24 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiUser, FiCheck, FiChevronLeft, FiChevronRight, FiSave, FiSend, FiTrendingUp, FiHome, FiCheckCircle, FiActivity } from 'react-icons/fi';
+import {
+  FiUser,
+  FiCheck,
+  FiChevronLeft,
+  FiChevronRight,
+  FiSave,
+  FiSend,
+  FiTrendingUp,
+  FiHome,
+  FiCheckCircle,
+  FiActivity,
+  FiCalendar,
+  FiHeart,
+  FiFileText,
+  FiMessageCircle,
+  FiBarChart2,
+  FiCheckSquare,
+} from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import { saveStudentAssessment } from '@/lib/api';
 import {
@@ -74,28 +91,51 @@ function ChipButton({ isActive, onClick, children, activeClass, disabled }) {
 // AssessmentWizard's fixed 4-then-3 layout (see the two StepRow calls
 // below). `startIndex` offsets each row's circle number/step index since
 // this only ever renders a slice of WIZARD_STEPS.
-function StepRow({ steps, startIndex, currentStep, onSelect }) {
+const STEP_ICONS = {
+  attendance: FiCalendar,
+  cocurricular: FiActivity,
+  holistic: FiHeart,
+  concise: FiFileText,
+  remarks: FiMessageCircle,
+  tests: FiBarChart2,
+  review: FiCheckSquare,
+};
+
+// Single-row icon stepper, all 7 in one line (small text/circles so they
+// keep fitting instead of wrapping or scrolling — see the two earlier
+// layouts this replaced). Done step: filled green circle, checkmark.
+// Current step: bigger filled indigo circle with a ring glow, its own icon.
+// Future step: light outline circle, its own icon in gray.
+function StepIndicatorRow({ steps, currentStep, onSelect }) {
   return (
     <div className="flex items-start justify-center">
-      {steps.map((s, i) => {
-        const index = startIndex + i;
+      {steps.map((s, index) => {
+        const isDone = index < currentStep;
+        const isCurrent = index === currentStep;
+        const Icon = STEP_ICONS[s.key];
         return (
           <div key={s.key} className="flex items-start">
-            <button type="button" onClick={() => onSelect(index)} className="flex flex-col items-center gap-2 px-1 w-20 cursor-pointer group shrink-0">
+            <button type="button" onClick={() => onSelect(index)} className="flex flex-col items-center gap-1.5 px-0.5 w-12 sm:w-16 cursor-pointer group shrink-0">
               <span
-                className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold shrink-0 border-2 transition ${
-                  index === currentStep
-                    ? 'bg-indigo-600 border-indigo-600 text-white'
-                    : 'bg-white border-gray-200 text-gray-400 group-hover:border-gray-300'
+                className={`flex items-center justify-center rounded-full shrink-0 transition ${
+                  isCurrent
+                    ? 'w-10 h-10 sm:w-11 sm:h-11 bg-indigo-600 text-white ring-4 ring-indigo-100'
+                    : isDone
+                    ? 'w-9 h-9 sm:w-10 sm:h-10 bg-green-500 text-white'
+                    : 'w-9 h-9 sm:w-10 sm:h-10 bg-white border-2 border-gray-200 text-gray-300 group-hover:border-gray-300'
                 }`}
               >
-                {index + 1}
+                {isDone ? <FiCheck className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
               </span>
-              <span className={`text-xs font-medium text-center leading-tight ${index === currentStep ? 'text-indigo-700' : 'text-gray-500'}`}>
+              <span
+                className={`text-[10px] sm:text-xs font-medium text-center leading-tight truncate w-full ${
+                  isCurrent ? 'text-indigo-700' : isDone ? 'text-green-700' : 'text-gray-400'
+                }`}
+              >
                 {s.label}
               </span>
             </button>
-            {i < steps.length - 1 && <span className="w-8 sm:w-12 border-t-2 border-dotted border-gray-300 mx-0.5 shrink-0 mt-[18px]" />}
+            {index < steps.length - 1 && <span className="w-2 sm:w-6 border-t-2 border-dotted border-gray-300 mx-0.5 shrink-0 mt-5" />}
           </div>
         );
       })}
@@ -720,15 +760,13 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
         </div>
       )}
 
-      {/* Step indicator — circle-over-label, fixed 4-then-3 layout with a
-          dotted connector between circles in each row (no scrollbar, no
-          reflow-based wrapping — see StepRow below). Current step: filled
-          blue circle. Others: light gray outline circle, regardless of
-          whether already visited — the reference doesn't mark earlier
-          steps done with a checkmark. */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
-        <StepRow steps={WIZARD_STEPS.slice(0, 4)} startIndex={0} currentStep={step} onSelect={goToStep} />
-        <StepRow steps={WIZARD_STEPS.slice(4, 7)} startIndex={4} currentStep={step} onSelect={goToStep} />
+      {/* Step indicator — single row, icon-per-step circles connected by a
+          dotted line (see StepIndicatorRow above). Done: green check.
+          Current: bigger indigo circle with a ring glow. Upcoming: gray
+          outline with its own icon. Text/circles sized small enough to
+          keep all 7 on one row instead of wrapping or scrolling. */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <StepIndicatorRow steps={WIZARD_STEPS} currentStep={step} onSelect={goToStep} />
       </div>
 
       {step === 0 && <AttendanceStep {...stepProps} />}
