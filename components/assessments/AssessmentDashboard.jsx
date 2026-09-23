@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { FiUsers, FiCheckCircle, FiClock, FiAlertCircle, FiSearch, FiUser, FiEye, FiEdit2, FiPlay, FiZap, FiLayers, FiSave } from 'react-icons/fi';
+import { FiUsers, FiCheckCircle, FiClock, FiAlertCircle, FiSearch, FiUser, FiEye, FiEdit2, FiPlay, FiZap, FiLayers, FiSave, FiBarChart2 } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
 import Toast from '@/components/Toast';
 import QuickAssessmentModal from './QuickAssessmentModal';
@@ -178,9 +178,20 @@ export default function AssessmentDashboard({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Monthly Assessments</h1>
-        <p className="text-sm text-gray-500 mt-1">Complete a student&apos;s monthly assessment in a couple of minutes.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Monthly Assessments</h1>
+          <p className="text-sm text-gray-500 mt-1">Complete a student&apos;s monthly assessment in a couple of minutes.</p>
+        </div>
+        {className && sectionName && (
+          <Link
+            href={`/dashboard/assessments/reports?class=${encodeURIComponent(className)}&section=${encodeURIComponent(sectionName)}&month=${month}&year=${year}`}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
+          >
+            <FiBarChart2 className="w-4 h-4" />
+            View Reports
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
