@@ -98,7 +98,25 @@ function StudentCard({ student, autoFill }) {
   );
 }
 
-function OverviewStep({ form, setForm, student, autoFill }) {
+// Step 1 — attendance is auto-pulled from the real Attendance records (see
+// autoFill.attendancePercentage), so this step is a confirmation display,
+// not manual entry.
+function AttendanceStep({ student, autoFill }) {
+  return (
+    <div className="space-y-6">
+      <StudentCard student={student} autoFill={autoFill} />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Attendance this month</p>
+        <p className="text-5xl font-bold text-indigo-700">
+          {autoFill.attendancePercentage != null ? `${autoFill.attendancePercentage}%` : '—'}
+        </p>
+        <p className="text-xs text-gray-400 mt-2">Pulled automatically from daily attendance records.</p>
+      </div>
+    </div>
+  );
+}
+
+function ConciseReportStep({ form, setForm }) {
   const toggleTag = (tag) => {
     setForm((prev) => ({
       ...prev,
@@ -107,46 +125,33 @@ function OverviewStep({ form, setForm, student, autoFill }) {
   };
 
   return (
-    <div className="space-y-6">
-      <StudentCard student={student} autoFill={autoFill} />
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <h3 className="text-sm font-semibold text-gray-900 mb-3">Overall Performance</h3>
+      <div className="flex flex-wrap gap-2">
+        {OVERALL_PERFORMANCE_OPTIONS.map((option) => (
+          <ChipButton
+            key={option}
+            isActive={form.overallPerformance === option}
+            activeClass={OVERALL_PERFORMANCE_STYLES[option]}
+            onClick={() => setForm((prev) => ({ ...prev, overallPerformance: option }))}
+          >
+            {option}
+          </ChipButton>
+        ))}
+      </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Overall Performance</h3>
-        <div className="flex flex-wrap gap-2">
-          {OVERALL_PERFORMANCE_OPTIONS.map((option) => (
-            <ChipButton
-              key={option}
-              isActive={form.overallPerformance === option}
-              activeClass={OVERALL_PERFORMANCE_STYLES[option]}
-              onClick={() => setForm((prev) => ({ ...prev, overallPerformance: option }))}
-            >
-              {option}
-            </ChipButton>
-          ))}
-        </div>
-
-        <h3 className="text-sm font-semibold text-gray-900 mt-5 mb-3">Quick Tags</h3>
-        <div className="flex flex-wrap gap-2">
-          {OVERALL_TAGS.map((tag) => (
-            <ChipButton
-              key={tag}
-              isActive={form.overallTags.includes(tag)}
-              activeClass="bg-indigo-600 text-white border-indigo-600"
-              onClick={() => toggleTag(tag)}
-            >
-              {tag}
-            </ChipButton>
-          ))}
-        </div>
-
-        <h3 className="text-sm font-semibold text-gray-900 mt-5 mb-2">Remark (optional)</h3>
-        <textarea
-          rows={3}
-          value={form.overallRemark}
-          onChange={(e) => setForm((prev) => ({ ...prev, overallRemark: e.target.value }))}
-          placeholder="Any overall observation..."
-          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+      <h3 className="text-sm font-semibold text-gray-900 mt-5 mb-3">Quick Tags</h3>
+      <div className="flex flex-wrap gap-2">
+        {OVERALL_TAGS.map((tag) => (
+          <ChipButton
+            key={tag}
+            isActive={form.overallTags.includes(tag)}
+            activeClass="bg-indigo-600 text-white border-indigo-600"
+            onClick={() => toggleTag(tag)}
+          >
+            {tag}
+          </ChipButton>
+        ))}
       </div>
     </div>
   );
@@ -159,7 +164,7 @@ function BehaviourStep({ form, setForm }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-      <h3 className="text-sm font-semibold text-gray-900">Behaviour Assessment</h3>
+      <h3 className="text-sm font-semibold text-gray-900">Holistic Development</h3>
       {BEHAVIOUR_CATEGORIES.map((cat) => (
         <div key={cat.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0">
           <p className="text-sm font-medium text-gray-700 sm:w-44 shrink-0">{cat.label}</p>
@@ -308,46 +313,63 @@ function YesNoToggle({ value, onChange }) {
   );
 }
 
-function ParentStep({ form, setForm }) {
+// Teacher's own freeform observations + parent-communication log — grouped
+// into one step since both are teacher-authored notes rather than
+// student ratings (parentCommunication itself is unchanged in the data
+// model, just no longer a separate wizard step).
+function TeacherRemarksStep({ form, setForm }) {
   const pc = form.parentCommunication;
   const update = (patch) => setForm((prev) => ({ ...prev, parentCommunication: { ...prev.parentCommunication, ...patch } }));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">PTM Conducted?</h3>
-        <YesNoToggle value={pc.ptmConducted} onChange={(v) => update({ ptmConducted: v })} />
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Parent Contacted?</h3>
-        <YesNoToggle value={pc.parentContacted} onChange={(v) => update({ parentContacted: v })} />
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Parent Feedback</h3>
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">Teacher Remark</h3>
         <textarea
-          rows={2}
-          value={pc.feedback}
-          onChange={(e) => update({ feedback: e.target.value })}
-          placeholder="Short note on parent's feedback..."
+          rows={3}
+          value={form.overallRemark}
+          onChange={(e) => setForm((prev) => ({ ...prev, overallRemark: e.target.value }))}
+          placeholder="Any overall observation..."
           className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Follow-up Required?</h3>
-        <YesNoToggle value={pc.followUpRequired} onChange={(v) => update({ followUpRequired: v })} />
-      </div>
-      {pc.followUpRequired && (
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Follow-up Note</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">PTM Conducted?</h3>
+          <YesNoToggle value={pc.ptmConducted} onChange={(v) => update({ ptmConducted: v })} />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Parent Contacted?</h3>
+          <YesNoToggle value={pc.parentContacted} onChange={(v) => update({ parentContacted: v })} />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Parent Feedback</h3>
           <textarea
             rows={2}
-            value={pc.followUpNote}
-            onChange={(e) => update({ followUpNote: e.target.value })}
-            placeholder="What needs to be followed up..."
+            value={pc.feedback}
+            onChange={(e) => update({ feedback: e.target.value })}
+            placeholder="Short note on parent's feedback..."
             className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-      )}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Follow-up Required?</h3>
+          <YesNoToggle value={pc.followUpRequired} onChange={(v) => update({ followUpRequired: v })} />
+        </div>
+        {pc.followUpRequired && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Follow-up Note</h3>
+            <textarea
+              rows={2}
+              value={pc.followUpNote}
+              onChange={(e) => update({ followUpNote: e.target.value })}
+              placeholder="What needs to be followed up..."
+              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -369,14 +391,16 @@ function ReviewSection({ title, onEdit, children }) {
 function ReviewStep({ form, autoFill, goToStep }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <ReviewSection title="Overview" onEdit={() => goToStep(0)}>
-        <p className="text-sm text-gray-700">
-          {form.overallPerformance || 'Not set'} • Attendance {autoFill.attendancePercentage ?? '—'}%
-        </p>
-        {form.overallTags.length > 0 && <p className="text-xs text-gray-400 mt-1">{form.overallTags.join(', ')}</p>}
+      <ReviewSection title="Attendance" onEdit={() => goToStep(0)}>
+        <p className="text-sm text-gray-700">Attendance {autoFill.attendancePercentage ?? '—'}%</p>
       </ReviewSection>
 
-      <ReviewSection title="Behaviour" onEdit={() => goToStep(1)}>
+      <ReviewSection title="Co-Curricular" onEdit={() => goToStep(1)}>
+        <p className="text-sm text-gray-700">{form.activities.selectedActivities.join(', ') || 'None selected'}</p>
+        {form.activities.achievementLevel && <p className="text-xs text-gray-400 mt-1">Level: {form.activities.achievementLevel}</p>}
+      </ReviewSection>
+
+      <ReviewSection title="Holistic Dev." onEdit={() => goToStep(2)}>
         <div className="space-y-1">
           {BEHAVIOUR_CATEGORIES.map((cat) => (
             <div key={cat.key} className="flex items-center justify-between text-sm">
@@ -387,7 +411,21 @@ function ReviewStep({ form, autoFill, goToStep }) {
         </div>
       </ReviewSection>
 
-      <ReviewSection title="Academics" onEdit={() => goToStep(2)}>
+      <ReviewSection title="Concise Report" onEdit={() => goToStep(3)}>
+        <p className="text-sm text-gray-700">{form.overallPerformance || 'Not set'}</p>
+        {form.overallTags.length > 0 && <p className="text-xs text-gray-400 mt-1">{form.overallTags.join(', ')}</p>}
+      </ReviewSection>
+
+      <ReviewSection title="Teacher Remarks" onEdit={() => goToStep(4)}>
+        <p className="text-sm text-gray-700">{form.overallRemark || 'No remark added.'}</p>
+        <p className="text-xs text-gray-400 mt-1">
+          PTM: {form.parentCommunication.ptmConducted === null ? '—' : form.parentCommunication.ptmConducted ? 'Yes' : 'No'} • Contacted:{' '}
+          {form.parentCommunication.parentContacted === null ? '—' : form.parentCommunication.parentContacted ? 'Yes' : 'No'}
+        </p>
+        {form.parentCommunication.followUpRequired && <p className="text-xs text-amber-600 mt-1">Follow-up needed</p>}
+      </ReviewSection>
+
+      <ReviewSection title="Monthly Tests" onEdit={() => goToStep(5)}>
         <div className="space-y-1">
           {form.academics.map((row) => (
             <div key={row.subject} className="flex items-center justify-between text-sm">
@@ -396,19 +434,6 @@ function ReviewStep({ form, autoFill, goToStep }) {
             </div>
           ))}
         </div>
-      </ReviewSection>
-
-      <ReviewSection title="Activities" onEdit={() => goToStep(3)}>
-        <p className="text-sm text-gray-700">{form.activities.selectedActivities.join(', ') || 'None selected'}</p>
-        {form.activities.achievementLevel && <p className="text-xs text-gray-400 mt-1">Level: {form.activities.achievementLevel}</p>}
-      </ReviewSection>
-
-      <ReviewSection title="Parent Notes" onEdit={() => goToStep(4)}>
-        <p className="text-sm text-gray-700">
-          PTM: {form.parentCommunication.ptmConducted === null ? '—' : form.parentCommunication.ptmConducted ? 'Yes' : 'No'} • Contacted:{' '}
-          {form.parentCommunication.parentContacted === null ? '—' : form.parentCommunication.parentContacted ? 'Yes' : 'No'}
-        </p>
-        {form.parentCommunication.followUpRequired && <p className="text-xs text-amber-600 mt-1">Follow-up needed</p>}
       </ReviewSection>
     </div>
   );
@@ -593,39 +618,42 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
         </div>
       )}
 
-      {/* Step indicator */}
+      {/* Step indicator — circle-over-label, connected by a line, matching
+          the reference design (not the earlier pill-with-label-beside-number
+          style). Current step: filled blue circle. Others: light gray
+          outline circle, regardless of whether already visited — the
+          reference doesn't mark earlier steps done with a checkmark. */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-max">
+        <div className="flex items-start min-w-max">
           {WIZARD_STEPS.map((s, index) => (
-            <div key={s.key} className="flex items-center">
-              <button
-                type="button"
-                onClick={() => goToStep(index)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium cursor-pointer transition ${
-                  index === step ? 'bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'
-                }`}
-              >
+            <div key={s.key} className="flex items-start">
+              <button type="button" onClick={() => goToStep(index)} className="flex flex-col items-center gap-2 px-2 cursor-pointer group">
                 <span
-                  className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shrink-0 ${
-                    index === step ? 'bg-white/20 text-white' : index < step ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                  className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold shrink-0 border-2 transition ${
+                    index === step
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'bg-white border-gray-200 text-gray-400 group-hover:border-gray-300'
                   }`}
                 >
-                  {index < step ? <FiCheck className="w-3 h-3" /> : index + 1}
+                  {index + 1}
                 </span>
-                {s.label}
+                <span className={`text-xs font-medium text-center w-20 leading-tight ${index === step ? 'text-indigo-700' : 'text-gray-500'}`}>
+                  {s.label}
+                </span>
               </button>
-              {index < WIZARD_STEPS.length - 1 && <span className="w-4 h-px bg-gray-200 mx-1 shrink-0" />}
+              {index < WIZARD_STEPS.length - 1 && <span className="w-8 h-px bg-gray-200 mx-0.5 shrink-0 mt-[18px]" />}
             </div>
           ))}
         </div>
       </div>
 
-      {step === 0 && <OverviewStep {...stepProps} />}
-      {step === 1 && <BehaviourStep {...stepProps} />}
-      {step === 2 && <AcademicsStep {...stepProps} />}
-      {step === 3 && <ActivitiesStep {...stepProps} />}
-      {step === 4 && <ParentStep {...stepProps} />}
-      {step === 5 && <ReviewStep form={form} autoFill={autoFill} goToStep={goToStep} />}
+      {step === 0 && <AttendanceStep {...stepProps} />}
+      {step === 1 && <ActivitiesStep {...stepProps} />}
+      {step === 2 && <BehaviourStep {...stepProps} />}
+      {step === 3 && <ConciseReportStep {...stepProps} />}
+      {step === 4 && <TeacherRemarksStep {...stepProps} />}
+      {step === 5 && <AcademicsStep {...stepProps} />}
+      {step === 6 && <ReviewStep form={form} autoFill={autoFill} goToStep={goToStep} />}
 
       {/* Sticky footer — viewport-fixed on the full page, but sticky within
           the drawer's own scroll container when embedded (a viewport-fixed
