@@ -2,52 +2,31 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   FiUsers,
-  FiCheckCircle,
+  FiShield,
   FiClock,
-  FiAlertCircle,
+  FiBarChart2,
   FiSearch,
   FiUser,
   FiEye,
   FiEdit2,
-  FiPlay,
   FiZap,
   FiLayers,
   FiSave,
-  FiBarChart2,
-  FiMoreVertical,
   FiChevronLeft,
   FiChevronRight,
+  FiChevronDown,
+  FiChevronUp,
+  FiCalendar,
+  FiCheckCircle,
 } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
-import DropdownMenu from '@/components/DropdownMenu';
 import Toast from '@/components/Toast';
 import QuickAssessmentModal from './QuickAssessmentModal';
 import { getSectionOptions } from '@/lib/hooks/useClassSections';
 import { getClassAssessments, saveStudentAssessment } from '@/lib/api';
-import {
-  ASSESSMENT_STATUS_STYLES,
-  RATING_LEVELS,
-  RATING_STYLES,
-  OVERALL_PERFORMANCE_OPTIONS,
-  OVERALL_PERFORMANCE_STYLES,
-  BEHAVIOUR_CATEGORIES,
-} from '@/lib/assessmentConstants';
-
-// Quick-glance fill state for a roster row's Academic/Behaviour/
-// Participation columns — a filled green check vs. an empty gray ring, no
-// label needed at this size (the column header already says what it is).
-function SectionStatusDot({ filled }) {
-  return filled ? (
-    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-600">
-      <FiCheckCircle className="w-3.5 h-3.5" />
-    </span>
-  ) : (
-    <span className="inline-block w-5 h-5 rounded-full border-2 border-gray-200" />
-  );
-}
+import { RATING_LEVELS, RATING_STYLES, OVERALL_PERFORMANCE_OPTIONS, OVERALL_PERFORMANCE_STYLES, BEHAVIOUR_CATEGORIES } from '@/lib/assessmentConstants';
 
 function MiniChipRow({ options, value, onChange, styles }) {
   return (
@@ -81,57 +60,80 @@ function yearOptions() {
   return [current - 1, current, current + 1].map((y) => ({ value: String(y), label: String(y) }));
 }
 
-function formatDate(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+// Pastel initials avatar — same "no photo -> colored circle" idea as
+// components/students/StudentsTable.jsx's Avatar, just a lighter palette
+// (light bg + matching dark text) to match this screen's reference design.
+const AVATAR_PALETTE = [
+  { bg: 'bg-purple-100', text: 'text-purple-700' },
+  { bg: 'bg-green-100', text: 'text-green-700' },
+  { bg: 'bg-pink-100', text: 'text-pink-700' },
+  { bg: 'bg-blue-100', text: 'text-blue-700' },
+  { bg: 'bg-amber-100', text: 'text-amber-700' },
+  { bg: 'bg-teal-100', text: 'text-teal-700' },
+];
+
+function initialsOf(name) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || parts[0]?.[1] || '')).toUpperCase();
 }
 
-function timeAgo(iso) {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+function Avatar({ name, photoUrl, index }) {
+  if (photoUrl) {
+    return <img src={photoUrl} alt={name} className="w-9 h-9 rounded-full object-cover shrink-0" />;
+  }
+  const palette = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
+  return (
+    <span className={`flex items-center justify-center w-9 h-9 rounded-full text-xs font-semibold shrink-0 ${palette.bg} ${palette.text}`}>
+      {initialsOf(name) || <FiUser className="w-3.5 h-3.5" />}
+    </span>
+  );
 }
 
-// Client-side refetch loading state (filters/pagination change) — mirrors
-// the real roster table's row shape so the table doesn't jump/flash, same
-// shimmer convention as app/dashboard/assessments/loading.jsx (the initial
-// server-render fallback) instead of a spinner icon.
+function StatusPill({ status }) {
+  const isCompleted = status === 'Completed';
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1 border ${
+        isCompleted ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+      }`}
+    >
+      {isCompleted ? <FiCheckCircle className="w-3.5 h-3.5" /> : <FiClock className="w-3.5 h-3.5" />}
+      {isCompleted ? 'Completed' : 'Pending'}
+    </span>
+  );
+}
+
+function StatCard({ label, value, icon, iconBg }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+      <span className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${iconBg}`}>{icon}</span>
+      <div className="min-w-0">
+        <p className="text-2xl font-bold text-gray-900 leading-tight">{value}</p>
+        <p className="text-sm text-gray-500 truncate">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+// Client-side refetch loading state (filters/pagination/tab change) —
+// mirrors the real roster table's row shape so the table doesn't jump/
+// flash, same shimmer convention as app/dashboard/assessments/loading.jsx
+// (the initial server-render fallback) instead of a spinner icon.
 function RosterRowSkeleton() {
   return (
     <tr className="border-t border-gray-100">
       <td className="py-3 pl-6 pr-3"><div className="h-3 w-4 bg-gray-100 rounded animate-pulse" /></td>
       <td className="py-3 pr-4">
         <div className="flex items-center gap-2.5 animate-pulse">
-          <div className="w-8 h-8 rounded-full bg-gray-100 shrink-0" />
-          <div className="space-y-1.5">
-            <div className="h-3.5 w-28 bg-gray-100 rounded" />
-            <div className="h-3 w-16 bg-gray-50 rounded" />
-          </div>
+          <div className="w-9 h-9 rounded-full bg-gray-100 shrink-0" />
+          <div className="h-3.5 w-32 bg-gray-100 rounded" />
         </div>
       </td>
-      <td className="py-3 pr-4"><div className="h-3 w-10 bg-gray-100 rounded mx-auto animate-pulse" /></td>
-      <td className="py-3 pr-4"><div className="w-5 h-5 rounded-full bg-gray-100 mx-auto animate-pulse" /></td>
-      <td className="py-3 pr-4"><div className="w-5 h-5 rounded-full bg-gray-100 mx-auto animate-pulse" /></td>
-      <td className="py-3 pr-4"><div className="w-5 h-5 rounded-full bg-gray-100 mx-auto animate-pulse" /></td>
-      <td className="py-3 pr-4"><div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse" /></td>
-      <td className="py-3 pr-6"><div className="h-7 w-16 bg-gray-100 rounded-full ml-auto animate-pulse" /></td>
+      <td className="py-3 pr-4"><div className="h-3 w-16 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-3 pr-4"><div className="h-3 w-10 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-3 pr-4"><div className="h-6 w-20 bg-gray-100 rounded-full animate-pulse" /></td>
+      <td className="py-3 pr-6"><div className="h-7 w-28 bg-gray-100 rounded-lg ml-auto animate-pulse" /></td>
     </tr>
-  );
-}
-
-function StatCard({ label, value, icon, iconBg, sub }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-center justify-between">
-        <span className={`flex items-center justify-center w-11 h-11 rounded-xl shrink-0 ${iconBg}`}>{icon}</span>
-      </div>
-      <p className="text-sm font-medium text-gray-500 mt-3">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
   );
 }
 
@@ -147,15 +149,15 @@ export default function AssessmentDashboard({
   defaultMonth,
   defaultYear,
   subjects,
-  recentlyAssessed,
 }) {
-  const router = useRouter();
   const [className, setClassName] = useState(defaultClass);
   const [sectionName, setSectionName] = useState(defaultSection);
   const [month, setMonth] = useState(defaultMonth);
   const [year, setYear] = useState(defaultYear);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [tab, setTab] = useState('all'); // 'all' | 'completed' | 'pending'
+  const [sortOrder, setSortOrder] = useState('asc');
   const [page, setPage] = useState(1);
   const [data, setData] = useState(initialData);
   const [isLoading, setIsLoading] = useState(false);
@@ -174,8 +176,7 @@ export default function AssessmentDashboard({
     : getSectionOptions(classSections, className);
 
   // Debounce the search box (400ms) so it doesn't hit the API on every
-  // keystroke — search now runs server-side (see getAssessmentsForClass)
-  // so it has to be a real request, not a client-side filter.
+  // keystroke — search runs server-side (see getAssessmentsForClass).
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(search);
@@ -203,6 +204,8 @@ export default function AssessmentDashboard({
           page,
           pageSize: PAGE_SIZE,
           search: debouncedSearch,
+          status: tab,
+          sort: sortOrder,
         });
         if (!cancelled) setData(result);
       } catch {
@@ -214,7 +217,7 @@ export default function AssessmentDashboard({
     return () => {
       cancelled = true;
     };
-  }, [className, sectionName, month, year, academicSession, page, debouncedSearch]);
+  }, [className, sectionName, month, year, academicSession, page, debouncedSearch, tab, sortOrder]);
 
   const reload = async () => {
     if (!className || !sectionName) return;
@@ -228,6 +231,8 @@ export default function AssessmentDashboard({
         page,
         pageSize: PAGE_SIZE,
         search: debouncedSearch,
+        status: tab,
+        sort: sortOrder,
       });
       setData(result);
     } catch {
@@ -249,13 +254,19 @@ export default function AssessmentDashboard({
     setPage(1);
   };
 
-  const handleMonthChange = (value) => {
-    setMonth(Number(value));
+  const handleMonthYearChange = (m, y) => {
+    setMonth(m);
+    setYear(y);
     setPage(1);
   };
 
-  const handleYearChange = (value) => {
-    setYear(Number(value));
+  const handleTabChange = (value) => {
+    setTab(value);
+    setPage(1);
+  };
+
+  const toggleSort = () => {
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     setPage(1);
   };
 
@@ -289,111 +300,130 @@ export default function AssessmentDashboard({
     }
   };
 
+  const classLabel = className && sectionName ? `${className} - ${sectionName}` : className || 'Class';
+  const tabs = [
+    { key: 'all', label: 'All Students', count: stats.total },
+    { key: 'completed', label: 'Completed', count: stats.completed },
+    { key: 'pending', label: 'Pending', count: stats.pending },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Monthly Assessments</h1>
-          <p className="text-sm text-gray-500 mt-1">Complete a student&apos;s monthly assessment in a couple of minutes.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex gap-3">
+          <span className="w-1 self-stretch rounded-full bg-gradient-to-b from-violet-700 via-indigo-600 to-blue-600 shrink-0" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">My Students — {classLabel}</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage and track monthly progress, development and reports for your students.</p>
+            <p className="text-xs text-gray-400 mt-2">
+              <Link href="/dashboard" className="hover:text-gray-600 cursor-pointer">
+                Dashboard
+              </Link>{' '}
+              &gt; My Students
+            </p>
+          </div>
         </div>
-        {className && sectionName && (
+
+        <div className="flex flex-wrap items-center gap-2">
+          {classOptions.length > 1 && (
+            <div className="w-32">
+              <Dropdown options={classOptions} value={className} onChange={handleClassChange} placeholder="Class" />
+            </div>
+          )}
+          {sectionOptions.length > 1 && (
+            <div className="w-36">
+              <Dropdown options={sectionOptions} value={sectionName} onChange={handleSectionChange} placeholder="Section" />
+            </div>
+          )}
+          <div className="relative">
+            <FiCalendar className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+            <select
+              value={`${month}-${year}`}
+              onChange={(e) => {
+                const [m, y] = e.target.value.split('-').map(Number);
+                handleMonthYearChange(m, y);
+              }}
+              className="appearance-none pl-9 pr-8 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {MONTH_OPTIONS.map((mo) =>
+                yearOptions().map((yo) => (
+                  <option key={`${mo.value}-${yo.value}`} value={`${mo.value}-${yo.value}`}>
+                    {mo.label} {yo.label}
+                  </option>
+                ))
+              )}
+            </select>
+            <FiChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+          </div>
           <Link
             href={`/dashboard/assessments/reports?class=${encodeURIComponent(className)}&section=${encodeURIComponent(sectionName)}&month=${month}&year=${year}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer"
           >
             <FiBarChart2 className="w-4 h-4" />
-            View Reports
+            Reports
           </Link>
-        )}
+          <button
+            type="button"
+            onClick={() => {
+              setBulkMode((prev) => !prev);
+              setBulkChanges({});
+            }}
+            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer whitespace-nowrap ${
+              bulkMode ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <FiLayers className="w-4 h-4" />
+            Bulk Actions
+            <FiChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Students" value={stats.total} icon={<FiUsers className="w-5 h-5" />} iconBg="bg-indigo-100 text-indigo-600" />
-        <StatCard label="Completed" value={stats.completed} icon={<FiCheckCircle className="w-5 h-5" />} iconBg="bg-green-100 text-green-600" />
-        <StatCard label="Pending" value={stats.pending} icon={<FiClock className="w-5 h-5" />} iconBg="bg-amber-100 text-amber-600" />
+        <StatCard label="Total Students" value={stats.total} icon={<FiUsers className="w-5 h-5" />} iconBg="bg-blue-50 text-blue-600" />
+        <StatCard label="Records Completed" value={stats.completed} icon={<FiShield className="w-5 h-5" />} iconBg="bg-green-50 text-green-600" />
+        <StatCard label="Pending This Month" value={stats.pending} icon={<FiClock className="w-5 h-5" />} iconBg="bg-amber-50 text-amber-600" />
         <StatCard
-          label="Completion %"
-          value={`${stats.completionPercent}%`}
-          icon={<FiAlertCircle className="w-5 h-5" />}
-          iconBg="bg-violet-100 text-violet-600"
+          label="Class Average Attendance"
+          value={stats.avgAttendance != null ? `${stats.avgAttendance}%` : '—'}
+          icon={<FiBarChart2 className="w-5 h-5" />}
+          iconBg="bg-purple-50 text-purple-600"
         />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-gray-700">Class progress</p>
-          <p className="text-sm font-semibold text-gray-900">{stats.completionPercent}%</p>
-        </div>
-        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 rounded-full transition-all"
-            style={{ width: `${stats.completionPercent}%` }}
-          />
-        </div>
-      </div>
-
-      {recentlyAssessed?.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Recently Assessed</p>
-          <div className="flex items-center gap-3 overflow-x-auto pb-1">
-            {recentlyAssessed.map((r) => (
-              <Link
-                key={`${r.studentId}-${r.month}-${r.year}`}
-                href={`/dashboard/assessments/${r.studentId}?month=${r.month}&year=${r.year}`}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/40 transition cursor-pointer shrink-0"
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => handleTabChange(t.key)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition border-b-2 ${
+                tab === t.key ? 'text-indigo-700 border-indigo-600' : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              {t.label}
+              <span
+                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  tab === t.key ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
+                }`}
               >
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${r.status === 'Completed' ? 'bg-green-500' : 'bg-amber-500'}`}
-                />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-900 truncate max-w-[140px]">{r.name}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {r.className} - {r.sectionName} • {timeAgo(r.updatedAt)}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+                {t.count}
+              </span>
+            </button>
+          ))}
         </div>
-      )}
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px]">
-          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <div className="relative w-full sm:w-64">
+          <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             autoComplete="off"
             placeholder="Search by name or admission no..."
-            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-        <div className="w-36">
-          <Dropdown options={classOptions} value={className} onChange={handleClassChange} placeholder="Class" />
-        </div>
-        <div className="w-40">
-          <Dropdown options={sectionOptions} value={sectionName} onChange={handleSectionChange} placeholder="Section" />
-        </div>
-        <div className="w-40">
-          <Dropdown options={MONTH_OPTIONS} value={String(month)} onChange={handleMonthChange} />
-        </div>
-        <div className="w-28">
-          <Dropdown options={yearOptions()} value={String(year)} onChange={handleYearChange} />
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setBulkMode((prev) => !prev);
-            setBulkChanges({});
-          }}
-          className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer whitespace-nowrap ${
-            bulkMode ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          <FiLayers className="w-4 h-4" />
-          Bulk Assessment Mode
-        </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -417,21 +447,22 @@ export default function AssessmentDashboard({
               <thead>
                 <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   <th className="py-3 pl-6 pr-3 w-8">#</th>
-                  <th className="py-3 pr-4">Student Name</th>
-                  <th className="py-3 pr-4 text-center">Attendance</th>
+                  <th className="py-3 pr-4">
+                    <button type="button" onClick={toggleSort} className="inline-flex items-center gap-1 cursor-pointer hover:text-gray-700">
+                      Student Name
+                      {sortOrder === 'asc' ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </th>
+                  <th className="py-3 pr-4">Admission No.</th>
+                  <th className="py-3 pr-4">Attendance %</th>
                   {bulkMode ? (
                     <>
                       <th className="py-3 pr-4">Behaviour Rating</th>
                       <th className="py-3 pr-4">Performance Rating</th>
                     </>
                   ) : (
-                    <>
-                      <th className="py-3 pr-4 text-center">Academic</th>
-                      <th className="py-3 pr-4 text-center">Behaviour</th>
-                      <th className="py-3 pr-4 text-center">Participation</th>
-                    </>
+                    <th className="py-3 pr-4">Status</th>
                   )}
-                  <th className="py-3 pr-4">Status</th>
                   <th className="py-3 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -443,20 +474,12 @@ export default function AssessmentDashboard({
                       <td className="py-3 pl-6 pr-3 text-gray-400">{(data.page - 1) * data.pageSize + index + 1}</td>
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-2.5">
-                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-400 shrink-0 overflow-hidden">
-                            {r.photoUrl ? (
-                              <img src={r.photoUrl} alt={r.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <FiUser className="w-3.5 h-3.5" />
-                            )}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{r.name}</p>
-                            <p className="text-xs text-gray-400 truncate">{r.admissionId}</p>
-                          </div>
+                          <Avatar name={r.name} photoUrl={r.photoUrl} index={index} />
+                          <p className="font-medium text-gray-900 truncate">{r.name}</p>
                         </div>
                       </td>
-                      <td className="py-3 pr-4 text-center">
+                      <td className="py-3 pr-4 text-gray-500">{r.admissionId}</td>
+                      <td className="py-3 pr-4">
                         <span className="text-sm font-semibold text-gray-700">
                           {r.attendancePercentage != null ? `${r.attendancePercentage}%` : '—'}
                         </span>
@@ -485,55 +508,45 @@ export default function AssessmentDashboard({
                           </td>
                         </>
                       ) : (
-                        <>
-                          <td className="py-3 pr-4 text-center">
-                            <SectionStatusDot filled={r.sections.academic} />
-                          </td>
-                          <td className="py-3 pr-4 text-center">
-                            <SectionStatusDot filled={r.sections.behaviour} />
-                          </td>
-                          <td className="py-3 pr-4 text-center">
-                            <SectionStatusDot filled={r.sections.participation} />
-                          </td>
-                        </>
+                        <td className="py-3 pr-4">
+                          <StatusPill status={r.status === 'Completed' ? 'Completed' : 'Pending'} />
+                        </td>
                       )}
-                      <td className="py-3 pr-4">
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${ASSESSMENT_STATUS_STYLES[r.status]}`}>{r.status}</span>
-                      </td>
                       <td className="py-3 pr-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Link
                             href={`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`}
-                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                               r.status === 'Completed'
-                                ? 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                                ? 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
                                 : 'text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90'
                             }`}
                           >
                             {r.status === 'Completed' ? (
                               <>
-                                <FiEye className="w-3.5 h-3.5" />
-                                View
+                                <FiEdit2 className="w-3.5 h-3.5" />
+                                Edit
                               </>
                             ) : (
-                              <>
-                                <FiEdit2 className="w-3.5 h-3.5" />
-                                Fill
-                              </>
+                              'Fill Record'
                             )}
                           </Link>
-                          {!bulkMode && (
-                            <DropdownMenu
-                              trigger={<FiMoreVertical className="w-4 h-4" />}
-                              items={[
-                                { label: 'Complete in 30s', icon: <FiZap className="w-4 h-4" />, onClick: () => setQuickTarget(r) },
-                                {
-                                  label: 'Open Full Form',
-                                  icon: <FiPlay className="w-4 h-4" />,
-                                  onClick: () => router.push(`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`),
-                                },
-                              ]}
-                            />
+                          <Link
+                            href={`/dashboard/assessments/${r.studentId}?month=${month}&year=${year}`}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition cursor-pointer"
+                          >
+                            <FiEye className="w-3.5 h-3.5" />
+                            View
+                          </Link>
+                          {!bulkMode && r.status !== 'Completed' && (
+                            <button
+                              type="button"
+                              onClick={() => setQuickTarget(r)}
+                              title="Complete in 30s"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 transition cursor-pointer shrink-0"
+                            >
+                              <FiZap className="w-3.5 h-3.5" />
+                            </button>
                           )}
                         </div>
                       </td>

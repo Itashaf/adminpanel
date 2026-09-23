@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/currentUser';
 import { getTeacherClassScope } from '@/lib/roleGuard';
 import { getClassSectionsMap } from '@/lib/classes';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
-import { getAssessmentsForClass, getRecentlyAssessed } from '@/lib/studentAssessments';
+import { getAssessmentsForClass } from '@/lib/studentAssessments';
 import { getSubjectNames } from '@/lib/subjects';
 import { FALLBACK_SUBJECTS } from '@/lib/assessmentConstants';
 import AssessmentDashboard from '@/components/assessments/AssessmentDashboard';
@@ -48,7 +48,7 @@ export default async function AssessmentsPage() {
     pageSize: 20,
     total: 0,
     totalPages: 1,
-    stats: { total: 0, completed: 0, pending: 0, needsAttention: 0, completionPercent: 0 },
+    stats: { total: 0, completed: 0, pending: 0, needsAttention: 0, completionPercent: 0, avgAttendance: null },
   };
   if (defaultClass && defaultSection) {
     try {
@@ -65,8 +65,6 @@ export default async function AssessmentsPage() {
     }
   }
 
-  const recentlyAssessed = await getRecentlyAssessed(currentUser, 5).catch(() => []);
-
   return (
     <AssessmentDashboard
       initialData={initialData}
@@ -80,7 +78,6 @@ export default async function AssessmentsPage() {
       defaultMonth={defaultMonth}
       defaultYear={defaultYear}
       subjects={subjects}
-      recentlyAssessed={recentlyAssessed}
     />
   );
 }
