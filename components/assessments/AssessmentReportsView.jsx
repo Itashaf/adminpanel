@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiUsers, FiAward, FiTrendingUp, FiAlertTriangle, FiDownload, FiPrinter } from 'react-icons/fi';
+import { FiUsers, FiAward, FiTrendingUp, FiAlertTriangle, FiDownload, FiPrinter, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
 import { getSectionOptions } from '@/lib/hooks/useClassSections';
 import { getClassAssessmentSummary } from '@/lib/api';
@@ -12,6 +12,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 const MONTH_OPTIONS = MONTH_NAMES.map((label, i) => ({ value: String(i + 1), label }));
+const PAGE_SIZE = 20;
 
 function yearOptions() {
   const current = new Date().getFullYear();
@@ -86,6 +87,7 @@ export default function AssessmentReportsView({
   const [year, setYear] = useState(defaultYear);
   const [data, setData] = useState(summary);
   const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const isFirstRun = useRef(true);
 
   const sectionOptions = isTeacher
@@ -105,7 +107,7 @@ export default function AssessmentReportsView({
     (async () => {
       setIsLoading(true);
       try {
-        const result = await getClassAssessmentSummary({ className, sectionName, academicSession, month, year });
+        const result = await getClassAssessmentSummary({ className, sectionName, academicSession, month, year, page, pageSize: PAGE_SIZE });
         if (!cancelled) setData(result);
       } catch {
         // Filters just keep showing the previous report.
@@ -116,7 +118,7 @@ export default function AssessmentReportsView({
     return () => {
       cancelled = true;
     };
-  }, [className, sectionName, month, year, academicSession]);
+  }, [className, sectionName, month, year, academicSession, page]);
 
   const handleClassChange = (value) => {
     setClassName(value);
@@ -124,6 +126,22 @@ export default function AssessmentReportsView({
       ? [...new Set(teacherScope.filter((a) => a.class === value).map((a) => a.section))]
       : classSections[value] || [];
     setSectionName(nextSections[0] || '');
+    setPage(1);
+  };
+
+  const handleSectionChange = (value) => {
+    setSectionName(value);
+    setPage(1);
+  };
+
+  const handleMonthChange = (value) => {
+    setMonth(Number(value));
+    setPage(1);
+  };
+
+  const handleYearChange = (value) => {
+    setYear(Number(value));
+    setPage(1);
   };
 
   const handleExportExcel = () => {
@@ -174,13 +192,13 @@ export default function AssessmentReportsView({
           <Dropdown options={classOptions} value={className} onChange={handleClassChange} placeholder="Class" />
         </div>
         <div className="w-40">
-          <Dropdown options={sectionOptions} value={sectionName} onChange={setSectionName} placeholder="Section" />
+          <Dropdown options={sectionOptions} value={sectionName} onChange={handleSectionChange} placeholder="Section" />
         </div>
         <div className="w-40">
-          <Dropdown options={MONTH_OPTIONS} value={String(month)} onChange={(v) => setMonth(Number(v))} />
+          <Dropdown options={MONTH_OPTIONS} value={String(month)} onChange={handleMonthChange} />
         </div>
         <div className="w-28">
-          <Dropdown options={yearOptions()} value={String(year)} onChange={(v) => setYear(Number(v))} />
+          <Dropdown options={yearOptions()} value={String(year)} onChange={handleYearChange} />
         </div>
       </div>
 
@@ -224,7 +242,7 @@ export default function AssessmentReportsView({
               <tbody className="divide-y divide-gray-100">
                 {data.perStudent.map((s, i) => (
                   <tr key={s.admissionId}>
-                    <td className="py-2.5 pl-6 pr-4 text-gray-400">{i + 1}</td>
+                    <td className="py-2.5 pl-6 pr-4 text-gray-400">{(data.page - 1) * data.pageSize + i + 1}</td>
                     <td className="py-2.5 pr-4 font-medium text-gray-900">{s.name}</td>
                     <td className="py-2.5 pr-4 text-gray-500">{s.admissionId}</td>
                     <td className="py-2.5 pr-4 text-gray-500">{s.status}</td>
@@ -234,6 +252,34 @@ export default function AssessmentReportsView({
                 ))}
               </tbody>
             </table>
+            {data.total > 0 && (
+              <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t border-gray-100 print:hidden">
+                <p className="text-xs text-gray-500">
+                  Showing {(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.total)} of {data.total}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={data.page <= 1}
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    <FiChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-medium text-gray-600 min-w-[70px] text-center">
+                    Page {data.page} of {data.totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                    disabled={data.page >= data.totalPages}
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    <FiChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

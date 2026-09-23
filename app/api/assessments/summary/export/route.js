@@ -31,7 +31,11 @@ export async function GET(request) {
 
   let summary;
   try {
-    summary = await getClassAssessmentSummary(currentUser, { className, sectionName, academicSession, month, year });
+    // Export needs every row regardless of what page the Reports table is
+    // currently showing — pageSize here is just "no practical limit", not a
+    // real page boundary (getClassAssessmentSummary only slices `perStudent`
+    // in JS from an already-fetched full class, so this costs nothing extra).
+    summary = await getClassAssessmentSummary(currentUser, { className, sectionName, academicSession, month, year, pageSize: 100000 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 403 });
   }

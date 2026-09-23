@@ -44,6 +44,10 @@ export default async function AssessmentReportsPage({ searchParams }) {
     academicCounts: {},
     activityCounts: {},
     perStudent: [],
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 1,
   };
   if (className && sectionName) {
     try {
