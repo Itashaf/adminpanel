@@ -47,11 +47,10 @@ function emptyForm(existing, subjects, autoFill) {
       note: existing?.activities?.note || '',
     },
     parentCommunication: {
-      ptmConducted: existing?.parentCommunication?.ptmConducted ?? null,
-      parentContacted: existing?.parentCommunication?.parentContacted ?? null,
-      feedback: existing?.parentCommunication?.feedback || '',
-      followUpRequired: existing?.parentCommunication?.followUpRequired ?? null,
-      followUpNote: existing?.parentCommunication?.followUpNote || '',
+      keyConcern: existing?.parentCommunication?.keyConcern || '',
+      specificIntervention: existing?.parentCommunication?.specificIntervention || '',
+      targetOutcome: existing?.parentCommunication?.targetOutcome || '',
+      parentInvolvementNotes: existing?.parentCommunication?.parentInvolvementNotes || '',
     },
   };
 }
@@ -425,83 +424,45 @@ function ActivitiesStep({ form, setForm }) {
   );
 }
 
-function YesNoToggle({ value, onChange }) {
-  return (
-    <div className="flex items-center gap-2">
-      {[
-        { label: 'Yes', val: true },
-        { label: 'No', val: false },
-      ].map((opt) => (
-        <ChipButton
-          key={opt.label}
-          isActive={value === opt.val}
-          activeClass="bg-indigo-600 text-white border-indigo-600"
-          onClick={() => onChange(opt.val)}
-        >
-          {opt.label}
-        </ChipButton>
-      ))}
-    </div>
-  );
-}
+const TEACHER_REMARKS_FIELDS = [
+  { key: 'keyConcern', label: 'Key Concern', placeholder: 'Needs improvement in handwriting and often forgets to complete homework.' },
+  { key: 'specificIntervention', label: 'Specific Intervention Next Month', placeholder: 'Daily handwriting practice and weekly homework checklist.' },
+  { key: 'targetOutcome', label: 'Target Outcome', placeholder: 'Improved handwriting and 100% homework submission.' },
+  { key: 'parentInvolvementNotes', label: 'Parent Involvement Notes', placeholder: 'Parents requested to monitor homework at home and encourage reading daily.' },
+];
 
-// Teacher's own freeform observations + parent-communication log — grouped
-// into one step since both are teacher-authored notes rather than
-// student ratings (parentCommunication itself is unchanged in the data
-// model, just no longer a separate wizard step).
+// A structured action plan (concern -> intervention -> target -> parent's
+// part) rather than freeform remarks — stored in parentCommunication (same
+// Json field the old Parent Notes step used, just a different shape; no
+// schema change needed) since it's still teacher-authored notes, not a
+// student rating.
 function TeacherRemarksStep({ form, setForm }) {
-  const pc = form.parentCommunication;
   const update = (patch) => setForm((prev) => ({ ...prev, parentCommunication: { ...prev.parentCommunication, ...patch } }));
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Teacher Remark</h3>
-        <textarea
-          rows={3}
-          value={form.overallRemark}
-          onChange={(e) => setForm((prev) => ({ ...prev, overallRemark: e.target.value }))}
-          placeholder="Any overall observation..."
-          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+      <div className="flex items-start gap-3">
+        <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
+          <FiHome className="w-5 h-5" />
+        </span>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Teacher Remarks &amp; Action Plan</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Identify key areas and plan next steps for the student&apos;s growth.</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">PTM Conducted?</h3>
-          <YesNoToggle value={pc.ptmConducted} onChange={(v) => update({ ptmConducted: v })} />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Parent Contacted?</h3>
-          <YesNoToggle value={pc.parentContacted} onChange={(v) => update({ parentContacted: v })} />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Parent Feedback</h3>
+      {TEACHER_REMARKS_FIELDS.map((field) => (
+        <div key={field.key}>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">{field.label}</label>
           <textarea
             rows={2}
-            value={pc.feedback}
-            onChange={(e) => update({ feedback: e.target.value })}
-            placeholder="Short note on parent's feedback..."
-            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            value={form.parentCommunication[field.key] || ''}
+            onChange={(e) => update({ [field.key]: e.target.value })}
+            placeholder={field.placeholder}
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Follow-up Required?</h3>
-          <YesNoToggle value={pc.followUpRequired} onChange={(v) => update({ followUpRequired: v })} />
-        </div>
-        {pc.followUpRequired && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">Follow-up Note</h3>
-            <textarea
-              rows={2}
-              value={pc.followUpNote}
-              onChange={(e) => update({ followUpNote: e.target.value })}
-              placeholder="What needs to be followed up..."
-              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        )}
-      </div>
+      ))}
     </div>
   );
 }
@@ -551,12 +512,10 @@ function ReviewStep({ form, autoFill, goToStep }) {
       </ReviewSection>
 
       <ReviewSection title="Teacher Remarks" onEdit={() => goToStep(4)}>
-        <p className="text-sm text-gray-700">{form.overallRemark || 'No remark added.'}</p>
-        <p className="text-xs text-gray-400 mt-1">
-          PTM: {form.parentCommunication.ptmConducted === null ? '—' : form.parentCommunication.ptmConducted ? 'Yes' : 'No'} • Contacted:{' '}
-          {form.parentCommunication.parentContacted === null ? '—' : form.parentCommunication.parentContacted ? 'Yes' : 'No'}
-        </p>
-        {form.parentCommunication.followUpRequired && <p className="text-xs text-amber-600 mt-1">Follow-up needed</p>}
+        <p className="text-sm text-gray-700">{form.parentCommunication.keyConcern || 'No key concern added.'}</p>
+        {form.parentCommunication.targetOutcome && (
+          <p className="text-xs text-gray-400 mt-1">Target: {form.parentCommunication.targetOutcome}</p>
+        )}
       </ReviewSection>
 
       <ReviewSection title="Monthly Tests" onEdit={() => goToStep(5)}>
