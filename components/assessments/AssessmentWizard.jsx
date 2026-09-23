@@ -65,6 +65,39 @@ function ChipButton({ isActive, onClick, children, activeClass, disabled }) {
   );
 }
 
+// One row of the step indicator — circles connected by a dotted line, per
+// AssessmentWizard's fixed 4-then-3 layout (see the two StepRow calls
+// below). `startIndex` offsets each row's circle number/step index since
+// this only ever renders a slice of WIZARD_STEPS.
+function StepRow({ steps, startIndex, currentStep, onSelect }) {
+  return (
+    <div className="flex items-start justify-center">
+      {steps.map((s, i) => {
+        const index = startIndex + i;
+        return (
+          <div key={s.key} className="flex items-start">
+            <button type="button" onClick={() => onSelect(index)} className="flex flex-col items-center gap-2 px-1 w-20 cursor-pointer group shrink-0">
+              <span
+                className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold shrink-0 border-2 transition ${
+                  index === currentStep
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                    : 'bg-white border-gray-200 text-gray-400 group-hover:border-gray-300'
+                }`}
+              >
+                {index + 1}
+              </span>
+              <span className={`text-xs font-medium text-center leading-tight ${index === currentStep ? 'text-indigo-700' : 'text-gray-500'}`}>
+                {s.label}
+              </span>
+            </button>
+            {i < steps.length - 1 && <span className="w-8 sm:w-12 border-t-2 border-dotted border-gray-300 mx-0.5 shrink-0 mt-[18px]" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function StudentCard({ student, autoFill }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 flex-wrap">
@@ -618,38 +651,15 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
         </div>
       )}
 
-      {/* Step indicator — circle-over-label, matching the reference design
-          (not the earlier pill-with-label-beside-number style). Wraps to
-          more rows instead of scrolling horizontally — 7 steps' labels
-          don't reliably fit one row at drawer/mobile widths, and a
-          horizontal scrollbar here was worse than an extra row. Current
-          step: filled blue circle. Others: light gray outline circle,
-          regardless of whether already visited — the reference doesn't
-          mark earlier steps done with a checkmark. */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="flex flex-wrap items-start justify-center gap-x-1 gap-y-3">
-          {WIZARD_STEPS.map((s, index) => (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => goToStep(index)}
-              className="flex flex-col items-center gap-2 px-2 w-20 cursor-pointer group shrink-0"
-            >
-              <span
-                className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold shrink-0 border-2 transition ${
-                  index === step
-                    ? 'bg-indigo-600 border-indigo-600 text-white'
-                    : 'bg-white border-gray-200 text-gray-400 group-hover:border-gray-300'
-                }`}
-              >
-                {index + 1}
-              </span>
-              <span className={`text-xs font-medium text-center leading-tight ${index === step ? 'text-indigo-700' : 'text-gray-500'}`}>
-                {s.label}
-              </span>
-            </button>
-          ))}
-        </div>
+      {/* Step indicator — circle-over-label, fixed 4-then-3 layout with a
+          dotted connector between circles in each row (no scrollbar, no
+          reflow-based wrapping — see StepRow below). Current step: filled
+          blue circle. Others: light gray outline circle, regardless of
+          whether already visited — the reference doesn't mark earlier
+          steps done with a checkmark. */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
+        <StepRow steps={WIZARD_STEPS.slice(0, 4)} startIndex={0} currentStep={step} onSelect={goToStep} />
+        <StepRow steps={WIZARD_STEPS.slice(4, 7)} startIndex={4} currentStep={step} onSelect={goToStep} />
       </div>
 
       {step === 0 && <AttendanceStep {...stepProps} />}
