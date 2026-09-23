@@ -26,6 +26,50 @@ const BAR_COLOR = {
   'Needs Improvement': 'bg-red-500',
 };
 
+// Client-side refetch loading state (filters/pagination change) — mirrors
+// the real report layout (stat cards + charts + table rows) so nothing
+// jumps/flashes, same shimmer convention used across the Assessment module
+// instead of a spinner icon.
+function StatCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse">
+      <div className="w-11 h-11 rounded-xl bg-gray-100" />
+      <div className="h-3.5 w-20 bg-gray-100 rounded mt-3" />
+      <div className="h-7 w-10 bg-gray-100 rounded mt-2" />
+    </div>
+  );
+}
+
+function ChartCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse">
+      <div className="h-3.5 w-32 bg-gray-100 rounded mb-4" />
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="w-24 h-3 bg-gray-100 rounded shrink-0" />
+            <div className="flex-1 h-3 bg-gray-100 rounded-full" />
+            <div className="w-6 h-3 bg-gray-100 rounded shrink-0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TableRowSkeleton() {
+  return (
+    <tr className="border-t border-gray-100">
+      <td className="py-2.5 pl-6 pr-4"><div className="h-3 w-4 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-2.5 pr-4"><div className="h-3.5 w-32 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-2.5 pr-4"><div className="h-3 w-20 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-2.5 pr-4"><div className="h-3 w-16 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-2.5 pr-4"><div className="h-3 w-24 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-2.5 pr-6"><div className="h-3 w-10 bg-gray-100 rounded animate-pulse" /></td>
+    </tr>
+  );
+}
+
 function StatCard({ label, value, icon, iconBg }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 print:border print:shadow-none print:rounded-lg">
@@ -203,7 +247,27 @@ export default function AssessmentReportsView({
       </div>
 
       {isLoading ? (
-        <div className="text-center py-16 text-sm text-gray-400">Loading...</div>
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ChartCardSkeleton key={i} />
+            ))}
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <tbody>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <TableRowSkeleton key={i} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : !className || !sectionName ? (
         <div className="text-center py-16 text-sm text-gray-500">Select a class and section to view the report.</div>
       ) : (

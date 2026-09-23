@@ -95,6 +95,33 @@ function timeAgo(iso) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+// Client-side refetch loading state (filters/pagination change) — mirrors
+// the real roster table's row shape so the table doesn't jump/flash, same
+// shimmer convention as app/dashboard/assessments/loading.jsx (the initial
+// server-render fallback) instead of a spinner icon.
+function RosterRowSkeleton() {
+  return (
+    <tr className="border-t border-gray-100">
+      <td className="py-3 pl-6 pr-3"><div className="h-3 w-4 bg-gray-100 rounded animate-pulse" /></td>
+      <td className="py-3 pr-4">
+        <div className="flex items-center gap-2.5 animate-pulse">
+          <div className="w-8 h-8 rounded-full bg-gray-100 shrink-0" />
+          <div className="space-y-1.5">
+            <div className="h-3.5 w-28 bg-gray-100 rounded" />
+            <div className="h-3 w-16 bg-gray-50 rounded" />
+          </div>
+        </div>
+      </td>
+      <td className="py-3 pr-4"><div className="h-3 w-10 bg-gray-100 rounded mx-auto animate-pulse" /></td>
+      <td className="py-3 pr-4"><div className="w-5 h-5 rounded-full bg-gray-100 mx-auto animate-pulse" /></td>
+      <td className="py-3 pr-4"><div className="w-5 h-5 rounded-full bg-gray-100 mx-auto animate-pulse" /></td>
+      <td className="py-3 pr-4"><div className="w-5 h-5 rounded-full bg-gray-100 mx-auto animate-pulse" /></td>
+      <td className="py-3 pr-4"><div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse" /></td>
+      <td className="py-3 pr-6"><div className="h-7 w-16 bg-gray-100 rounded-full ml-auto animate-pulse" /></td>
+    </tr>
+  );
+}
+
 function StatCard({ label, value, icon, iconBg, sub }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -371,7 +398,15 @@ export default function AssessmentDashboard({
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="text-center py-16 text-sm text-gray-400">Loading...</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <tbody>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <RosterRowSkeleton key={i} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : !className || !sectionName ? (
           <div className="text-center py-16 text-sm text-gray-500">Select a class and section to view assessments.</div>
         ) : data.roster.length === 0 ? (
