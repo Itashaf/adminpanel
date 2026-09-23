@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createSchoolAdmin } from '@/lib/admins';
+import { requireSuperAdmin } from '@/lib/iam';
 
 export async function POST(request, { params }) {
+  const { error } = await requireSuperAdmin();
+  if (error) return error;
+
   const { id } = await params;
   const data = await request.json();
 

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createFeeStructuresForClasses } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 export async function POST(request) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const data = await request.json();
 
   if (!data.academicSession || !Array.isArray(data.classNames) || data.classNames.length === 0) {

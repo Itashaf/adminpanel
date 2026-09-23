@@ -318,6 +318,13 @@ model FeeStructureTerm {
   feeStructureId String
   feeStructure   FeeStructure       @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
   term           FeeTerm
+  // When this quarter's StudentFee rows should auto-generate — see
+  // lib/fees.js's generateDueStudentFees, run daily by the Vercel Cron job
+  // at app/api/cron/generate-fees. Empty string = no date set, meaning this
+  // term is never auto-generated and stays fully manual (admin uses
+  // GenerateFeesModal), preserving the old behavior for structures created
+  // before this existed.
+  startDate      String             @default("")
   items          FeeStructureItem[]
 
   @@unique([feeStructureId, term])

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { generateStudentFees } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 export async function POST(request, { params }) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { id } = await params;
   const { term } = await request.json();
 

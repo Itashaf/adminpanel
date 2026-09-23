@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getFeesStats } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 // Called right after a collection (single or bulk) to resync the "Amount
 // Collected"/"Pending Amount" cards against the real, authoritative
@@ -7,6 +8,9 @@ import { getFeesStats } from '@/lib/fees';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const stats = await getFeesStats();
   return NextResponse.json(stats);
 }

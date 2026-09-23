@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { bulkCollectFullDue } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 export async function POST(request) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { studentIds, method } = await request.json();
 
   if (!Array.isArray(studentIds) || studentIds.length === 0 || !method) {

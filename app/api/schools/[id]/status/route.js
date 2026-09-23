@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { updateSchoolDirectoryStatus } from '@/lib/schools';
+import { requireSuperAdmin } from '@/lib/iam';
 
 export async function PATCH(request, { params }) {
+  const { error } = await requireSuperAdmin();
+  if (error) return error;
+
   const { id } = await params;
   const { status } = await request.json();
 

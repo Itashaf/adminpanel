@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getStudentFeeSummaries } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 // This aggregates live payment data (called right after a collection) —
 // never let Next.js treat it as a cacheable static route.
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { searchParams } = new URL(request.url);
   const result = await getStudentFeeSummaries({
     academicSession: searchParams.get('session') || '',

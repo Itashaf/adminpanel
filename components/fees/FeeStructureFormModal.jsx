@@ -10,11 +10,13 @@ import Input from '@/components/Input';
 import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
 import Toggle from '@/components/Toggle';
+import DatePicker from '@/components/DatePicker';
 import { feeStructureSchema, feeStructureBaseSchema } from '@/lib/schemas';
 import { FEE_TERMS, TERM_LABELS, TERM_DISPLAY_NAMES } from '@/lib/feeConstants';
 import { createFeeStructure, createFeeStructuresBulk, updateFeeStructure } from '@/lib/api';
 
 const EMPTY_TERMS = { T1: [], T2: [], T3: [], T4: [] };
+const EMPTY_TERM_DATES = { T1: '', T2: '', T3: '', T4: '' };
 const REQUIRED_OPTIONS = [
   { value: 'required', label: 'Required' },
   { value: 'optional', label: 'Optional' },
@@ -175,6 +177,8 @@ function AddFeeItemForm({ onCancel, onSave, initialItem }) {
 function TermSection({
   term,
   items,
+  startDate,
+  onStartDateChange,
   isExpanded,
   onToggle,
   onAddFee,
@@ -215,7 +219,21 @@ function TermSection({
       </div>
 
       {isExpanded && (
-        <div className="p-4 space-y-2">
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Quarter start date (optional — leave blank to only generate manually)
+            </label>
+            <div className="max-w-[220px]">
+              <DatePicker value={startDate} onChange={onStartDateChange} />
+            </div>
+            {startDate && (
+              <p className="text-[11px] text-gray-400 mt-1">
+                Fees for this quarter auto-generate on {startDate} — no need to click Generate Fees for every student.
+              </p>
+            )}
+          </div>
+
           {items.length === 0 && <p className="text-xs text-gray-400">No fee items yet.</p>}
           {items.map((item) =>
             editingItemId === item.id ? (
@@ -367,6 +385,7 @@ export default function FeeStructureFormModal({
   const isEdit = Boolean(structure);
   const [formError, setFormError] = useState('');
   const [termsState, setTermsState] = useState(EMPTY_TERMS);
+  const [termDatesState, setTermDatesState] = useState(EMPTY_TERM_DATES);
   const [expandedTerms, setExpandedTerms] = useState({ T1: true, T2: false, T3: false, T4: false });
   const [addFeeTerm, setAddFeeTerm] = useState(null);
   const [editingItem, setEditingItem] = useState(null); // { term, itemId }
@@ -399,6 +418,13 @@ export default function FeeStructureFormModal({
           }
     );
     setTermsState(isEdit ? cloneTerms(structure.terms) : duplicateFrom ? cloneTerms(duplicateFrom.terms) : EMPTY_TERMS);
+    setTermDatesState(
+      isEdit
+        ? { ...EMPTY_TERM_DATES, ...structure.termDates }
+        : duplicateFrom
+        ? { ...EMPTY_TERM_DATES, ...duplicateFrom.termDates }
+        : EMPTY_TERM_DATES
+    );
     setSelectedClasses(isEdit ? [structure.className] : []);
     setClassError('');
     setExpandedTerms({ T1: true, T2: false, T3: false, T4: false });
@@ -464,7 +490,7 @@ export default function FeeStructureFormModal({
     if (isEdit) {
       setIsSubmitting(true);
       try {
-        const updated = await updateFeeStructure(structure.id, { ...data, terms: termsState });
+        const updated = await updateFeeStructure(structure.id, { ...data, terms: termsState, termDates: termDatesState });
         onSuccess?.([updated], 'Fee structure updated.');
       } catch (err) {
         setFormError(err.message);
@@ -482,10 +508,10 @@ export default function FeeStructureFormModal({
     setIsSubmitting(true);
     try {
       if (selectedClasses.length === 1) {
-        const created = await createFeeStructure({ ...data, className: selectedClasses[0], terms: termsState });
+        const created = await createFeeStructure({ ...data, className: selectedClasses[0], terms: termsState, termDates: termDatesState });
         onSuccess?.([created], 'Fee structure created — first quarter’s fees generated for students.');
       } else {
-        const result = await createFeeStructuresBulk({ ...data, classNames: selectedClasses, terms: termsState });
+        const result = await createFeeStructuresBulk({ ...data, classNames: selectedClasses, terms: termsState, termDates: termDatesState });
         const message =
           result.skipped.length > 0
             ? `${result.created.length} fee structure(s) created (first quarter billed), ${result.skipped.length} skipped (already exist).`
@@ -596,6 +622,8 @@ export default function FeeStructureFormModal({
                 key={term}
                 term={term}
                 items={termsState[term]}
+                startDate={termDatesState[term]}
+                onStartDateChange={(value) => setTermDatesState((prev) => ({ ...prev, [term]: value }))}
                 isExpanded={expandedTerms[term]}
                 onToggle={() => toggleTerm(term)}
                 onAddFee={() => {

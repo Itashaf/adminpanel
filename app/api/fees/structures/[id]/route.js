@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { deleteFeeStructure, getFeeStructureById, updateFeeStructure } from '@/lib/fees';
+import { requireSchoolAdmin } from '@/lib/iam';
 
 export async function GET(request, { params }) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { id } = await params;
   const structure = await getFeeStructureById(id);
   if (!structure) {
@@ -11,6 +15,9 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { id } = await params;
   const data = await request.json();
 
@@ -26,6 +33,9 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
+  const { error } = await requireSchoolAdmin();
+  if (error) return error;
+
   const { id } = await params;
   const removed = await deleteFeeStructure(id);
   if (!removed) {
