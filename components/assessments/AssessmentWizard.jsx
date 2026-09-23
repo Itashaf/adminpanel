@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiUser, FiCheck, FiChevronLeft, FiChevronRight, FiSave, FiSend, FiTrendingUp, FiHome, FiCheckCircle } from 'react-icons/fi';
+import { FiUser, FiCheck, FiChevronLeft, FiChevronRight, FiSave, FiSend, FiTrendingUp, FiHome, FiCheckCircle, FiActivity } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import { saveStudentAssessment } from '@/lib/api';
 import {
@@ -12,6 +12,7 @@ import {
   OVERALL_TAGS,
   BEHAVIOUR_CATEGORIES,
   RATING_LEVELS,
+  HOLISTIC_RATING_LEVELS,
   RATING_STYLES,
   ACTIVITY_OPTIONS,
   ACHIEVEMENT_LEVELS,
@@ -273,24 +274,46 @@ function BehaviourStep({ form, setForm }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-      <h3 className="text-sm font-semibold text-gray-900">Holistic Development</h3>
-      {BEHAVIOUR_CATEGORIES.map((cat) => (
-        <div key={cat.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0">
-          <p className="text-sm font-medium text-gray-700 sm:w-44 shrink-0">{cat.label}</p>
-          <div className="flex flex-wrap gap-2">
-            {RATING_LEVELS.map((level) => (
-              <ChipButton
-                key={level}
-                isActive={form.behaviour[cat.key] === level}
-                activeClass={RATING_STYLES[level]}
-                onClick={() => setRating(cat.key, level)}
-              >
-                {level}
-              </ChipButton>
-            ))}
-          </div>
+      <div className="flex items-start gap-3">
+        <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
+          <FiActivity className="w-5 h-5" />
+        </span>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Holistic Development</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Rate the student&apos;s overall development in different areas for this month.</p>
         </div>
-      ))}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {BEHAVIOUR_CATEGORIES.map((cat) => (
+          <div key={cat.key}>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">{cat.label}</label>
+            <select
+              value={form.behaviour[cat.key] || ''}
+              onChange={(e) => setRating(cat.key, e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Select...</option>
+              {HOLISTIC_RATING_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Overall Comments (Optional)</label>
+        <textarea
+          rows={3}
+          value={form.behaviour.overallComment || ''}
+          onChange={(e) => setRating('overallComment', e.target.value)}
+          placeholder="Shows good curiosity and participates actively in class activities."
+          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
     </div>
   );
 }
