@@ -25,6 +25,7 @@ import {
   FiBookOpen,
   FiClock,
   FiSend,
+  FiAward,
 } from 'react-icons/fi';
 
 const ADMIN_NAV_ITEMS = [
@@ -100,6 +101,7 @@ const ADMIN_NAV_ITEMS = [
       { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
     ],
   },
+  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward },
   { label: 'Leave Requests', href: '/dashboard/leave', icon: FiClock },
   { label: 'School Settings', href: '/dashboard/settings', icon: FiSettings },
 ];
@@ -140,6 +142,7 @@ const TEACHER_NAV_ITEMS = [
   { label: 'My Exams', href: '/dashboard/exams/list', icon: FiClipboard },
   { label: 'Marks Entry', href: '/dashboard/marks-entry', icon: FiEdit3 },
   { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
+  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward },
   { label: 'My Leave', href: '/dashboard/leave', icon: FiClock },
 ];
 

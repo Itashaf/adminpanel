@@ -114,6 +114,7 @@ model School {
   timeTables         TimeTable[]
   teacherLeaves      TeacherLeave[]
   teacherAttendances TeacherAttendance[]
+  studentAssessments StudentAssessment[]
 }
 
 // A real login account for a parent/guardian — decoupled from any one
@@ -253,6 +254,7 @@ model Student {
   createdAt           DateTime      @default(now())
   studentFees         StudentFee[]
   payments            Payment[]
+  monthlyAssessments  StudentAssessment[]
 
   @@unique([schoolId, admissionId])
   // Every roster/count query in the app filters on this exact combination
@@ -1151,4 +1153,47 @@ model Payment {
   paidAt             DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
+}
+
+enum AssessmentStatus {
+  DRAFT
+  COMPLETED
+}
+
+// One row per student per calendar month — a Class Teacher's quick monthly
+// rating (behaviour/academics/activities/parent-communication), distinct
+// from ExamMark/ExamResult (a formal exam's actual scores). `behaviour`/
+// `academics`/`activities`/`parentCommunication` are Json (per-category
+// ratings, not scalar columns) since their shape is UI-defined and doesn't
+// need querying into — same "snapshot blob" convention as Student's own
+// guardian/address/feeDetails fields. `attendancePercentage` is a plain Int
+// snapshot of what lib/attendance.js's getStudentAttendanceStats computed at
+// save time, not a live-joined value — an assessment should read the same a
+// year later even if attendance records for that month are later corrected.
+model StudentAssessment {
+  id                   String            @id @default(cuid())
+  schoolId             String
+  school               School            @relation(fields: [schoolId], references: [id])
+  studentId            String
+  student              Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  className            String
+  sectionName           String
+  month                Int
+  year                 Int
+  attendancePercentage Float?
+  overallPerformance   String            @default("")
+  overallTags          String[]          @default([])
+  overallRemark        String            @default("")
+  behaviour            Json?
+  academics            Json?
+  activities           Json?
+  parentCommunication  Json?
+  status               AssessmentStatus  @default(DRAFT)
+  submittedByName      String            @default("")
+  submittedAt          DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@unique([studentId, month, year])
+  @@index([schoolId, className, sectionName, month, year])
 }
