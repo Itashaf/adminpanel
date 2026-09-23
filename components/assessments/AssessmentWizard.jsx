@@ -618,31 +618,36 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
         </div>
       )}
 
-      {/* Step indicator — circle-over-label, connected by a line, matching
-          the reference design (not the earlier pill-with-label-beside-number
-          style). Current step: filled blue circle. Others: light gray
-          outline circle, regardless of whether already visited — the
-          reference doesn't mark earlier steps done with a checkmark. */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 overflow-x-auto">
-        <div className="flex items-start min-w-max">
+      {/* Step indicator — circle-over-label, matching the reference design
+          (not the earlier pill-with-label-beside-number style). Wraps to
+          more rows instead of scrolling horizontally — 7 steps' labels
+          don't reliably fit one row at drawer/mobile widths, and a
+          horizontal scrollbar here was worse than an extra row. Current
+          step: filled blue circle. Others: light gray outline circle,
+          regardless of whether already visited — the reference doesn't
+          mark earlier steps done with a checkmark. */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="flex flex-wrap items-start justify-center gap-x-1 gap-y-3">
           {WIZARD_STEPS.map((s, index) => (
-            <div key={s.key} className="flex items-start">
-              <button type="button" onClick={() => goToStep(index)} className="flex flex-col items-center gap-2 px-2 cursor-pointer group">
-                <span
-                  className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold shrink-0 border-2 transition ${
-                    index === step
-                      ? 'bg-indigo-600 border-indigo-600 text-white'
-                      : 'bg-white border-gray-200 text-gray-400 group-hover:border-gray-300'
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <span className={`text-xs font-medium text-center w-20 leading-tight ${index === step ? 'text-indigo-700' : 'text-gray-500'}`}>
-                  {s.label}
-                </span>
-              </button>
-              {index < WIZARD_STEPS.length - 1 && <span className="w-8 h-px bg-gray-200 mx-0.5 shrink-0 mt-[18px]" />}
-            </div>
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => goToStep(index)}
+              className="flex flex-col items-center gap-2 px-2 w-20 cursor-pointer group shrink-0"
+            >
+              <span
+                className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold shrink-0 border-2 transition ${
+                  index === step
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                    : 'bg-white border-gray-200 text-gray-400 group-hover:border-gray-300'
+                }`}
+              >
+                {index + 1}
+              </span>
+              <span className={`text-xs font-medium text-center leading-tight ${index === step ? 'text-indigo-700' : 'text-gray-500'}`}>
+                {s.label}
+              </span>
+            </button>
           ))}
         </div>
       </div>
