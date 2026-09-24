@@ -3,7 +3,7 @@ import StudentListReport from '@/components/students/StudentListReport';
 import { getAllStudents, getClassOptions } from '@/lib/students';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { isStudentInTeacherScope, getTeacherClassScope } from '@/lib/roleGuard';
+import { isStudentInTeacherScope } from '@/lib/roleGuard';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export const metadata = {
@@ -18,10 +18,11 @@ export default async function StudentListPage() {
   ]);
 
   const canManage = currentUser.role !== 'Teacher';
-  const teacherScope = canManage ? [] : getTeacherClassScope(currentUser);
-  // Same scoping as /dashboard/students (see app/dashboard/students/page.jsx)
-  // — a Teacher can only print the roster for classes they're actually
-  // assigned to or the Class Teacher of, not the whole school's.
+  // Class Teacher scope only — same as /dashboard/students (see
+  // app/dashboard/students/page.jsx): a Teacher can only print the roster
+  // for a class they're the Class Teacher of, not one they merely teach a
+  // subject in.
+  const teacherScope = canManage ? [] : currentUser.classTeacherOf || [];
   const students = canManage ? allStudents : allStudents.filter((student) => isStudentInTeacherScope(student, teacherScope));
   const classOptions = canManage
     ? allClassOptions

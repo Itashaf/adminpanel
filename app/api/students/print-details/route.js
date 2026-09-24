@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getTeacherClassScope } from '@/lib/roleGuard';
 import { getStudentsPage } from '@/lib/students';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
@@ -25,8 +24,8 @@ function formatAddress(address) {
 // Printables module. GET /students/paged deliberately strips guardian/
 // address/DOB for a Teacher (Teacher-safe fields only, used by the regular
 // roster screen) — this route is the one place those fields are allowed
-// through, and only for a class this teacher actually has some relationship
-// with (getTeacherClassScope: their own assignments or homeroom).
+// through, and only for a class this teacher is the Class Teacher of
+// (currentUser.classTeacherOf), matching the web page it mirrors.
 export async function GET(request) {
   const actor = await getCurrentUserInfo();
   if (!actor) return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
@@ -46,7 +45,7 @@ export async function GET(request) {
     classFilter,
     sectionFilter,
     statusFilter: 'Active',
-    scopePairs: getTeacherClassScope(actor),
+    scopePairs: actor.classTeacherOf || [],
   });
 
   const rows = students

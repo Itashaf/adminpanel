@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getStudentsPage } from '@/lib/students';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getTeacherClassScope } from '@/lib/roleGuard';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 // Real query-level pagination for the Students dashboard table — separate
@@ -33,7 +32,8 @@ export async function GET(request) {
     classFilter: searchParams.get('class') || '',
     sectionFilter: searchParams.get('section') || '',
     statusFilter: searchParams.get('status') || '',
-    scopePairs: actor.role === 'Teacher' ? getTeacherClassScope(actor) : null,
+    // Class Teacher scope only — see app/dashboard/students/page.jsx.
+    scopePairs: actor.role === 'Teacher' ? actor.classTeacherOf || [] : null,
   });
 
   // Same field-stripping GET /api/students already applies for a Teacher —

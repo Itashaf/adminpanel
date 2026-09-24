@@ -2,7 +2,6 @@ import StudentsExplorer from '@/components/students/StudentsExplorer';
 import { getStudentsPage, getStudentStats, getClassOptions } from '@/lib/students';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getTeacherClassScope } from '@/lib/roleGuard';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export const metadata = {
@@ -20,11 +19,14 @@ export default async function StudentsPage({ searchParams }) {
   // assignment of their own.
   const currentUser = (await getCurrentUserInfo()) || (await getCurrentUser());
   const canManage = currentUser.role !== 'Teacher';
-  // A Teacher only ever sees students in their own class+section assignments
-  // (subject assignment OR Class Teacher of) — enforced at the query itself
-  // (see lib/students.js's getStudentsPage `scopePairs`), not by fetching
-  // the whole school's roster and filtering it in JS.
-  const scopePairs = canManage ? null : getTeacherClassScope(currentUser);
+  // A Teacher only ever sees students in a class they're the Class Teacher
+  // of (Section.classTeacherId) — deliberately currentUser.classTeacherOf
+  // directly, not getTeacherClassScope's merged assignments+classTeacherOf:
+  // being assigned a subject in a class doesn't grant that class's roster.
+  // Enforced at the query itself (see lib/students.js's getStudentsPage
+  // `scopePairs`), not by fetching the whole school's roster and filtering
+  // it in JS.
+  const scopePairs = canManage ? null : currentUser.classTeacherOf || [];
 
   const initialFilters = {
     search: '',
