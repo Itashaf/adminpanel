@@ -150,22 +150,31 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
 
           <div className="break-inside-avoid">
             <SectionTitle>Academic Performance</SectionTitle>
-            <table className="w-full text-sm print:text-[10px] border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-left text-[10px] print:text-[9px] font-semibold text-gray-500 uppercase border-b border-gray-200">
-                  <th className="py-2 px-3">Subject</th>
-                  <th className="py-2 px-3">Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(form.academics || []).map((row) => (
-                  <tr key={row.subject} className="border-b border-gray-100">
-                    <td className="py-2 px-3 font-medium text-gray-900">{row.subject}</td>
-                    <td className="py-2 px-3 text-gray-700">{row.rating || '—'}</td>
+            {/* Only rated subjects print — an unmarked subject (never tapped
+                on the Academic Performance step) shouldn't appear on the
+                report at all, not even as a blank/"—" row. */}
+            {(form.academics || []).some((row) => row.rating) ? (
+              <table className="w-full text-sm print:text-[10px] border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-[10px] print:text-[9px] font-semibold text-gray-500 uppercase border-b border-gray-200">
+                    <th className="py-2 px-3">Subject</th>
+                    <th className="py-2 px-3">Rating</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(form.academics || [])
+                    .filter((row) => row.rating)
+                    .map((row) => (
+                      <tr key={row.subject} className="border-b border-gray-100">
+                        <td className="py-2 px-3 font-medium text-gray-900">{row.subject}</td>
+                        <td className="py-2 px-3 text-gray-700">{row.rating}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm print:text-[10px] text-gray-400">No ratings recorded</p>
+            )}
           </div>
 
           <div className="break-inside-avoid">

@@ -4,6 +4,7 @@ import { getClassSectionsMap } from '@/lib/classes';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getAssessmentsForClass } from '@/lib/studentAssessments';
 import { getSubjectNames } from '@/lib/subjects';
+import { getSubjectsForClass } from '@/lib/classes';
 import { getSchoolSettings } from '@/lib/schoolSettings';
 import { FALLBACK_SUBJECTS } from '@/lib/assessmentConstants';
 import AssessmentDashboard from '@/components/assessments/AssessmentDashboard';
@@ -60,7 +61,7 @@ export default async function AssessmentsPage() {
     totalPages: 1,
     stats: { total: 0, completed: 0, pending: 0, needsAttention: 0, completionPercent: 0, avgAttendance: null },
   };
-  const [rosterResult, subjectNames] = await Promise.all([
+  const [rosterResult, classSubjects, schoolSubjects] = await Promise.all([
     defaultClass && defaultSection
       ? getAssessmentsForClass(currentUser, {
           className: defaultClass,
@@ -70,12 +71,15 @@ export default async function AssessmentsPage() {
           year: defaultYear,
         }).catch(() => null)
       : Promise.resolve(null),
+    // Only the subjects assigned to defaultClass (Class.subjects), not the
+    // school's whole master list — see lib/classes.js's getSubjectsForClass.
+    defaultClass ? getSubjectsForClass(defaultClass, academicSession) : Promise.resolve([]),
     getSubjectNames(),
   ]);
   // Teacher has no class scope yet, or the class has no active students this
   // session — dashboard just renders the empty state.
   if (rosterResult) initialData = rosterResult;
-  const subjects = subjectNames.length > 0 ? subjectNames : FALLBACK_SUBJECTS;
+  const subjects = classSubjects.length > 0 ? classSubjects : schoolSubjects.length > 0 ? schoolSubjects : FALLBACK_SUBJECTS;
 
   return (
     <AssessmentDashboard
