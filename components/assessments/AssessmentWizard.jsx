@@ -708,7 +708,12 @@ export default function AssessmentWizard({
   // content actually overflows. The full page keeps its own unchanged
   // normal-flow + viewport-fixed-footer layout.
   return (
-    <div className={embedded ? 'h-full flex flex-col' : 'space-y-6 pb-24'}>
+    // print:hidden — AssessmentPrintPreview now portals to document.body
+    // (a sibling, not a descendant), so this whole wizard is safe to hide
+    // during print without hiding the preview too. Needed for the
+    // full-page route; redundant-but-harmless when embedded, since
+    // AssessmentDashboard's own print:hidden already covers the drawer.
+    <div className={`${embedded ? 'h-full flex flex-col' : 'space-y-6 pb-24'} print:hidden`}>
       <div className={embedded ? 'flex-1 overflow-y-auto px-6 pt-5 pb-6 space-y-6' : 'space-y-6'}>
       {!embedded && (
         <div className="flex items-center justify-between flex-wrap gap-3">

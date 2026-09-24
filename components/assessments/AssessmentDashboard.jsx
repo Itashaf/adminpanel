@@ -312,7 +312,12 @@ export default function AssessmentDashboard({
   ];
 
   return (
-    <div className="space-y-6">
+    // print:hidden — the Print Preview (opened from a "View" row's drawer)
+    // portals itself to document.body now, so it's a sibling of this, not a
+    // descendant; without this, printing used to also print whatever was
+    // still in the DOM behind the preview (this whole dashboard + the open
+    // drawer), overlapping the actual report content.
+    <div className="space-y-6 print:hidden">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex gap-3">
           <span className="w-1 self-stretch rounded-full bg-gradient-to-b from-violet-700 via-indigo-600 to-blue-600 shrink-0" />

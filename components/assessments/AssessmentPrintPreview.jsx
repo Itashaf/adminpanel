@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FiX, FiPrinter, FiUser } from 'react-icons/fi';
 import { BEHAVIOUR_CATEGORIES } from '@/lib/assessmentConstants';
 
@@ -64,7 +65,14 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
       : null;
   const pc = form.parentCommunication || {};
 
-  return (
+  // Portaled to document.body — this used to render nested inside
+  // AssessmentDrawer/AssessmentWizard's own DOM tree, so printing also
+  // printed whatever page content was still sitting behind it (the drawer
+  // chrome, dashboard, wizard step UI) all overlapping on the same pages.
+  // As a body-level sibling, marking that other content `print:hidden`
+  // (see AssessmentDashboard.jsx/AssessmentWizard.jsx) hides it without
+  // also hiding this, since print:hidden only affects its own subtree.
+  return createPortal(
     <div className="fixed inset-0 z-[60] bg-gray-100 overflow-y-auto print:static print:bg-white print:overflow-visible">
       <div className="print:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-gray-900">Print Preview — {student.name}</p>
@@ -219,6 +227,7 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
