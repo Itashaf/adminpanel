@@ -16,8 +16,6 @@ import {
   FiCalendar,
   FiHeart,
   FiFileText,
-  FiMessageCircle,
-  FiBarChart2,
   FiCheckSquare,
 } from 'react-icons/fi';
 import Toast from '@/components/Toast';
@@ -87,21 +85,17 @@ function ChipButton({ isActive, onClick, children, activeClass, disabled }) {
   );
 }
 
-// One row of the step indicator — circles connected by a dotted line, per
-// AssessmentWizard's fixed 4-then-3 layout (see the two StepRow calls
-// below). `startIndex` offsets each row's circle number/step index since
-// this only ever renders a slice of WIZARD_STEPS.
+// One icon per WIZARD_STEPS entry, keyed by step.key — used by the step
+// indicator below.
 const STEP_ICONS = {
-  attendance: FiCalendar,
-  cocurricular: FiActivity,
-  holistic: FiHeart,
+  academic: FiCalendar,
+  development: FiHeart,
+  activities: FiActivity,
   concise: FiFileText,
-  remarks: FiMessageCircle,
-  tests: FiBarChart2,
-  review: FiCheckSquare,
+  summary: FiCheckSquare,
 };
 
-// Single-row icon stepper, all 7 in one line (small text/circles so they
+// Single-row icon stepper, all steps in one line (small text/circles so they
 // keep fitting instead of wrapping or scrolling — see the two earlier
 // layouts this replaced). Done step: filled green circle, checkmark.
 // Current step: bigger filled indigo circle with a ring glow, its own icon.
@@ -471,42 +465,6 @@ const TEACHER_REMARKS_FIELDS = [
   { key: 'parentInvolvementNotes', label: 'Parent Involvement Notes', placeholder: 'Parents requested to monitor homework at home and encourage reading daily.' },
 ];
 
-// A structured action plan (concern -> intervention -> target -> parent's
-// part) rather than freeform remarks — stored in parentCommunication (same
-// Json field the old Parent Notes step used, just a different shape; no
-// schema change needed) since it's still teacher-authored notes, not a
-// student rating.
-function TeacherRemarksStep({ form, setForm }) {
-  const update = (patch) => setForm((prev) => ({ ...prev, parentCommunication: { ...prev.parentCommunication, ...patch } }));
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-      <div className="flex items-start gap-3">
-        <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
-          <FiHome className="w-5 h-5" />
-        </span>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Teacher Remarks &amp; Action Plan</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Identify key areas and plan next steps for the student&apos;s growth.</p>
-        </div>
-      </div>
-
-      {TEACHER_REMARKS_FIELDS.map((field) => (
-        <div key={field.key}>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">{field.label}</label>
-          <textarea
-            rows={2}
-            value={form.parentCommunication[field.key] || ''}
-            onChange={(e) => update({ [field.key]: e.target.value })}
-            placeholder={field.placeholder}
-            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function ReviewSection({ title, onEdit, children }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -521,53 +479,77 @@ function ReviewSection({ title, onEdit, children }) {
   );
 }
 
-function ReviewStep({ form, autoFill, goToStep }) {
+// Final step — a quick recap of the other 4 steps (edit-jump per card, no
+// separate Review step anymore) followed by the structured action-plan
+// fields, then Submit (handled by the shared footer since this is the last
+// step). parentCommunication is the same Json field the old Parent Notes
+// step used, just this different shape — no schema change needed.
+function SummaryStep({ form, setForm, goToStep }) {
+  const update = (patch) => setForm((prev) => ({ ...prev, parentCommunication: { ...prev.parentCommunication, ...patch } }));
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <ReviewSection title="Attendance" onEdit={() => goToStep(0)}>
-        <p className="text-sm text-gray-700">
-          {form.attendanceDetail.daysPresent || '—'} / {form.attendanceDetail.totalWorkingDays || '—'} days present
-        </p>
-      </ReviewSection>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ReviewSection title="Academic" onEdit={() => goToStep(0)}>
+          <p className="text-sm text-gray-700">
+            Attendance: {form.attendanceDetail.daysPresent || '—'} / {form.attendanceDetail.totalWorkingDays || '—'} days present
+          </p>
+          <div className="space-y-1 mt-2">
+            {form.academics.map((row) => (
+              <div key={row.subject} className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">{row.subject}</span>
+                <span className="text-gray-900 font-medium">{row.rating || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </ReviewSection>
 
-      <ReviewSection title="Co-Curricular" onEdit={() => goToStep(1)}>
-        <p className="text-sm text-gray-700">{form.activities.selectedActivities.join(', ') || 'None selected'}</p>
-        {form.activities.achievementLevel && <p className="text-xs text-gray-400 mt-1">Level: {form.activities.achievementLevel}</p>}
-      </ReviewSection>
+        <ReviewSection title="Development" onEdit={() => goToStep(1)}>
+          <div className="space-y-1">
+            {BEHAVIOUR_CATEGORIES.map((cat) => (
+              <div key={cat.key} className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">{cat.label}</span>
+                <span className="text-gray-900 font-medium">{form.behaviour[cat.key] || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </ReviewSection>
 
-      <ReviewSection title="Holistic Dev." onEdit={() => goToStep(2)}>
-        <div className="space-y-1">
-          {BEHAVIOUR_CATEGORIES.map((cat) => (
-            <div key={cat.key} className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">{cat.label}</span>
-              <span className="text-gray-900 font-medium">{form.behaviour[cat.key] || '—'}</span>
-            </div>
-          ))}
+        <ReviewSection title="Activities" onEdit={() => goToStep(2)}>
+          <p className="text-sm text-gray-700">{form.activities.selectedActivities.join(', ') || 'None selected'}</p>
+          {form.activities.achievementLevel && <p className="text-xs text-gray-400 mt-1">Level: {form.activities.achievementLevel}</p>}
+        </ReviewSection>
+
+        <ReviewSection title="Concise Report" onEdit={() => goToStep(3)}>
+          <p className="text-sm text-gray-700">{form.overallPerformance || 'Not set'}</p>
+          {form.overallTags.length > 0 && <p className="text-xs text-gray-400 mt-1">{form.overallTags.join(', ')}</p>}
+        </ReviewSection>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+        <div className="flex items-start gap-3">
+          <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
+            <FiHome className="w-5 h-5" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Teacher Remarks &amp; Action Plan</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Identify key areas and plan next steps for the student&apos;s growth.</p>
+          </div>
         </div>
-      </ReviewSection>
 
-      <ReviewSection title="Concise Report" onEdit={() => goToStep(3)}>
-        <p className="text-sm text-gray-700">{form.overallPerformance || 'Not set'}</p>
-        {form.overallTags.length > 0 && <p className="text-xs text-gray-400 mt-1">{form.overallTags.join(', ')}</p>}
-      </ReviewSection>
-
-      <ReviewSection title="Teacher Remarks" onEdit={() => goToStep(4)}>
-        <p className="text-sm text-gray-700">{form.parentCommunication.keyConcern || 'No key concern added.'}</p>
-        {form.parentCommunication.targetOutcome && (
-          <p className="text-xs text-gray-400 mt-1">Target: {form.parentCommunication.targetOutcome}</p>
-        )}
-      </ReviewSection>
-
-      <ReviewSection title="Monthly Tests" onEdit={() => goToStep(5)}>
-        <div className="space-y-1">
-          {form.academics.map((row) => (
-            <div key={row.subject} className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">{row.subject}</span>
-              <span className="text-gray-900 font-medium">{row.rating || '—'}</span>
-            </div>
-          ))}
-        </div>
-      </ReviewSection>
+        {TEACHER_REMARKS_FIELDS.map((field) => (
+          <div key={field.key}>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">{field.label}</label>
+            <textarea
+              rows={2}
+              value={form.parentCommunication[field.key] || ''}
+              onChange={(e) => update({ [field.key]: e.target.value })}
+              placeholder={field.placeholder}
+              className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -693,7 +675,7 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const stepProps = { form, setForm, student, autoFill, month, year };
+  const stepProps = { form, setForm, student, autoFill, month, year, goToStep };
 
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-6 pb-24'}>
@@ -769,13 +751,16 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
         <StepIndicatorRow steps={WIZARD_STEPS} currentStep={step} onSelect={goToStep} />
       </div>
 
-      {step === 0 && <AttendanceStep {...stepProps} />}
-      {step === 1 && <ActivitiesStep {...stepProps} />}
-      {step === 2 && <BehaviourStep {...stepProps} />}
+      {step === 0 && (
+        <div className="space-y-6">
+          <AttendanceStep {...stepProps} />
+          <AcademicsStep {...stepProps} />
+        </div>
+      )}
+      {step === 1 && <BehaviourStep {...stepProps} />}
+      {step === 2 && <ActivitiesStep {...stepProps} />}
       {step === 3 && <ConciseReportStep {...stepProps} />}
-      {step === 4 && <TeacherRemarksStep {...stepProps} />}
-      {step === 5 && <AcademicsStep {...stepProps} />}
-      {step === 6 && <ReviewStep form={form} autoFill={autoFill} goToStep={goToStep} />}
+      {step === 4 && <SummaryStep {...stepProps} />}
 
       {/* Sticky footer — viewport-fixed on the full page, but sticky within
           the drawer's own scroll container when embedded (a viewport-fixed
