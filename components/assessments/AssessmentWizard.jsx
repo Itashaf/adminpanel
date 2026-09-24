@@ -416,7 +416,9 @@ function BehaviourStep({ form, setForm }) {
               key={level}
               type="button"
               onClick={() => quickFillAll(level)}
-              className="px-2 py-1 rounded-full text-xs font-medium border border-blue-600 bg-blue-600 text-white transition cursor-pointer hover:bg-blue-700"
+              className={`px-2 py-1 rounded-full text-xs font-medium transition cursor-pointer hover:brightness-90 ${HOLISTIC_RATING_DOT_COLORS[level]} ${
+                level === 'Average' ? 'text-gray-900' : 'text-white'
+              }`}
             >
               {level}
             </button>
