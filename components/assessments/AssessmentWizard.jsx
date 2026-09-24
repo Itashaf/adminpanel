@@ -320,7 +320,7 @@ function BehaviourStep({ form, setForm }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {BEHAVIOUR_CATEGORIES.map((cat) => (
           <div key={cat.key}>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">{cat.label}</label>
+            <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">{cat.label}</label>
             <select
               value={form.behaviour[cat.key] || ''}
               onChange={(e) => setRating(cat.key, e.target.value)}
