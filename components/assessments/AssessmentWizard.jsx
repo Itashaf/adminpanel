@@ -370,6 +370,20 @@ function BehaviourStep({ form, setForm }) {
     setForm((prev) => ({ ...prev, behaviour: { ...prev.behaviour, [categoryKey]: rating } }));
   };
 
+  // Sets every category to the same rating in one click — the dropdowns
+  // stay for adjusting individual exceptions afterward, but a teacher no
+  // longer has to open all 12 one at a time for the common case where most
+  // categories share the same rating.
+  const quickFillAll = (rating) => {
+    setForm((prev) => ({
+      ...prev,
+      behaviour: {
+        ...prev.behaviour,
+        ...Object.fromEntries(BEHAVIOUR_CATEGORIES.map((cat) => [cat.key, rating])),
+      },
+    }));
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
       <div className="flex items-start gap-3">
@@ -379,6 +393,17 @@ function BehaviourStep({ form, setForm }) {
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Holistic Development</h3>
           <p className="text-xs text-gray-500 mt-0.5">Rate the student&apos;s overall development in different areas for this month.</p>
+        </div>
+      </div>
+
+      <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3">
+        <p className="text-xs font-semibold text-indigo-700 mb-2">Quick Fill All — set every category at once, then adjust exceptions below</p>
+        <div className="flex flex-wrap gap-2">
+          {HOLISTIC_RATING_LEVELS.map((level) => (
+            <ChipButton key={level} isActive={false} activeClass="" onClick={() => quickFillAll(level)}>
+              {level}
+            </ChipButton>
+          ))}
         </div>
       </div>
 
