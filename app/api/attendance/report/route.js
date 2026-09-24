@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getStudentAttendanceReport, getAttendanceTrend } from '@/lib/attendance';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { isClassInTeacherScope, getTeacherClassScope } from '@/lib/roleGuard';
+import { isClassInTeacherScope } from '@/lib/roleGuard';
 
 function toLocalDateStr(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -32,7 +32,8 @@ export async function GET(request) {
   }
 
   const currentUser = (await getCurrentUserInfo()) || (await getCurrentUser());
-  if (currentUser.role === 'Teacher' && !isClassInTeacherScope(getTeacherClassScope(currentUser), academicSession, className, sectionName)) {
+  // Class Teacher scope only — see app/api/attendance/route.js.
+  if (currentUser.role === 'Teacher' && !isClassInTeacherScope(currentUser.classTeacherOf || [], academicSession, className, sectionName)) {
     return NextResponse.json({ error: 'You can only view your own assigned class and section.' }, { status: 403 });
   }
 

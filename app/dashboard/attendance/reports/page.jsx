@@ -14,7 +14,6 @@ import {
 import { getAllSessions } from '@/lib/academicSessions';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getTeacherClassScope } from '@/lib/roleGuard';
 import { getClassSectionsMap } from '@/lib/classes';
 
 export const metadata = {
@@ -36,9 +35,10 @@ export default async function AttendanceReportsPage({ searchParams }) {
   const activeSession = sessions.find((s) => s.status === 'Active') || sessions[0];
 
   const isTeacher = currentUser.role === 'Teacher';
-  // Includes classes the Teacher is only the Class Teacher of (no subject
-  // assignment) — see lib/roleGuard.js's getTeacherClassScope.
-  const allowedClasses = isTeacher ? [...new Set(getTeacherClassScope(currentUser).map((a) => a.class))] : null;
+  // Class Teacher scope only (currentUser.classTeacherOf) — a class the
+  // Teacher merely teaches a subject in doesn't appear in their own
+  // Attendance Reports.
+  const allowedClasses = isTeacher ? [...new Set((currentUser.classTeacherOf || []).map((a) => a.class))] : null;
 
   const filters = {
     // No longer overridable via the filter bar or the URL — always the

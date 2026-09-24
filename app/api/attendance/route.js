@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { saveAttendance, getAttendanceRecord, computeAttendanceAccess } from '@/lib/attendance';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { isClassInTeacherScope, getTeacherClassScope } from '@/lib/roleGuard';
+import { isClassInTeacherScope } from '@/lib/roleGuard';
 import { getSchoolSettings } from '@/lib/schoolSettings';
 
 export async function POST(request) {
@@ -21,14 +21,14 @@ export async function POST(request) {
     getAttendanceRecord(data.academicSession, data.date, data.className, data.sectionName),
   ]);
 
-  // Authoritative enforcement — a Teacher can only ever mark attendance for
-  // one of their own assigned class+section pairs, OR a section they're the
-  // Class Teacher of. The client's class picker is already scoped to just
-  // those, but that's UX only; this is what actually stops a Teacher from
-  // POSTing straight to someone else's class.
+  // Authoritative enforcement — a Teacher can only ever mark attendance for a
+  // section they're the Class Teacher of (currentUser.classTeacherOf), not
+  // merely a class they teach a subject in. The client's class picker is
+  // already scoped to just those, but that's UX only; this is what actually
+  // stops a Teacher from POSTing straight to someone else's class.
   if (
     currentUser.role === 'Teacher' &&
-    !isClassInTeacherScope(getTeacherClassScope(currentUser), data.academicSession, data.className, data.sectionName)
+    !isClassInTeacherScope(currentUser.classTeacherOf || [], data.academicSession, data.className, data.sectionName)
   ) {
     return NextResponse.json({ error: 'You can only mark attendance for your own assigned class and section.' }, { status: 403 });
   }

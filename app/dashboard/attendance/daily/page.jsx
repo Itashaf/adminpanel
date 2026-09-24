@@ -2,7 +2,6 @@ import DailyAttendanceBoard from '@/components/attendance/DailyAttendanceBoard';
 import { getAllSessions } from '@/lib/academicSessions';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getTeacherClassScope } from '@/lib/roleGuard';
 import { getClassSectionsMap } from '@/lib/classes';
 import { toLocalDateStr } from '@/lib/attendance';
 
@@ -23,7 +22,10 @@ export default async function DailyAttendancePage() {
   const activeSession = sessions.find((s) => s.status === 'Active') || sessions[0];
   const today = toLocalDateStr(new Date());
 
-  const teacherScope = currentUser.role === 'Teacher' ? getTeacherClassScope(currentUser) : [];
+  // Class Teacher scope only (currentUser.classTeacherOf) — a Teacher only
+  // marks attendance for a class they're actually the Class Teacher of, not
+  // one they merely teach a subject in.
+  const teacherScope = currentUser.role === 'Teacher' ? currentUser.classTeacherOf || [] : [];
   const classOptions =
     currentUser.role === 'Teacher'
       ? [...new Set(teacherScope.map((a) => a.class))].map((c) => ({ value: c, label: c }))
