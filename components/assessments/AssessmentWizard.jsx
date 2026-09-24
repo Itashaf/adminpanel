@@ -765,10 +765,13 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
       {/* Sticky footer — viewport-fixed on the full page, but sticky within
           the drawer's own scroll container when embedded (a viewport-fixed
           footer would render behind the sidebar instead of inside the
-          panel). */}
+          panel). `-mx-6` matches AssessmentDrawer's own `px-6` container
+          padding exactly (was `-mx-4 sm:-mx-6`, mismatched against the
+          drawer's single `px-6`, leaving a gap down each side instead of
+          spanning edge-to-edge). */}
       <div
         className={`bg-white border-t border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30 ${
-          embedded ? 'sticky bottom-0 -mx-4 sm:-mx-6' : 'fixed bottom-0 left-0 right-0 lg:left-64'
+          embedded ? 'sticky bottom-0 -mx-6' : 'fixed bottom-0 left-0 right-0 lg:left-64'
         }`}
       >
         <button
