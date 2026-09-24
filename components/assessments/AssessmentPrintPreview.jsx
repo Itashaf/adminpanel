@@ -148,26 +148,43 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
             </div>
           </div>
 
-          <div>
+          <div className="break-inside-avoid">
             <SectionTitle>Monthly Tests</SectionTitle>
-            <table className="w-full text-sm print:text-[10px] border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-left text-[10px] print:text-[9px] font-semibold text-gray-500 uppercase border-b border-gray-200">
-                  <th className="py-2 px-3">Subject</th>
-                  <th className="py-2 px-3">Rating</th>
-                  <th className="py-2 px-3">Remark</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(form.academics || []).map((row) => (
-                  <tr key={row.subject} className="border-b border-gray-100">
-                    <td className="py-2 px-3 font-medium text-gray-900">{row.subject}</td>
-                    <td className="py-2 px-3 text-gray-700">{row.rating || '—'}</td>
-                    <td className="py-2 px-3 text-gray-500">{row.remark || '—'}</td>
+            {(form.academics || []).some((row) => row.tests?.length > 0) ? (
+              <table className="w-full text-sm print:text-[10px] border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-[10px] print:text-[9px] font-semibold text-gray-500 uppercase border-b border-gray-200">
+                    <th className="py-2 px-3">Subject</th>
+                    <th className="py-2 px-3">Test / Chapter</th>
+                    <th className="py-2 px-3">Score</th>
+                    <th className="py-2 px-3">%</th>
+                    <th className="py-2 px-3">Work Completion</th>
+                    <th className="py-2 px-3">Enrichment</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(form.academics || []).flatMap((row) =>
+                    (row.tests || []).map((t, i) => {
+                      const percent = t.max && t.obtained !== '' && Number(t.max) > 0 ? Math.round((Number(t.obtained) / Number(t.max)) * 1000) / 10 : null;
+                      return (
+                        <tr key={`${row.subject}-${i}`} className="border-b border-gray-100">
+                          <td className="py-2 px-3 font-medium text-gray-900">{row.subject}</td>
+                          <td className="py-2 px-3 text-gray-700">{t.testName || '—'}</td>
+                          <td className="py-2 px-3 text-gray-700">
+                            {t.obtained !== '' ? t.obtained : '—'} / {t.max !== '' ? t.max : '—'}
+                          </td>
+                          <td className="py-2 px-3 text-gray-700">{percent != null ? `${percent}%` : '—'}</td>
+                          <td className="py-2 px-3 text-gray-500">{t.workCompletion || '—'}</td>
+                          <td className="py-2 px-3 text-gray-500">{t.subjectEnrichment || '—'}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm print:text-[10px] text-gray-400">No tests recorded</p>
+            )}
           </div>
 
           <div className="break-inside-avoid">

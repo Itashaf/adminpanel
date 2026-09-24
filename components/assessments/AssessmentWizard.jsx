@@ -20,6 +20,7 @@ import {
   FiPrinter,
   FiPlus,
   FiTrash2,
+  FiX,
 } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import Dropdown from '@/components/Dropdown';
@@ -40,6 +41,10 @@ import {
   HEALTH_STATUS_OPTIONS,
   HEALTH_STATUS_DOT_COLORS,
   OVERALL_PROGRESS_DOT_COLORS,
+  SUBJECT_HEADER_COLORS,
+  WORK_COMPLETION_OPTIONS,
+  SUBJECT_ENRICHMENT_OPTIONS,
+  testPercentColor,
 } from '@/lib/assessmentConstants';
 
 const AUTOSAVE_DELAY = 1500;
@@ -72,10 +77,14 @@ function emptyForm(existing, subjects) {
       followUp: existing?.conciseReport?.followUp || '',
     },
     behaviour: existing?.behaviour || {},
+    // One entry per subject, each holding its own array of test rows
+    // (Max/Obtained per test — a subject can have several tests in a
+    // month). Falls back to a fresh { subject, tests: [] } per subject for
+    // legacy rows saved before this shape existed (no `tests` array).
     academics:
-      existing?.academics?.length > 0
+      existing?.academics?.length > 0 && existing.academics.every((row) => Array.isArray(row.tests))
         ? existing.academics
-        : subjects.map((subject) => ({ subject, rating: '', remark: '' })),
+        : subjects.map((subject) => ({ subject, tests: [] })),
     // Array of { type, option, achievement } entries — one per "Add Another
     // Activity" row. Starts with a single blank row rather than an empty
     // array, so the step never opens looking completely empty.
@@ -88,21 +97,6 @@ function emptyForm(existing, subjects) {
       parentInvolvementNotes: existing?.parentCommunication?.parentInvolvementNotes || '',
     },
   };
-}
-
-function ChipButton({ isActive, onClick, children, activeClass, disabled }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`px-3.5 py-2 rounded-full text-sm font-medium border transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-        isActive ? activeClass : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-      }`}
-    >
-      {children}
-    </button>
-  );
 }
 
 // One icon per WIZARD_STEPS entry, keyed by step.key — used by the step
@@ -426,11 +420,159 @@ function BehaviourStep({ form, setForm }) {
   );
 }
 
+const WORK_COMPLETION_OPTION_LIST = WORK_COMPLETION_OPTIONS.map((v) => ({ value: v, label: v }));
+const SUBJECT_ENRICHMENT_OPTION_LIST = SUBJECT_ENRICHMENT_OPTIONS.map((v) => ({ value: v, label: v }));
+
+function emptyTestRow() {
+  return { testName: '', max: '', obtained: '', intervention: '', workCompletion: '', subjectEnrichment: '' };
+}
+
+// One test row inside a subject's table — Max/Obtained drive a live %
+// badge (no separate save step, computed straight from what's typed).
+function TestRow({ row, onChange, onRemove }) {
+  const percent =
+    row.max !== '' && row.obtained !== '' && Number(row.max) > 0 ? Math.round((Number(row.obtained) / Number(row.max)) * 1000) / 10 : null;
+
+  return (
+    <tr className="border-b border-gray-100 last:border-b-0">
+      <td className="py-2 pr-3">
+        <input
+          type="text"
+          value={row.testName}
+          onChange={(e) => onChange({ testName: e.target.value })}
+          placeholder="e.g. Ch.2 Quiz"
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </td>
+      <td className="py-2 pr-3 w-20">
+        <input
+          type="number"
+          min="0"
+          value={row.max}
+          onChange={(e) => onChange({ max: e.target.value })}
+          className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </td>
+      <td className="py-2 pr-3 w-20">
+        <input
+          type="number"
+          min="0"
+          value={row.obtained}
+          onChange={(e) => onChange({ obtained: e.target.value })}
+          className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </td>
+      <td className="py-2 pr-3 w-16 text-center">
+        {percent != null && <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${testPercentColor(percent)}`}>{percent}%</span>}
+      </td>
+      <td className="py-2 pr-3 min-w-[160px]">
+        <input
+          type="text"
+          value={row.intervention}
+          onChange={(e) => onChange({ intervention: e.target.value })}
+          placeholder="Intervention..."
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </td>
+      <td className="py-2 pr-3 w-32">
+        <Dropdown options={WORK_COMPLETION_OPTION_LIST} value={row.workCompletion} onChange={(v) => onChange({ workCompletion: v })} placeholder="—" />
+      </td>
+      <td className="py-2 pr-3 w-28">
+        <Dropdown
+          options={SUBJECT_ENRICHMENT_OPTION_LIST}
+          value={row.subjectEnrichment}
+          onChange={(v) => onChange({ subjectEnrichment: v })}
+          placeholder="—"
+        />
+      </td>
+      <td className="py-2 w-10">
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove row"
+          className="flex items-center justify-center w-8 h-8 rounded-lg text-white bg-red-500 hover:bg-red-600 cursor-pointer transition"
+        >
+          <FiX className="w-4 h-4" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// A subject's own block — its own colored header bar + "Add Row" + a table
+// of test rows. Multiple tests per subject in a month, not one rating.
+function SubjectBlock({ subject, tests, colorClass, onAddRow, onChangeRow, onRemoveRow }) {
+  return (
+    <div className="rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className={`flex items-center justify-between px-4 py-3 ${colorClass}`}>
+        <h3 className="text-sm font-semibold text-white">{subject}</h3>
+        <button
+          type="button"
+          onClick={onAddRow}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-white/20 hover:bg-white/30 cursor-pointer transition"
+        >
+          <FiPlus className="w-3.5 h-3.5" />
+          Add Row
+        </button>
+      </div>
+
+      {tests.length === 0 ? (
+        <div className="bg-white px-4 py-6 text-center text-sm text-gray-400">
+          No tests yet — click <span className="font-semibold text-gray-600">+ Add Row</span>
+        </div>
+      ) : (
+        <div className="bg-white px-4 py-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                <th className="py-2 pr-3">Test / Chapter</th>
+                <th className="py-2 pr-3">Max</th>
+                <th className="py-2 pr-3">Obtained</th>
+                <th className="py-2 pr-3 text-center">%</th>
+                <th className="py-2 pr-3">Intervention</th>
+                <th className="py-2 pr-3">Work Completion</th>
+                <th className="py-2 pr-3">Subject Enrichment</th>
+                <th className="py-2 w-10" />
+              </tr>
+            </thead>
+            <tbody>
+              {tests.map((row, i) => (
+                <TestRow
+                  key={i}
+                  row={row}
+                  onChange={(patch) => onChangeRow(i, patch)}
+                  onRemove={() => onRemoveRow(i)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AcademicsStep({ form, setForm, autoFill }) {
-  const updateSubject = (index, patch) => {
+  const addRow = (subjectIndex) => {
     setForm((prev) => ({
       ...prev,
-      academics: prev.academics.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+      academics: prev.academics.map((row, i) => (i === subjectIndex ? { ...row, tests: [...row.tests, emptyTestRow()] } : row)),
+    }));
+  };
+
+  const changeRow = (subjectIndex, testIndex, patch) => {
+    setForm((prev) => ({
+      ...prev,
+      academics: prev.academics.map((row, i) =>
+        i === subjectIndex ? { ...row, tests: row.tests.map((t, j) => (j === testIndex ? { ...t, ...patch } : t)) } : row
+      ),
+    }));
+  };
+
+  const removeRow = (subjectIndex, testIndex) => {
+    setForm((prev) => ({
+      ...prev,
+      academics: prev.academics.map((row, i) => (i === subjectIndex ? { ...row, tests: row.tests.filter((_, j) => j !== testIndex) } : row)),
     }));
   };
 
@@ -443,29 +585,25 @@ function AcademicsStep({ form, setForm, autoFill }) {
           {autoFill.classRank != null && <span>Class Rank: #{autoFill.classRank}</span>}
         </div>
       )}
+
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm text-blue-700">
+        <FiFileText className="w-4 h-4 shrink-0 mt-0.5" />
+        <p>
+          Add tests taken this month per subject. Each row is one test. Click <span className="font-semibold">+ Add Row</span> under each
+          subject.
+        </p>
+      </div>
+
       {form.academics.map((row, index) => (
-        <div key={row.subject} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">{row.subject}</h3>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {RATING_LEVELS.map((level) => (
-              <ChipButton
-                key={level}
-                isActive={row.rating === level}
-                activeClass={RATING_STYLES[level]}
-                onClick={() => updateSubject(index, { rating: level })}
-              >
-                {level}
-              </ChipButton>
-            ))}
-          </div>
-          <input
-            type="text"
-            value={row.remark}
-            onChange={(e) => updateSubject(index, { remark: e.target.value })}
-            placeholder="Optional remark..."
-            className="w-full px-4 py-2 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
+        <SubjectBlock
+          key={row.subject}
+          subject={row.subject}
+          tests={row.tests}
+          colorClass={SUBJECT_HEADER_COLORS[index % SUBJECT_HEADER_COLORS.length]}
+          onAddRow={() => addRow(index)}
+          onChangeRow={(testIndex, patch) => changeRow(index, testIndex, patch)}
+          onRemoveRow={(testIndex) => removeRow(index, testIndex)}
+        />
       ))}
     </div>
   );
