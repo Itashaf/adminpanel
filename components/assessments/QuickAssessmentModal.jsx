@@ -21,16 +21,15 @@ function ChipButton({ isActive, onClick, children, activeClass }) {
   );
 }
 
-// "Complete in 30 Seconds" — a single overall Behaviour rating gets applied
-// uniformly across every real category (same StudentAssessment.behaviour
-// shape the full wizard uses — this is just a fast way to fill it, not a
-// separate data shape). Doesn't touch academics — Monthly Tests needs real
-// Max/Obtained per test, which can't be meaningfully quick-filled, so
-// leaves whatever's already saved there untouched. Always submits as
-// COMPLETED, per the spec's "System auto-generates assessment record".
-export default function QuickAssessmentModal({ isOpen, onClose, student, month, year, onSuccess }) {
+// "Complete in 30 Seconds" — a single overall Behaviour/Academic rating gets
+// applied uniformly across every real category/subject (same
+// StudentAssessment.behaviour/academics shape the full wizard uses — this
+// is just a fast way to fill it, not a separate data shape). Always submits
+// as COMPLETED, per the spec's "System auto-generates assessment record".
+export default function QuickAssessmentModal({ isOpen, onClose, student, month, year, subjects, onSuccess }) {
   const [overallPerformance, setOverallPerformance] = useState('');
   const [behaviourRating, setBehaviourRating] = useState('');
+  const [academicRating, setAcademicRating] = useState('');
   const [parentContacted, setParentContacted] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -38,6 +37,7 @@ export default function QuickAssessmentModal({ isOpen, onClose, student, month, 
   const reset = () => {
     setOverallPerformance('');
     setBehaviourRating('');
+    setAcademicRating('');
     setParentContacted(null);
     setError('');
   };
@@ -56,6 +56,7 @@ export default function QuickAssessmentModal({ isOpen, onClose, student, month, 
     setError('');
     try {
       const behaviour = Object.fromEntries(BEHAVIOUR_CATEGORIES.map((cat) => [cat.key, behaviourRating || '']));
+      const academics = subjects.map((subject) => ({ subject, rating: academicRating || '' }));
       await saveStudentAssessment(
         student.studentId,
         month,
@@ -63,6 +64,7 @@ export default function QuickAssessmentModal({ isOpen, onClose, student, month, 
         {
           overallPerformance,
           behaviour,
+          academics,
           parentCommunication: { parentContacted },
         },
         true
@@ -114,6 +116,17 @@ export default function QuickAssessmentModal({ isOpen, onClose, student, month, 
           <div className="flex flex-wrap gap-2">
             {RATING_LEVELS.map((level) => (
               <ChipButton key={level} isActive={behaviourRating === level} activeClass={RATING_STYLES[level]} onClick={() => setBehaviourRating(level)}>
+                {level}
+              </ChipButton>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold text-gray-900 mb-2">Academic Rating</p>
+          <div className="flex flex-wrap gap-2">
+            {RATING_LEVELS.map((level) => (
+              <ChipButton key={level} isActive={academicRating === level} activeClass={RATING_STYLES[level]} onClick={() => setAcademicRating(level)}>
                 {level}
               </ChipButton>
             ))}
