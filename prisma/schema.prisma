@@ -1185,6 +1185,7 @@ model StudentAssessment {
   overallPerformance   String            @default("")
   overallTags          String[]          @default([])
   overallRemark        String            @default("")
+  conciseReport        Json?
   behaviour            Json?
   academics            Json?
   activities           Json?

@@ -5,13 +5,7 @@ import { FiZap } from 'react-icons/fi';
 import Modal from '@/components/Modal';
 import Button from '@/components/Button';
 import { saveStudentAssessment } from '@/lib/api';
-import {
-  OVERALL_PERFORMANCE_OPTIONS,
-  OVERALL_PERFORMANCE_STYLES,
-  RATING_LEVELS,
-  RATING_STYLES,
-  BEHAVIOUR_CATEGORIES,
-} from '@/lib/assessmentConstants';
+import { RATING_LEVELS, RATING_STYLES, BEHAVIOUR_CATEGORIES } from '@/lib/assessmentConstants';
 
 function ChipButton({ isActive, onClick, children, activeClass }) {
   return (
@@ -104,11 +98,11 @@ export default function QuickAssessmentModal({ isOpen, onClose, student, month, 
         <div>
           <p className="text-sm font-semibold text-gray-900 mb-2">Overall Performance</p>
           <div className="flex flex-wrap gap-2">
-            {OVERALL_PERFORMANCE_OPTIONS.map((option) => (
+            {RATING_LEVELS.map((option) => (
               <ChipButton
                 key={option}
                 isActive={overallPerformance === option}
-                activeClass={OVERALL_PERFORMANCE_STYLES[option]}
+                activeClass={RATING_STYLES[option]}
                 onClick={() => setOverallPerformance(option)}
               >
                 {option}

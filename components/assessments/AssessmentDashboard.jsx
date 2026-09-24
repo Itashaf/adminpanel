@@ -27,7 +27,7 @@ import QuickAssessmentModal from './QuickAssessmentModal';
 import AssessmentDrawer from './AssessmentDrawer';
 import { getSectionOptions } from '@/lib/hooks/useClassSections';
 import { getClassAssessments, saveStudentAssessment } from '@/lib/api';
-import { RATING_LEVELS, RATING_STYLES, OVERALL_PERFORMANCE_OPTIONS, OVERALL_PERFORMANCE_STYLES, BEHAVIOUR_CATEGORIES } from '@/lib/assessmentConstants';
+import { RATING_LEVELS, RATING_STYLES, BEHAVIOUR_CATEGORIES } from '@/lib/assessmentConstants';
 
 function MiniChipRow({ options, value, onChange, styles }) {
   return (
@@ -507,8 +507,8 @@ export default function AssessmentDashboard({
                           </td>
                           <td className="py-3 pr-4">
                             <MiniChipRow
-                              options={OVERALL_PERFORMANCE_OPTIONS}
-                              styles={OVERALL_PERFORMANCE_STYLES}
+                              options={RATING_LEVELS}
+                              styles={RATING_STYLES}
                               value={change.overallPerformance}
                               onChange={(v) =>
                                 setBulkChanges((prev) => ({ ...prev, [r.studentId]: { ...prev[r.studentId], overallPerformance: v } }))

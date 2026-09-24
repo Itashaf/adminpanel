@@ -217,9 +217,18 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
           <div className="break-inside-avoid">
             <SectionTitle>Concise Report</SectionTitle>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Overall Performance" value={form.overallPerformance} />
-              <Field label="Tags" value={(form.overallTags || []).join(', ')} />
+              <Field label="Parent Informed" value={form.conciseReport?.parentInformed} />
+              <Field label="Date Informed" value={form.conciseReport?.dateInformed} />
+              <Field label="PTM Attended" value={form.conciseReport?.ptmAttended} />
+              <Field label="Health Status" value={form.conciseReport?.healthStatus} />
+              <Field label="Overall Progress" value={form.overallPerformance} />
             </div>
+            {(form.conciseReport?.parentFeedback || form.conciseReport?.followUp) && (
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <Field label="Parent Feedback" value={form.conciseReport?.parentFeedback} />
+                <Field label="Follow Up" value={form.conciseReport?.followUp} />
+              </div>
+            )}
           </div>
 
           <div className="break-inside-avoid">

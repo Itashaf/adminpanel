@@ -23,13 +23,11 @@ import {
 } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import Dropdown from '@/components/Dropdown';
+import DatePicker from '@/components/DatePicker';
 import AssessmentPrintPreview from './AssessmentPrintPreview';
 import { saveStudentAssessment } from '@/lib/api';
 import {
   WIZARD_STEPS,
-  OVERALL_PERFORMANCE_OPTIONS,
-  OVERALL_PERFORMANCE_STYLES,
-  OVERALL_TAGS,
   BEHAVIOUR_CATEGORIES,
   RATING_LEVELS,
   HOLISTIC_RATING_LEVELS,
@@ -37,6 +35,11 @@ import {
   ACTIVITY_TYPES,
   ACTIVITY_TYPE_OPTIONS,
   ACHIEVEMENT_LEVELS,
+  YES_NO_OPTIONS,
+  PTM_ATTENDED_OPTIONS,
+  HEALTH_STATUS_OPTIONS,
+  HEALTH_STATUS_DOT_COLORS,
+  OVERALL_PROGRESS_DOT_COLORS,
 } from '@/lib/assessmentConstants';
 
 const AUTOSAVE_DELAY = 1500;
@@ -56,9 +59,17 @@ function emptyForm(existing, subjects, autoFill) {
       daysPresent: existing?.attendanceDetail?.daysPresent ?? autoFill?.daysPresent ?? '',
       remark: existing?.attendanceDetail?.remark || '',
     },
+    // "Overall Progress" on the Concise Report step — same field Bulk
+    // Assessment Mode and "Complete in 30s" also write, RATING_LEVELS scale.
     overallPerformance: existing?.overallPerformance || '',
-    overallTags: existing?.overallTags || [],
-    overallRemark: existing?.overallRemark || '',
+    conciseReport: {
+      parentInformed: existing?.conciseReport?.parentInformed || '',
+      dateInformed: existing?.conciseReport?.dateInformed || '',
+      ptmAttended: existing?.conciseReport?.ptmAttended || '',
+      healthStatus: existing?.conciseReport?.healthStatus || '',
+      parentFeedback: existing?.conciseReport?.parentFeedback || '',
+      followUp: existing?.conciseReport?.followUp || '',
+    },
     behaviour: existing?.behaviour || {},
     academics:
       existing?.academics?.length > 0
@@ -267,42 +278,88 @@ function AttendanceStep({ form, setForm, month, year }) {
   );
 }
 
+const YES_NO_OPTION_LIST = YES_NO_OPTIONS.map((v) => ({ value: v, label: v }));
+const PTM_ATTENDED_OPTION_LIST = PTM_ATTENDED_OPTIONS.map((v) => ({ value: v, label: v }));
+
+function StatusDot({ color }) {
+  return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${color}`} />;
+}
+
+const HEALTH_STATUS_OPTION_LIST = HEALTH_STATUS_OPTIONS.map((v) => ({
+  value: v,
+  label: v,
+  icon: <StatusDot color={HEALTH_STATUS_DOT_COLORS[v]} />,
+}));
+
+const OVERALL_PROGRESS_OPTION_LIST = RATING_LEVELS.map((v) => ({
+  value: v,
+  label: v,
+  icon: <StatusDot color={OVERALL_PROGRESS_DOT_COLORS[v]} />,
+}));
+
 function ConciseReportStep({ form, setForm }) {
-  const toggleTag = (tag) => {
-    setForm((prev) => ({
-      ...prev,
-      overallTags: prev.overallTags.includes(tag) ? prev.overallTags.filter((t) => t !== tag) : [...prev.overallTags, tag],
-    }));
-  };
+  const cr = form.conciseReport;
+  const update = (patch) => setForm((prev) => ({ ...prev, conciseReport: { ...prev.conciseReport, ...patch } }));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">Overall Performance</h3>
-      <div className="flex flex-wrap gap-2">
-        {OVERALL_PERFORMANCE_OPTIONS.map((option) => (
-          <ChipButton
-            key={option}
-            isActive={form.overallPerformance === option}
-            activeClass={OVERALL_PERFORMANCE_STYLES[option]}
-            onClick={() => setForm((prev) => ({ ...prev, overallPerformance: option }))}
-          >
-            {option}
-          </ChipButton>
-        ))}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
+      <h3 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-3">Concise Report</h3>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Parent Informed</label>
+          <Dropdown options={YES_NO_OPTION_LIST} value={cr.parentInformed} onChange={(v) => update({ parentInformed: v })} placeholder="Select..." />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date Informed</label>
+          <DatePicker value={cr.dateInformed} onChange={(v) => update({ dateInformed: v })} placeholder="Select date" />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">PTM Attended</label>
+          <Dropdown
+            options={PTM_ATTENDED_OPTION_LIST}
+            value={cr.ptmAttended}
+            onChange={(v) => update({ ptmAttended: v })}
+            placeholder="Select..."
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Health Status</label>
+          <Dropdown options={HEALTH_STATUS_OPTION_LIST} value={cr.healthStatus} onChange={(v) => update({ healthStatus: v })} placeholder="—" />
+        </div>
       </div>
 
-      <h3 className="text-sm font-semibold text-gray-900 mt-5 mb-3">Quick Tags</h3>
-      <div className="flex flex-wrap gap-2">
-        {OVERALL_TAGS.map((tag) => (
-          <ChipButton
-            key={tag}
-            isActive={form.overallTags.includes(tag)}
-            activeClass="bg-indigo-600 text-white border-indigo-600"
-            onClick={() => toggleTag(tag)}
-          >
-            {tag}
-          </ChipButton>
-        ))}
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Parent Feedback</label>
+        <textarea
+          rows={3}
+          value={cr.parentFeedback}
+          onChange={(e) => update({ parentFeedback: e.target.value })}
+          placeholder="Parent feedback..."
+          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Follow Up</label>
+        <textarea
+          rows={3}
+          value={cr.followUp}
+          onChange={(e) => update({ followUp: e.target.value })}
+          placeholder="Follow-up actions planned..."
+          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Overall Progress</label>
+        <Dropdown
+          options={OVERALL_PROGRESS_OPTION_LIST}
+          value={form.overallPerformance}
+          onChange={(v) => setForm((prev) => ({ ...prev, overallPerformance: v }))}
+          placeholder="Select Progress"
+        />
       </div>
     </div>
   );
@@ -597,8 +654,10 @@ function SummaryStep({ form, setForm, goToStep, onPrintPreview }) {
         </ReviewSection>
 
         <ReviewSection title="Concise Report" onEdit={() => goToStep(3)}>
-          <p className="text-sm text-gray-700">{form.overallPerformance || 'Not set'}</p>
-          {form.overallTags.length > 0 && <p className="text-xs text-gray-400 mt-1">{form.overallTags.join(', ')}</p>}
+          <p className="text-sm text-gray-700">Overall Progress: {form.overallPerformance || 'Not set'}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Parent Informed: {form.conciseReport.parentInformed || '—'} • Health: {form.conciseReport.healthStatus || '—'}
+          </p>
         </ReviewSection>
       </div>
 
