@@ -19,6 +19,7 @@ import {
   FiCheckSquare,
 } from 'react-icons/fi';
 import Toast from '@/components/Toast';
+import Dropdown from '@/components/Dropdown';
 import { saveStudentAssessment } from '@/lib/api';
 import {
   WIZARD_STEPS,
@@ -34,6 +35,8 @@ import {
 } from '@/lib/assessmentConstants';
 
 const AUTOSAVE_DELAY = 1500;
+
+const HOLISTIC_RATING_OPTIONS = HOLISTIC_RATING_LEVELS.map((level) => ({ value: level, label: level }));
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -321,18 +324,12 @@ function BehaviourStep({ form, setForm }) {
         {BEHAVIOUR_CATEGORIES.map((cat) => (
           <div key={cat.key}>
             <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">{cat.label}</label>
-            <select
+            <Dropdown
+              options={HOLISTIC_RATING_OPTIONS}
               value={form.behaviour[cat.key] || ''}
-              onChange={(e) => setRating(cat.key, e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Select...</option>
-              {HOLISTIC_RATING_LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setRating(cat.key, v)}
+              placeholder="Select..."
+            />
           </div>
         ))}
       </div>
