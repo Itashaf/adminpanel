@@ -36,7 +36,9 @@ import {
   ACTIVITY_TYPE_OPTIONS,
   ACHIEVEMENT_LEVELS,
   YES_NO_OPTIONS,
+  YES_NO_DOT_COLORS,
   PTM_ATTENDED_OPTIONS,
+  PTM_ATTENDED_DOT_COLORS,
   HEALTH_STATUS_OPTIONS,
   HEALTH_STATUS_DOT_COLORS,
   OVERALL_PROGRESS_DOT_COLORS,
@@ -252,24 +254,30 @@ function AttendanceStep({ form, setForm, month, year, autoFill }) {
   );
 }
 
-const YES_NO_OPTION_LIST = YES_NO_OPTIONS.map((v) => ({ value: v, label: v }));
-const PTM_ATTENDED_OPTION_LIST = PTM_ATTENDED_OPTIONS.map((v) => ({ value: v, label: v }));
-
-function StatusDot({ color }) {
-  return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${color}`} />;
+// Generic tap-to-select colored dots — same interaction as Academic
+// Performance/Holistic Development, reused for every Concise Report field
+// (2-option Yes/No-shaped ones included) instead of a dropdown. `colors` is
+// one of the *_DOT_COLORS maps from lib/assessmentConstants.js.
+function RatingDots({ options, colors, value, onChange }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChange(option)}
+          title={option}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer ${
+            value === option ? 'border-gray-300 bg-gray-50 text-gray-900' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+          }`}
+        >
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colors[option]} ${value === option ? '' : 'opacity-40'}`} />
+          {option}
+        </button>
+      ))}
+    </div>
+  );
 }
-
-const HEALTH_STATUS_OPTION_LIST = HEALTH_STATUS_OPTIONS.map((v) => ({
-  value: v,
-  label: v,
-  icon: <StatusDot color={HEALTH_STATUS_DOT_COLORS[v]} />,
-}));
-
-const OVERALL_PROGRESS_OPTION_LIST = RATING_LEVELS.map((v) => ({
-  value: v,
-  label: v,
-  icon: <StatusDot color={OVERALL_PROGRESS_DOT_COLORS[v]} />,
-}));
 
 function ConciseReportStep({ form, setForm }) {
   const cr = form.conciseReport;
@@ -282,7 +290,7 @@ function ConciseReportStep({ form, setForm }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Parent Informed</label>
-          <Dropdown options={YES_NO_OPTION_LIST} value={cr.parentInformed} onChange={(v) => update({ parentInformed: v })} placeholder="Select..." />
+          <RatingDots options={YES_NO_OPTIONS} colors={YES_NO_DOT_COLORS} value={cr.parentInformed} onChange={(v) => update({ parentInformed: v })} />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date Informed</label>
@@ -291,16 +299,21 @@ function ConciseReportStep({ form, setForm }) {
 
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">PTM Attended</label>
-          <Dropdown
-            options={PTM_ATTENDED_OPTION_LIST}
+          <RatingDots
+            options={PTM_ATTENDED_OPTIONS}
+            colors={PTM_ATTENDED_DOT_COLORS}
             value={cr.ptmAttended}
             onChange={(v) => update({ ptmAttended: v })}
-            placeholder="Select..."
           />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Health Status</label>
-          <Dropdown options={HEALTH_STATUS_OPTION_LIST} value={cr.healthStatus} onChange={(v) => update({ healthStatus: v })} placeholder="—" />
+          <RatingDots
+            options={HEALTH_STATUS_OPTIONS}
+            colors={HEALTH_STATUS_DOT_COLORS}
+            value={cr.healthStatus}
+            onChange={(v) => update({ healthStatus: v })}
+          />
         </div>
       </div>
 
@@ -328,11 +341,11 @@ function ConciseReportStep({ form, setForm }) {
 
       <div>
         <label className="block text-xs font-semibold text-gray-500 mb-1.5">Overall Progress</label>
-        <Dropdown
-          options={OVERALL_PROGRESS_OPTION_LIST}
+        <RatingDots
+          options={RATING_LEVELS}
+          colors={OVERALL_PROGRESS_DOT_COLORS}
           value={form.overallPerformance}
           onChange={(v) => setForm((prev) => ({ ...prev, overallPerformance: v }))}
-          placeholder="Select Progress"
         />
       </div>
     </div>
