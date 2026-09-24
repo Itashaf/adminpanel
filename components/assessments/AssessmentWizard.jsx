@@ -111,7 +111,7 @@ const STEP_ICONS = {
   development: FiHeart,
   activities: FiActivity,
   concise: FiFileText,
-  summary: FiCheckSquare,
+  remarks: FiCheckSquare,
 };
 
 // Single-row icon stepper, all steps in one line (small text/circles so they
@@ -575,26 +575,12 @@ const TEACHER_REMARKS_FIELDS = [
   { key: 'parentInvolvementNotes', label: 'Parent Involvement Notes', placeholder: 'Parents requested to monitor homework at home and encourage reading daily.' },
 ];
 
-function ReviewSection({ title, onEdit, children }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        <button type="button" onClick={onEdit} className="text-xs font-medium text-indigo-600 hover:text-indigo-700 cursor-pointer">
-          Edit
-        </button>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// Final step — a quick recap of the other 4 steps (edit-jump per card, no
-// separate Review step anymore) followed by the structured action-plan
-// fields, then Submit (handled by the shared footer since this is the last
-// step). parentCommunication is the same Json field the old Parent Notes
-// step used, just this different shape — no schema change needed.
-function SummaryStep({ form, setForm, goToStep, onPrintPreview }) {
+// Final step — just the structured action-plan fields (no recap grid of
+// the other 4 steps anymore, per explicit request), then Submit (handled by
+// the shared footer since this is the last step). parentCommunication is
+// the same Json field the old Parent Notes step used, just this different
+// shape — no schema change needed.
+function TeacherRemarksStep({ form, setForm, onPrintPreview }) {
   const update = (patch) => setForm((prev) => ({ ...prev, parentCommunication: { ...prev.parentCommunication, ...patch } }));
 
   return (
@@ -608,57 +594,6 @@ function SummaryStep({ form, setForm, goToStep, onPrintPreview }) {
           <FiPrinter className="w-4 h-4" />
           Print Preview
         </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ReviewSection title="Academic" onEdit={() => goToStep(0)}>
-          <p className="text-sm text-gray-700">
-            Attendance: {form.attendanceDetail.daysPresent || '—'} / {form.attendanceDetail.totalWorkingDays || '—'} days present
-          </p>
-          <div className="space-y-1 mt-2">
-            {form.academics.map((row) => (
-              <div key={row.subject} className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">{row.subject}</span>
-                <span className="text-gray-900 font-medium">{row.rating || '—'}</span>
-              </div>
-            ))}
-          </div>
-        </ReviewSection>
-
-        <ReviewSection title="Development" onEdit={() => goToStep(1)}>
-          <div className="space-y-1">
-            {BEHAVIOUR_CATEGORIES.map((cat) => (
-              <div key={cat.key} className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">{cat.label}</span>
-                <span className="text-gray-900 font-medium">{form.behaviour[cat.key] || '—'}</span>
-              </div>
-            ))}
-          </div>
-        </ReviewSection>
-
-        <ReviewSection title="Activities" onEdit={() => goToStep(2)}>
-          {form.activities.some((e) => e.type) ? (
-            <div className="space-y-1">
-              {form.activities
-                .filter((e) => e.type)
-                .map((e, i) => (
-                  <p key={i} className="text-sm text-gray-700">
-                    {e.type}: {e.option || '—'}
-                    {e.achievement && <span className="text-xs text-gray-400"> ({e.achievement})</span>}
-                  </p>
-                ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">None added</p>
-          )}
-        </ReviewSection>
-
-        <ReviewSection title="Concise Report" onEdit={() => goToStep(3)}>
-          <p className="text-sm text-gray-700">Overall Progress: {form.overallPerformance || 'Not set'}</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Parent Informed: {form.conciseReport.parentInformed || '—'} • Health: {form.conciseReport.healthStatus || '—'}
-          </p>
-        </ReviewSection>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
@@ -921,7 +856,7 @@ export default function AssessmentWizard({
       {step === 1 && <BehaviourStep {...stepProps} />}
       {step === 2 && <ActivitiesStep {...stepProps} />}
       {step === 3 && <ConciseReportStep {...stepProps} />}
-      {step === 4 && <SummaryStep {...stepProps} />}
+      {step === 4 && <TeacherRemarksStep {...stepProps} />}
       </div>
 
       {/* Footer — viewport-fixed on the full page (unchanged). Embedded: a
