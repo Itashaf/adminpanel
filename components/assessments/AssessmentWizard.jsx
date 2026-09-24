@@ -52,11 +52,12 @@ const MONTH_NAMES = [
 ];
 const MONTH_LABEL = (month) => MONTH_NAMES[month - 1];
 
-function emptyForm(existing, subjects, autoFill) {
+function emptyForm(existing, subjects) {
   return {
+    // totalWorkingDays/daysPresent are never form-editable — read directly
+    // off autoFill wherever needed (AttendanceStep, persist()) instead of
+    // living here. Only `remark` is a real form field.
     attendanceDetail: {
-      totalWorkingDays: existing?.attendanceDetail?.totalWorkingDays ?? autoFill?.totalWorkingDays ?? '',
-      daysPresent: existing?.attendanceDetail?.daysPresent ?? autoFill?.daysPresent ?? '',
       remark: existing?.attendanceDetail?.remark || '',
     },
     // "Overall Progress" on the Concise Report step — same field Bulk
@@ -200,17 +201,14 @@ function attendanceRatingFor(percent) {
   return 'Needs Improvement';
 }
 
-// Total Working Days / Days Present start out auto-filled from real
-// attendance records (autoFill, via emptyForm) but stay teacher-editable —
-// the % below recomputes live from whatever's currently typed, same
-// RATING_LEVELS/RATING_STYLES scale the Behaviour/Academics steps use for
-// its qualitative badge.
-function AttendanceStep({ form, setForm, month, year }) {
-  const { totalWorkingDays, daysPresent } = form.attendanceDetail;
-  const percent =
-    totalWorkingDays !== '' && daysPresent !== '' && Number(totalWorkingDays) > 0
-      ? Math.round((Number(daysPresent) / Number(totalWorkingDays)) * 1000) / 10
-      : null;
+// Total Working Days / Days Present / Attendance % are pulled straight from
+// real Attendance records (autoFill) and shown read-only — never a typed
+// input, so this can't drift from what the Attendance module actually
+// recorded. Only Remarks stays teacher-editable.
+function AttendanceStep({ form, setForm, month, year, autoFill }) {
+  const totalWorkingDays = autoFill.totalWorkingDays;
+  const daysPresent = autoFill.daysPresent;
+  const percent = autoFill.attendancePercentage;
   const rating = attendanceRatingFor(percent);
 
   const update = (patch) => setForm((prev) => ({ ...prev, attendanceDetail: { ...prev.attendanceDetail, ...patch } }));
@@ -224,31 +222,19 @@ function AttendanceStep({ form, setForm, month, year }) {
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Monthly Attendance</h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            Enter the total working days and days present for {MONTH_LABEL(month)} {year}.
+            Pulled automatically from Attendance records for {MONTH_LABEL(month)} {year}.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Total Working Days</label>
-          <input
-            type="number"
-            min="0"
-            value={totalWorkingDays}
-            onChange={(e) => update({ totalWorkingDays: e.target.value })}
-            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+        <div className="bg-gray-50 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+          <p className="text-xs font-medium text-gray-500">Total Working Days</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{totalWorkingDays ?? '—'}</p>
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Days Present</label>
-          <input
-            type="number"
-            min="0"
-            value={daysPresent}
-            onChange={(e) => update({ daysPresent: e.target.value })}
-            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+        <div className="bg-gray-50 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+          <p className="text-xs font-medium text-gray-500">Days Present</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{daysPresent ?? '—'}</p>
         </div>
         <div className="bg-green-50 rounded-lg p-3 flex flex-col items-center justify-center text-center">
           <p className="text-xs font-medium text-gray-500">Attendance %</p>
@@ -675,7 +661,7 @@ export default function AssessmentWizard({
   const router = useRouter();
   const { student, subjects, autoFill, assessment } = data;
   const [step, setStep] = useState(Math.max(0, Math.min(WIZARD_STEPS.length - 1, initialStep)));
-  const [form, setForm] = useState(() => emptyForm(assessment, subjects, autoFill));
+  const [form, setForm] = useState(() => emptyForm(assessment, subjects));
   const [status, setStatus] = useState(assessment?.status === 'COMPLETED' ? 'Completed' : assessment ? 'Draft' : 'Not Started');
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved
   const [isDirty, setIsDirty] = useState(false);
@@ -688,16 +674,19 @@ export default function AssessmentWizard({
     async (submit = false) => {
       setSaveState('saving');
       try {
-        // attendancePercentage is computed from the Attendance step's own
-        // Total Working Days / Days Present fields (teacher-editable, see
-        // AttendanceStep) — falls back to the auto-pulled figure only while
-        // those fields are still empty (a fresh, untouched assessment).
-        const { totalWorkingDays, daysPresent } = form.attendanceDetail;
-        const computedPercent =
-          totalWorkingDays !== '' && daysPresent !== '' && Number(totalWorkingDays) > 0
-            ? Math.round((Number(daysPresent) / Number(totalWorkingDays)) * 1000) / 10
-            : autoFill.attendancePercentage;
-        const result = await saveStudentAssessment(studentId, month, year, { ...form, attendancePercentage: computedPercent }, submit);
+        // attendancePercentage/totalWorkingDays/daysPresent all come from
+        // autoFill (real Attendance records) — never from user input, so
+        // what's saved always matches what AttendanceStep displayed.
+        const payload = {
+          ...form,
+          attendancePercentage: autoFill.attendancePercentage,
+          attendanceDetail: {
+            ...form.attendanceDetail,
+            totalWorkingDays: autoFill.totalWorkingDays,
+            daysPresent: autoFill.daysPresent,
+          },
+        };
+        const result = await saveStudentAssessment(studentId, month, year, payload, submit);
         setStatus(result.status === 'COMPLETED' ? 'Completed' : 'Draft');
         setSaveState('saved');
         setIsDirty(false);
@@ -708,7 +697,7 @@ export default function AssessmentWizard({
         return null;
       }
     },
-    [studentId, month, year, form, autoFill.attendancePercentage]
+    [studentId, month, year, form, autoFill.attendancePercentage, autoFill.totalWorkingDays, autoFill.daysPresent]
   );
 
   // Debounced autosave — skips the very first render (that's just the
@@ -948,6 +937,7 @@ export default function AssessmentWizard({
           year={year}
           status={status}
           form={form}
+          autoFill={autoFill}
           schoolName={schoolName}
           schoolLogoUrl={schoolLogoUrl}
           onClose={() => setShowPrintPreview(false)}

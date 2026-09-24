@@ -33,7 +33,7 @@ function SectionTitle({ children }) {
 // one is always portrait, unlike that report's runtime-swapped orientation)
 // rather than a separate print route — window.print() prints exactly what's
 // already on screen here, with the toolbar hidden via print:hidden.
-export default function AssessmentPrintPreview({ student, month, year, status, form, schoolName, schoolLogoUrl, onClose }) {
+export default function AssessmentPrintPreview({ student, month, year, status, form, autoFill, schoolName, schoolLogoUrl, onClose }) {
   useEffect(() => {
     const styleTag = document.getElementById('assessment-print-page-size') || document.createElement('style');
     styleTag.id = 'assessment-print-page-size';
@@ -58,11 +58,10 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
   const parents = [student.fatherName && `Father: ${student.fatherName}`, student.motherName && `Mother: ${student.motherName}`]
     .filter(Boolean)
     .join('   |   ');
-  const attendanceDetail = form.attendanceDetail || {};
-  const attendancePercent =
-    attendanceDetail.totalWorkingDays && attendanceDetail.daysPresent && Number(attendanceDetail.totalWorkingDays) > 0
-      ? Math.round((Number(attendanceDetail.daysPresent) / Number(attendanceDetail.totalWorkingDays)) * 1000) / 10
-      : null;
+  // Total Working Days/Days Present/% come from autoFill (real Attendance
+  // records), not form.attendanceDetail — those fields aren't user-editable
+  // (see AssessmentWizard.jsx's AttendanceStep), only `remark` is.
+  const attendanceRemark = form.attendanceDetail?.remark || '';
   const pc = form.parentCommunication || {};
 
   // Portaled to document.body — this used to render nested inside
@@ -142,10 +141,10 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
           <div>
             <SectionTitle>Attendance</SectionTitle>
             <div className="grid grid-cols-4 gap-4">
-              <Field label="Total Working Days" value={attendanceDetail.totalWorkingDays} />
-              <Field label="Days Present" value={attendanceDetail.daysPresent} />
-              <Field label="Attendance %" value={attendancePercent != null ? `${attendancePercent}%` : null} />
-              <Field label="Remarks" value={attendanceDetail.remark} />
+              <Field label="Total Working Days" value={autoFill?.totalWorkingDays} />
+              <Field label="Days Present" value={autoFill?.daysPresent} />
+              <Field label="Attendance %" value={autoFill?.attendancePercentage != null ? `${autoFill.attendancePercentage}%` : null} />
+              <Field label="Remarks" value={attendanceRemark} />
             </div>
           </div>
 
