@@ -18,6 +18,8 @@ import {
   FiFileText,
   FiCheckSquare,
   FiPrinter,
+  FiPlus,
+  FiTrash2,
 } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import Dropdown from '@/components/Dropdown';
@@ -32,7 +34,8 @@ import {
   RATING_LEVELS,
   HOLISTIC_RATING_LEVELS,
   RATING_STYLES,
-  ACTIVITY_OPTIONS,
+  ACTIVITY_TYPES,
+  ACTIVITY_TYPE_OPTIONS,
   ACHIEVEMENT_LEVELS,
 } from '@/lib/assessmentConstants';
 
@@ -61,11 +64,11 @@ function emptyForm(existing, subjects, autoFill) {
       existing?.academics?.length > 0
         ? existing.academics
         : subjects.map((subject) => ({ subject, rating: '', remark: '' })),
-    activities: {
-      selectedActivities: existing?.activities?.selectedActivities || [],
-      achievementLevel: existing?.activities?.achievementLevel || '',
-      note: existing?.activities?.note || '',
-    },
+    // Array of { type, option, achievement } entries — one per "Add Another
+    // Activity" row. Starts with a single blank row rather than an empty
+    // array, so the step never opens looking completely empty.
+    activities:
+      existing?.activities?.length > 0 ? existing.activities : [{ type: '', option: '', achievement: '' }],
     parentCommunication: {
       keyConcern: existing?.parentCommunication?.keyConcern || '',
       specificIntervention: existing?.parentCommunication?.specificIntervention || '',
@@ -395,64 +398,115 @@ function AcademicsStep({ form, setForm, autoFill }) {
   );
 }
 
+const ACTIVITY_TYPE_OPTION_LIST = ACTIVITY_TYPES.map((t) => ({ value: t, label: t }));
+const ACHIEVEMENT_OPTION_LIST = ACHIEVEMENT_LEVELS.map((a) => ({ value: a, label: a }));
+
+// One "Add Another Activity" row — Type picks which fixed option list
+// applies (Competition/Olympiad/Sports each have their own, per
+// ACTIVITY_TYPE_OPTIONS; "Activity" has none, so that one's second field is
+// free text instead of a dropdown), then an optional Achievement.
+function ActivityEntryRow({ entry, onChange, onRemove, canRemove }) {
+  const typeOptions = entry.type && ACTIVITY_TYPE_OPTIONS[entry.type] ? ACTIVITY_TYPE_OPTIONS[entry.type].map((o) => ({ value: o, label: o })) : [];
+  const isFreeText = entry.type === 'Activity';
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end bg-gray-50 rounded-xl p-4">
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Type</label>
+        <Dropdown
+          options={ACTIVITY_TYPE_OPTION_LIST}
+          value={entry.type}
+          onChange={(v) => onChange({ type: v, option: '' })}
+          placeholder="Select type..."
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">{isFreeText ? 'Activity' : 'Details'}</label>
+        {isFreeText ? (
+          <input
+            type="text"
+            value={entry.option}
+            onChange={(e) => onChange({ option: e.target.value })}
+            placeholder="Describe the activity..."
+            className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-full bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        ) : (
+          <Dropdown
+            options={typeOptions}
+            value={entry.option}
+            onChange={(v) => onChange({ option: v })}
+            placeholder={entry.type ? 'Select...' : 'Pick a type first'}
+            disabled={!entry.type}
+          />
+        )}
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Achievement (if any)</label>
+        <Dropdown
+          options={ACHIEVEMENT_OPTION_LIST}
+          value={entry.achievement}
+          onChange={(v) => onChange({ achievement: v })}
+          placeholder="None"
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={!canRemove}
+        title="Remove"
+        className="flex items-center justify-center w-10 h-10 rounded-full text-red-500 bg-white border border-gray-200 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition shrink-0"
+      >
+        <FiTrash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
 function ActivitiesStep({ form, setForm }) {
-  const toggleActivity = (activity) => {
+  const entries = form.activities;
+
+  const updateEntry = (index, patch) => {
     setForm((prev) => ({
       ...prev,
-      activities: {
-        ...prev.activities,
-        selectedActivities: prev.activities.selectedActivities.includes(activity)
-          ? prev.activities.selectedActivities.filter((a) => a !== activity)
-          : [...prev.activities.selectedActivities, activity],
-      },
+      activities: prev.activities.map((e, i) => (i === index ? { ...e, ...patch } : e)),
     }));
   };
 
+  const addEntry = () => {
+    setForm((prev) => ({ ...prev, activities: [...prev.activities, { type: '', option: '', achievement: '' }] }));
+  };
+
+  const removeEntry = (index) => {
+    setForm((prev) => ({ ...prev, activities: prev.activities.filter((_, i) => i !== index) }));
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Co-Curricular Activities</h3>
-        <div className="flex flex-wrap gap-2">
-          {ACTIVITY_OPTIONS.map((activity) => (
-            <ChipButton
-              key={activity}
-              isActive={form.activities.selectedActivities.includes(activity)}
-              activeClass="bg-indigo-600 text-white border-indigo-600"
-              onClick={() => toggleActivity(activity)}
-            >
-              {form.activities.selectedActivities.includes(activity) && <FiCheck className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />}
-              {activity}
-            </ChipButton>
-          ))}
-        </div>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-900">Co-Curricular Activities</h3>
+
+      <div className="space-y-3">
+        {entries.map((entry, index) => (
+          <ActivityEntryRow
+            key={index}
+            entry={entry}
+            onChange={(patch) => updateEntry(index, patch)}
+            onRemove={() => removeEntry(index)}
+            canRemove={entries.length > 1}
+          />
+        ))}
       </div>
 
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Achievement Level</h3>
-        <div className="flex flex-wrap gap-2">
-          {ACHIEVEMENT_LEVELS.map((level) => (
-            <ChipButton
-              key={level}
-              isActive={form.activities.achievementLevel === level}
-              activeClass="bg-violet-600 text-white border-violet-600"
-              onClick={() => setForm((prev) => ({ ...prev, activities: { ...prev.activities, achievementLevel: level } }))}
-            >
-              {level}
-            </ChipButton>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Note (optional)</h3>
-        <textarea
-          rows={3}
-          value={form.activities.note}
-          onChange={(e) => setForm((prev) => ({ ...prev, activities: { ...prev.activities, note: e.target.value } }))}
-          placeholder="Any achievement or activity note..."
-          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-      </div>
+      <button
+        type="button"
+        onClick={addEntry}
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 cursor-pointer transition"
+      >
+        <FiPlus className="w-4 h-4" />
+        Add Another Activity
+      </button>
     </div>
   );
 }
@@ -526,8 +580,20 @@ function SummaryStep({ form, setForm, goToStep, onPrintPreview }) {
         </ReviewSection>
 
         <ReviewSection title="Activities" onEdit={() => goToStep(2)}>
-          <p className="text-sm text-gray-700">{form.activities.selectedActivities.join(', ') || 'None selected'}</p>
-          {form.activities.achievementLevel && <p className="text-xs text-gray-400 mt-1">Level: {form.activities.achievementLevel}</p>}
+          {form.activities.some((e) => e.type) ? (
+            <div className="space-y-1">
+              {form.activities
+                .filter((e) => e.type)
+                .map((e, i) => (
+                  <p key={i} className="text-sm text-gray-700">
+                    {e.type}: {e.option || '—'}
+                    {e.achievement && <span className="text-xs text-gray-400"> ({e.achievement})</span>}
+                  </p>
+                ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">None added</p>
+          )}
         </ReviewSection>
 
         <ReviewSection title="Concise Report" onEdit={() => goToStep(3)}>

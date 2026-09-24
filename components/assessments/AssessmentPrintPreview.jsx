@@ -188,11 +188,30 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
 
           <div className="break-inside-avoid">
             <SectionTitle>Co-Curricular Activities</SectionTitle>
-            <Field label="Activities" value={(form.activities?.selectedActivities || []).join(', ')} />
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <Field label="Achievement Level" value={form.activities?.achievementLevel} />
-              <Field label="Note" value={form.activities?.note} />
-            </div>
+            {(form.activities || []).some((e) => e.type) ? (
+              <table className="w-full text-sm print:text-[10px] border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-[10px] print:text-[9px] font-semibold text-gray-500 uppercase border-b border-gray-200">
+                    <th className="py-2 px-3">Type</th>
+                    <th className="py-2 px-3">Details</th>
+                    <th className="py-2 px-3">Achievement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(form.activities || [])
+                    .filter((e) => e.type)
+                    .map((e, i) => (
+                      <tr key={i} className="border-b border-gray-100">
+                        <td className="py-2 px-3 font-medium text-gray-900">{e.type}</td>
+                        <td className="py-2 px-3 text-gray-700">{e.option || '—'}</td>
+                        <td className="py-2 px-3 text-gray-500">{e.achievement || '—'}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm print:text-[10px] text-gray-400">None added</p>
+            )}
           </div>
 
           <div className="break-inside-avoid">
