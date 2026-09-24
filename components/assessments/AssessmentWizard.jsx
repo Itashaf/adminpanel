@@ -320,7 +320,7 @@ function BehaviourStep({ form, setForm }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {BEHAVIOUR_CATEGORIES.map((cat) => (
           <div key={cat.key}>
             <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">{cat.label}</label>
