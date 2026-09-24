@@ -260,18 +260,18 @@ function AttendanceStep({ form, setForm, month, year, autoFill }) {
 // one of the *_DOT_COLORS maps from lib/assessmentConstants.js.
 function RatingDots({ options, colors, value, onChange }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
       {options.map((option) => (
         <button
           key={option}
           type="button"
           onClick={() => onChange(option)}
           title={option}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer whitespace-nowrap shrink-0 ${
             value === option ? 'border-gray-300 bg-gray-50 text-gray-900' : 'border-gray-200 text-gray-500 hover:border-gray-300'
           }`}
         >
-          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colors[option]} ${value === option ? '' : 'opacity-40'}`} />
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colors[option]} ${value === option ? '' : 'opacity-70'}`} />
           {option}
         </button>
       ))}
@@ -306,7 +306,7 @@ function ConciseReportStep({ form, setForm }) {
             onChange={(v) => update({ ptmAttended: v })}
           />
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Health Status</label>
           <RatingDots
             options={HEALTH_STATUS_OPTIONS}
@@ -365,7 +365,7 @@ function HolisticRatingDots({ value, onChange }) {
           onClick={() => onChange(level)}
           title={level}
           className={`flex items-center justify-center w-6 h-6 rounded-full shrink-0 cursor-pointer transition ${HOLISTIC_RATING_DOT_COLORS[level]} ${
-            value === level ? 'ring-2 ring-offset-1 ring-gray-400' : 'opacity-35 hover:opacity-70'
+            value === level ? 'ring-2 ring-offset-1 ring-gray-400' : 'opacity-70 hover:opacity-90'
           }`}
         >
           {value === level && <FiCheck className="w-3 h-3 text-white" />}
@@ -476,7 +476,7 @@ function AcademicRatingDots({ value, onChange }) {
           onClick={() => onChange(level)}
           title={level}
           className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition ${ACADEMIC_RATING_DOT_COLORS[level]} ${
-            value === level ? 'ring-2 ring-offset-2 ring-gray-400' : 'opacity-35 hover:opacity-70'
+            value === level ? 'ring-2 ring-offset-2 ring-gray-400' : 'opacity-70 hover:opacity-90'
           }`}
         >
           {value === level && <FiCheck className="w-4 h-4 text-white" />}
