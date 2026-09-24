@@ -192,14 +192,18 @@ export default function AssessmentDrawer({ studentId, initialMonth, initialYear,
           </div>
         </div>
 
-        <div className="px-6 pt-5 pb-5 overflow-y-auto flex-1">
+        {/* No padding/scroll here — AssessmentWizard (embedded) owns its own
+            flex-column layout (scrollable step content + a footer flush
+            against this panel's bottom edge), so it needs this container's
+            full height, not a pre-scrolled box inside it. */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {isLoading ? (
-            <div className="animate-pulse space-y-4">
+            <div className="animate-pulse space-y-4 px-6 pt-5 pb-5">
               <div className="h-10 bg-white rounded-2xl border border-gray-100" />
               <div className="h-64 bg-white rounded-2xl border border-gray-100" />
             </div>
           ) : !data ? (
-            <p className="text-sm text-gray-500 text-center py-10">Could not load this assessment.</p>
+            <p className="text-sm text-gray-500 text-center py-10 px-6">Could not load this assessment.</p>
           ) : (
             <AssessmentWizard key={`${studentId}-${month}-${year}`} studentId={studentId} month={month} year={year} data={data} embedded />
           )}

@@ -677,8 +677,17 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
 
   const stepProps = { form, setForm, student, autoFill, month, year, goToStep };
 
+  // Embedded (drawer) layout is a flex column filling the drawer's full
+  // height: step content scrolls in its own flex-1 region, the footer is a
+  // normal (non-sticky, non-absolute) flex child that naturally lands flush
+  // against the drawer's bottom edge regardless of how short the current
+  // step's content is — the standard flexbox sticky-footer pattern, instead
+  // of `sticky`/`position:absolute` tricks that only "activate" once
+  // content actually overflows. The full page keeps its own unchanged
+  // normal-flow + viewport-fixed-footer layout.
   return (
-    <div className={embedded ? 'space-y-6' : 'space-y-6 pb-24'}>
+    <div className={embedded ? 'h-full flex flex-col' : 'space-y-6 pb-24'}>
+      <div className={embedded ? 'flex-1 overflow-y-auto px-6 pt-5 space-y-6' : 'space-y-6'}>
       {!embedded && (
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -761,17 +770,15 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
       {step === 2 && <ActivitiesStep {...stepProps} />}
       {step === 3 && <ConciseReportStep {...stepProps} />}
       {step === 4 && <SummaryStep {...stepProps} />}
+      </div>
 
-      {/* Sticky footer — viewport-fixed on the full page, but sticky within
-          the drawer's own scroll container when embedded (a viewport-fixed
-          footer would render behind the sidebar instead of inside the
-          panel). `-mx-6` matches AssessmentDrawer's own `px-6` container
-          padding exactly (was `-mx-4 sm:-mx-6`, mismatched against the
-          drawer's single `px-6`, leaving a gap down each side instead of
-          spanning edge-to-edge). */}
+      {/* Footer — viewport-fixed on the full page (unchanged). Embedded: a
+          plain flex child at the end of the drawer's flex-column layout
+          (see the wrapping divs above) — always flush with the drawer's
+          bottom edge, no sticky/absolute needed. */}
       <div
         className={`bg-white border-t border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 z-30 ${
-          embedded ? 'sticky bottom-0 -mx-6' : 'fixed bottom-0 left-0 right-0 lg:left-64'
+          embedded ? 'shrink-0' : 'fixed bottom-0 left-0 right-0 lg:left-64'
         }`}
       >
         <button
