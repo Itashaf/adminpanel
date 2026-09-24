@@ -271,7 +271,7 @@ function RatingDots({ options, colors, value, onChange }) {
             value === option ? 'border-gray-300 bg-gray-50 text-gray-900' : 'border-gray-200 text-gray-500 hover:border-gray-300'
           }`}
         >
-          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colors[option]} ${value === option ? '' : 'opacity-70'}`} />
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colors[option]} ${value === option ? '' : 'opacity-20'}`} />
           {option}
         </button>
       ))}
@@ -293,11 +293,6 @@ function ConciseReportStep({ form, setForm }) {
           <RatingDots options={YES_NO_OPTIONS} colors={YES_NO_DOT_COLORS} value={cr.parentInformed} onChange={(v) => update({ parentInformed: v })} />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date Informed</label>
-          <DatePicker value={cr.dateInformed} onChange={(v) => update({ dateInformed: v })} placeholder="Select date" />
-        </div>
-
-        <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">PTM Attended</label>
           <RatingDots
             options={PTM_ATTENDED_OPTIONS}
@@ -306,6 +301,15 @@ function ConciseReportStep({ form, setForm }) {
             onChange={(v) => update({ ptmAttended: v })}
           />
         </div>
+
+        {/* Only asks for a date once Parent Informed is actually Yes —
+            no point picking a date for something that didn't happen. */}
+        {cr.parentInformed === 'Yes' && (
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date Informed</label>
+            <DatePicker value={cr.dateInformed} onChange={(v) => update({ dateInformed: v })} placeholder="Select date" />
+          </div>
+        )}
         <div className="sm:col-span-2">
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Health Status</label>
           <RatingDots
@@ -365,7 +369,7 @@ function HolisticRatingDots({ value, onChange }) {
           onClick={() => onChange(level)}
           title={level}
           className={`flex items-center justify-center w-6 h-6 rounded-full shrink-0 cursor-pointer transition ${HOLISTIC_RATING_DOT_COLORS[level]} ${
-            value === level ? 'ring-2 ring-offset-1 ring-gray-400' : 'opacity-70 hover:opacity-90'
+            value === level ? 'ring-2 ring-offset-1 ring-gray-400' : 'opacity-20 hover:opacity-50'
           }`}
         >
           {value === level && <FiCheck className="w-3 h-3 text-white" />}
@@ -476,7 +480,7 @@ function AcademicRatingDots({ value, onChange }) {
           onClick={() => onChange(level)}
           title={level}
           className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition ${ACADEMIC_RATING_DOT_COLORS[level]} ${
-            value === level ? 'ring-2 ring-offset-2 ring-gray-400' : 'opacity-70 hover:opacity-90'
+            value === level ? 'ring-2 ring-offset-2 ring-gray-400' : 'opacity-20 hover:opacity-50'
           }`}
         >
           {value === level && <FiCheck className="w-4 h-4 text-white" />}
