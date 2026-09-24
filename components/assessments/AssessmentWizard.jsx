@@ -292,6 +292,15 @@ function ConciseReportStep({ form, setForm }) {
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Parent Informed</label>
           <RatingDots options={YES_NO_OPTIONS} colors={YES_NO_DOT_COLORS} value={cr.parentInformed} onChange={(v) => update({ parentInformed: v })} />
         </div>
+        {/* Only asks for a date once Parent Informed is actually Yes —
+            no point picking a date for something that didn't happen. */}
+        {cr.parentInformed === 'Yes' && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date Informed</label>
+            <DatePicker value={cr.dateInformed} onChange={(v) => update({ dateInformed: v })} placeholder="Select date" />
+          </div>
+        )}
+
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">PTM Attended</label>
           <RatingDots
@@ -301,16 +310,7 @@ function ConciseReportStep({ form, setForm }) {
             onChange={(v) => update({ ptmAttended: v })}
           />
         </div>
-
-        {/* Only asks for a date once Parent Informed is actually Yes —
-            no point picking a date for something that didn't happen. */}
-        {cr.parentInformed === 'Yes' && (
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date Informed</label>
-            <DatePicker value={cr.dateInformed} onChange={(v) => update({ dateInformed: v })} placeholder="Select date" />
-          </div>
-        )}
-        <div className="sm:col-span-2">
+        <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Health Status</label>
           <RatingDots
             options={HEALTH_STATUS_OPTIONS}
