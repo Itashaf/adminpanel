@@ -687,7 +687,7 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
   // normal-flow + viewport-fixed-footer layout.
   return (
     <div className={embedded ? 'h-full flex flex-col' : 'space-y-6 pb-24'}>
-      <div className={embedded ? 'flex-1 overflow-y-auto px-6 pt-5 space-y-6' : 'space-y-6'}>
+      <div className={embedded ? 'flex-1 overflow-y-auto px-6 pt-5 pb-6 space-y-6' : 'space-y-6'}>
       {!embedded && (
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
