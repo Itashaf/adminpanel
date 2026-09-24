@@ -424,10 +424,10 @@ function BehaviourStep({ form, setForm }) {
         </div>
       </div>
 
-      <div className="divide-y divide-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {BEHAVIOUR_CATEGORIES.map((cat) => (
-          <div key={cat.key} className="flex items-center justify-between gap-4 py-3">
-            <span className="text-sm font-medium text-gray-900 truncate">{cat.label}</span>
+          <div key={cat.key} className="bg-gray-50 rounded-xl px-3 py-3 space-y-2">
+            <p className="text-sm font-medium text-gray-900 truncate">{cat.label}</p>
             <HolisticRatingDots value={form.behaviour[cat.key] || ''} onChange={(v) => setRating(cat.key, v)} />
           </div>
         ))}
@@ -509,10 +509,10 @@ function AcademicsStep({ form, setForm, autoFill }) {
         </div>
       )}
 
-      <div className="divide-y divide-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {form.academics.map((row, index) => (
-          <div key={row.subject} className="flex items-center justify-between gap-4 py-3">
-            <span className="text-sm font-medium text-gray-900 truncate">{row.subject}</span>
+          <div key={row.subject} className="bg-gray-50 rounded-xl px-3 py-3 space-y-2">
+            <p className="text-sm font-medium text-gray-900 truncate">{row.subject}</p>
             <AcademicRatingDots value={row.rating} onChange={(rating) => setRating(index, rating)} />
           </div>
         ))}
