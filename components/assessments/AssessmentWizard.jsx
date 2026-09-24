@@ -41,11 +41,10 @@ import {
   HEALTH_STATUS_DOT_COLORS,
   OVERALL_PROGRESS_DOT_COLORS,
   ACADEMIC_RATING_DOT_COLORS,
+  HOLISTIC_RATING_DOT_COLORS,
 } from '@/lib/assessmentConstants';
 
 const AUTOSAVE_DELAY = 1500;
-
-const HOLISTIC_RATING_OPTIONS = HOLISTIC_RATING_LEVELS.map((level) => ({ value: level, label: level }));
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -340,15 +339,51 @@ function ConciseReportStep({ form, setForm }) {
   );
 }
 
+// 5-dot version of AcademicRatingDots (HOLISTIC_RATING_LEVELS has one more
+// level than RATING_LEVELS — adds "Very Good") — smaller dots since a row
+// needs to fit 5 of them plus the category label on one line.
+function HolisticRatingDots({ value, onChange }) {
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      {HOLISTIC_RATING_LEVELS.map((level) => (
+        <button
+          key={level}
+          type="button"
+          onClick={() => onChange(level)}
+          title={level}
+          className={`flex items-center justify-center w-6 h-6 rounded-full shrink-0 cursor-pointer transition ${HOLISTIC_RATING_DOT_COLORS[level]} ${
+            value === level ? 'ring-2 ring-offset-1 ring-gray-400' : 'opacity-35 hover:opacity-70'
+          }`}
+        >
+          {value === level && <FiCheck className="w-3 h-3 text-white" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function HolisticRatingLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 bg-gray-50 rounded-xl px-4 py-2.5">
+      {HOLISTIC_RATING_LEVELS.map((level) => (
+        <span key={level} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600">
+          <span className={`w-3 h-3 rounded-full shrink-0 ${HOLISTIC_RATING_DOT_COLORS[level]}`} />
+          {level}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function BehaviourStep({ form, setForm }) {
   const setRating = (categoryKey, rating) => {
     setForm((prev) => ({ ...prev, behaviour: { ...prev.behaviour, [categoryKey]: rating } }));
   };
 
-  // Sets every category to the same rating in one click — the dropdowns
-  // stay for adjusting individual exceptions afterward, but a teacher no
-  // longer has to open all 12 one at a time for the common case where most
-  // categories share the same rating.
+  // Sets every category to the same rating in one click — the dots stay for
+  // adjusting individual exceptions afterward, but a teacher no longer has
+  // to tap all 12 one at a time for the common case where most categories
+  // share the same rating.
   const quickFillAll = (rating) => {
     setForm((prev) => ({
       ...prev,
@@ -367,9 +402,11 @@ function BehaviourStep({ form, setForm }) {
         </span>
         <div>
           <h3 className="text-sm font-semibold text-gray-900">Holistic Development</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Rate the student&apos;s overall development in different areas for this month.</p>
+          <p className="text-xs text-gray-500 mt-0.5">Tap a color to rate each category.</p>
         </div>
       </div>
+
+      <HolisticRatingLegend />
 
       <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3">
         <p className="text-xs font-semibold text-indigo-700 mb-2">Quick Fill All — set every category at once, then adjust exceptions below</p>
@@ -387,16 +424,11 @@ function BehaviourStep({ form, setForm }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="divide-y divide-gray-100">
         {BEHAVIOUR_CATEGORIES.map((cat) => (
-          <div key={cat.key}>
-            <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">{cat.label}</label>
-            <Dropdown
-              options={HOLISTIC_RATING_OPTIONS}
-              value={form.behaviour[cat.key] || ''}
-              onChange={(v) => setRating(cat.key, v)}
-              placeholder="Select..."
-            />
+          <div key={cat.key} className="flex items-center justify-between gap-4 py-3">
+            <span className="text-sm font-medium text-gray-900 truncate">{cat.label}</span>
+            <HolisticRatingDots value={form.behaviour[cat.key] || ''} onChange={(v) => setRating(cat.key, v)} />
           </div>
         ))}
       </div>
