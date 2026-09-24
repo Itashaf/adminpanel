@@ -1,6 +1,5 @@
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentUser } from '@/lib/currentUser';
-import { getTeacherClassScope } from '@/lib/roleGuard';
 import { getClassSectionsMap } from '@/lib/classes';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getAssessmentsForClass } from '@/lib/studentAssessments';
@@ -28,7 +27,11 @@ export default async function AssessmentsPage() {
   const academicSession = activeSession?.name || sessions[0]?.name || '';
   const subjects = subjectNames.length > 0 ? subjectNames : FALLBACK_SUBJECTS;
 
-  const teacherScope = isTeacher ? getTeacherClassScope(currentUser) : [];
+  // Class Teacher scope only (currentUser.classTeacherOf), not the merged
+  // assignments+classTeacherOf getTeacherClassScope uses elsewhere — a
+  // Teacher only assigned a subject in a class must not see that class in
+  // Assessments at all (see lib/studentAssessments.js's assertClassInScope).
+  const teacherScope = isTeacher ? currentUser.classTeacherOf || [] : [];
   const classOptions = isTeacher
     ? [...new Set(teacherScope.map((a) => a.class))].map((c) => ({ value: c, label: c }))
     : Object.keys(classSections).map((c) => ({ value: c, label: c }));

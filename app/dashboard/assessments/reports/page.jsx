@@ -1,6 +1,5 @@
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentUser } from '@/lib/currentUser';
-import { getTeacherClassScope } from '@/lib/roleGuard';
 import { getClassSectionsMap } from '@/lib/classes';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getClassAssessmentSummary } from '@/lib/studentAssessments';
@@ -22,7 +21,8 @@ export default async function AssessmentReportsPage({ searchParams }) {
   ]);
   const academicSession = activeSession?.name || sessions[0]?.name || '';
 
-  const teacherScope = isTeacher ? getTeacherClassScope(currentUser) : [];
+  // Class Teacher scope only — see app/dashboard/assessments/page.jsx.
+  const teacherScope = isTeacher ? currentUser.classTeacherOf || [] : [];
   const classOptions = isTeacher
     ? [...new Set(teacherScope.map((a) => a.class))].map((c) => ({ value: c, label: c }))
     : Object.keys(classSections).map((c) => ({ value: c, label: c }));
