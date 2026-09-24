@@ -400,9 +400,14 @@ function BehaviourStep({ form, setForm }) {
         <p className="text-xs font-semibold text-indigo-700 mb-2">Quick Fill All — set every category at once, then adjust exceptions below</p>
         <div className="flex flex-wrap gap-2">
           {HOLISTIC_RATING_LEVELS.map((level) => (
-            <ChipButton key={level} isActive={false} activeClass="" onClick={() => quickFillAll(level)}>
+            <button
+              key={level}
+              type="button"
+              onClick={() => quickFillAll(level)}
+              className="px-2 py-1 rounded-full text-xs font-medium border border-blue-600 bg-blue-600 text-white transition cursor-pointer hover:bg-blue-700"
+            >
               {level}
-            </ChipButton>
+            </button>
           ))}
         </div>
       </div>
