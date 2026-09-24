@@ -17,9 +17,11 @@ import {
   FiHeart,
   FiFileText,
   FiCheckSquare,
+  FiPrinter,
 } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import Dropdown from '@/components/Dropdown';
+import AssessmentPrintPreview from './AssessmentPrintPreview';
 import { saveStudentAssessment } from '@/lib/api';
 import {
   WIZARD_STEPS,
@@ -481,11 +483,22 @@ function ReviewSection({ title, onEdit, children }) {
 // fields, then Submit (handled by the shared footer since this is the last
 // step). parentCommunication is the same Json field the old Parent Notes
 // step used, just this different shape — no schema change needed.
-function SummaryStep({ form, setForm, goToStep }) {
+function SummaryStep({ form, setForm, goToStep, onPrintPreview }) {
   const update = (patch) => setForm((prev) => ({ ...prev, parentCommunication: { ...prev.parentCommunication, ...patch } }));
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={onPrintPreview}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 cursor-pointer transition"
+        >
+          <FiPrinter className="w-4 h-4" />
+          Print Preview
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ReviewSection title="Academic" onEdit={() => goToStep(0)}>
           <p className="text-sm text-gray-700">
@@ -566,6 +579,7 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
   const [saveState, setSaveState] = useState('idle'); // idle | saving | saved
   const [isDirty, setIsDirty] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const isFirstRun = useRef(true);
   const debounceTimer = useRef(null);
 
@@ -672,7 +686,7 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const stepProps = { form, setForm, student, autoFill, month, year, goToStep };
+  const stepProps = { form, setForm, student, autoFill, month, year, goToStep, onPrintPreview: () => setShowPrintPreview(true) };
 
   // Embedded (drawer) layout is a flex column filling the drawer's full
   // height: step content scrolls in its own flex-1 region, the footer is a
@@ -820,6 +834,17 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
       </div>
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
+
+      {showPrintPreview && (
+        <AssessmentPrintPreview
+          student={student}
+          month={month}
+          year={year}
+          status={status}
+          form={form}
+          onClose={() => setShowPrintPreview(false)}
+        />
+      )}
     </div>
   );
 }
