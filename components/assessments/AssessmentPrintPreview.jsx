@@ -32,7 +32,7 @@ function SectionTitle({ children }) {
 // one is always portrait, unlike that report's runtime-swapped orientation)
 // rather than a separate print route — window.print() prints exactly what's
 // already on screen here, with the toolbar hidden via print:hidden.
-export default function AssessmentPrintPreview({ student, month, year, status, form, onClose }) {
+export default function AssessmentPrintPreview({ student, month, year, status, form, schoolName, schoolLogoUrl, onClose }) {
   useEffect(() => {
     const styleTag = document.getElementById('assessment-print-page-size') || document.createElement('style');
     styleTag.id = 'assessment-print-page-size';
@@ -87,7 +87,18 @@ export default function AssessmentPrintPreview({ student, month, year, status, f
         </div>
       </div>
 
-      <div className="max-w-[800px] mx-auto bg-white shadow-sm my-6 p-10 print:my-0 print:p-0 print:shadow-none print:max-w-none">
+      {/* print:grayscale — the printed page converts every color (badges,
+          photo, logo) to grayscale via a CSS filter rather than hand-
+          neutralizing each colored class; the on-screen preview stays
+          colored since the filter only applies under @media print. */}
+      <div className="max-w-[800px] mx-auto bg-white shadow-sm my-6 p-10 print:my-0 print:p-0 print:shadow-none print:max-w-none print:grayscale">
+        {(schoolName || schoolLogoUrl) && (
+          <div className="flex items-center gap-3 justify-center mb-4 print:mb-3">
+            {schoolLogoUrl && <img src={schoolLogoUrl} alt="" className="h-10 print:h-9 w-auto object-contain" />}
+            {schoolName && <p className="text-lg print:text-base font-bold text-gray-900 tracking-wide">{schoolName}</p>}
+          </div>
+        )}
+
         <div className="flex items-center justify-between border-b-2 border-gray-900 pb-4 mb-6 print:pb-2 print:mb-4">
           <div>
             <h1 className="text-xl print:text-lg font-bold text-gray-900">Monthly Assessment Report</h1>

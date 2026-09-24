@@ -4,6 +4,7 @@ import { getClassSectionsMap } from '@/lib/classes';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getAssessmentsForClass } from '@/lib/studentAssessments';
 import { getSubjectNames } from '@/lib/subjects';
+import { getSchoolSettings } from '@/lib/schoolSettings';
 import { FALLBACK_SUBJECTS } from '@/lib/assessmentConstants';
 import AssessmentDashboard from '@/components/assessments/AssessmentDashboard';
 
@@ -22,10 +23,14 @@ export default async function AssessmentsPage() {
   // so it's fetched alongside getAssessmentsForClass further down instead
   // of blocking this first stage — one less thing on the critical path
   // before the roster query can start.
-  const [classSections, sessions, activeSession] = await Promise.all([
+  const [classSections, sessions, activeSession, schoolSettings] = await Promise.all([
     getClassSectionsMap(),
     getAllSessions(),
     getActiveSession(),
+    // For the Print Preview's letterhead (school name + logo) — fetched
+    // directly rather than off currentUser, since a SchoolAdmin session
+    // doesn't carry schoolLogoUrl the way Teacher/Parent sessions do.
+    getSchoolSettings(),
   ]);
   const academicSession = activeSession?.name || sessions[0]?.name || '';
 
@@ -85,6 +90,8 @@ export default async function AssessmentsPage() {
       defaultMonth={defaultMonth}
       defaultYear={defaultYear}
       subjects={subjects}
+      schoolName={schoolSettings.displayName}
+      schoolLogoUrl={schoolSettings.logoUrl}
     />
   );
 }

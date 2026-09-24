@@ -45,7 +45,7 @@ function HeaderSkeleton() {
 // being viewed, and passes `key={studentId}` — mounting/unmounting is what
 // resets month/year back to the clicked row's month each time, rather than
 // a reset-on-open effect (React's own "you might not need an effect" case).
-export default function AssessmentDrawer({ studentId, initialMonth, initialYear, onClose, onSaved }) {
+export default function AssessmentDrawer({ studentId, initialMonth, initialYear, onClose, onSaved, schoolName, schoolLogoUrl }) {
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
   const [data, setData] = useState(null);
@@ -205,7 +205,16 @@ export default function AssessmentDrawer({ studentId, initialMonth, initialYear,
           ) : !data ? (
             <p className="text-sm text-gray-500 text-center py-10 px-6">Could not load this assessment.</p>
           ) : (
-            <AssessmentWizard key={`${studentId}-${month}-${year}`} studentId={studentId} month={month} year={year} data={data} embedded />
+            <AssessmentWizard
+              key={`${studentId}-${month}-${year}`}
+              studentId={studentId}
+              month={month}
+              year={year}
+              data={data}
+              embedded
+              schoolName={schoolName}
+              schoolLogoUrl={schoolLogoUrl}
+            />
           )}
         </div>
       </div>

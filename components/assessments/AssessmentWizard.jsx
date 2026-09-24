@@ -570,7 +570,18 @@ function SummaryStep({ form, setForm, goToStep, onPrintPreview }) {
 // page-only chrome (back link, title, Previous/Next Student bar) is
 // skipped, and the sticky footer switches from viewport-fixed to the
 // drawer's own scroll container so it doesn't render behind the sidebar.
-export default function AssessmentWizard({ studentId, month, year, data, prevStudentId, nextStudentId, initialStep = 0, embedded = false }) {
+export default function AssessmentWizard({
+  studentId,
+  month,
+  year,
+  data,
+  prevStudentId,
+  nextStudentId,
+  initialStep = 0,
+  embedded = false,
+  schoolName,
+  schoolLogoUrl,
+}) {
   const router = useRouter();
   const { student, subjects, autoFill, assessment } = data;
   const [step, setStep] = useState(Math.max(0, Math.min(WIZARD_STEPS.length - 1, initialStep)));
@@ -842,6 +853,8 @@ export default function AssessmentWizard({ studentId, month, year, data, prevStu
           year={year}
           status={status}
           form={form}
+          schoolName={schoolName}
+          schoolLogoUrl={schoolLogoUrl}
           onClose={() => setShowPrintPreview(false)}
         />
       )}

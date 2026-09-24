@@ -150,6 +150,8 @@ export default function AssessmentDashboard({
   defaultMonth,
   defaultYear,
   subjects,
+  schoolName,
+  schoolLogoUrl,
 }) {
   const [className, setClassName] = useState(defaultClass);
   const [sectionName, setSectionName] = useState(defaultSection);
@@ -627,6 +629,8 @@ export default function AssessmentDashboard({
           initialYear={year}
           onClose={() => setViewTarget(null)}
           onSaved={reload}
+          schoolName={schoolName}
+          schoolLogoUrl={schoolLogoUrl}
         />
       )}
 
