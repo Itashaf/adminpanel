@@ -1,5 +1,5 @@
+import { redirect } from 'next/navigation';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getCurrentUser } from '@/lib/currentUser';
 import { getClassSectionsMap } from '@/lib/classes';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getAssessmentsForClass } from '@/lib/studentAssessments';
@@ -14,10 +14,14 @@ export const metadata = {
 };
 
 export default async function AssessmentsPage() {
-  // Real session first — carries classTeacherOf, which a Class Teacher
-  // needs even with zero subject assignments (same fix as every other
-  // class-scoped module this session touched).
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentUser());
+  // Real session only, never lib/currentUser.js's dashboard role-preview
+  // toggle — that toggle doesn't know which real Teacher is actually
+  // signed in, so a real Teacher's own assessments could load/save under
+  // whichever teacher the toggle happened to point to instead of their
+  // own (same class of bug already found and fixed in this app's Leave
+  // page). The API routes underneath already only accept a real session.
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) redirect('/login');
   const isTeacher = currentUser.role === 'Teacher';
 
   // subjectNames isn't needed to resolve defaultClass/defaultSection below,

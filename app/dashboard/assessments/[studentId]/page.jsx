@@ -1,6 +1,5 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getCurrentUser } from '@/lib/currentUser';
 import { getAssessmentForStudent, getAssessmentsForClass } from '@/lib/studentAssessments';
 import { getSchoolSettings } from '@/lib/schoolSettings';
 import AssessmentWizard from '@/components/assessments/AssessmentWizard';
@@ -16,11 +15,14 @@ export default async function AssessmentWizardPage({ params, searchParams }) {
   const month = Number(query.month) || now.getMonth() + 1;
   const year = Number(query.year) || now.getFullYear();
 
+  // Real session only — see app/dashboard/assessments/page.jsx for why the
+  // toggle-based fallback was removed from this module.
   const [currentUser, schoolSettings] = await Promise.all([
-    (async () => (await getCurrentUserInfo()) || (await getCurrentUser()))(),
+    getCurrentUserInfo(),
     // For the Print Preview's letterhead — see app/dashboard/assessments/page.jsx.
     getSchoolSettings(),
   ]);
+  if (!currentUser) redirect('/login');
 
   let data;
   try {

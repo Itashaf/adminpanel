@@ -776,12 +776,17 @@ export default function AssessmentWizard({
       isFirstRun.current = false;
       return;
     }
+    // Once submitted, the backend rejects any further write (one-way lock,
+    // same as TeacherLeave) — autosave firing anyway just spammed the same
+    // rejection toast on every keystroke instead of silently corrupting the
+    // record like it used to.
+    if (status === 'Completed') return;
     setIsDirty(true);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => persist(false), AUTOSAVE_DELAY);
     return () => clearTimeout(debounceTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
+  }, [form, status]);
 
   // Unsaved-changes warning — only a real risk in the ~1.5s autosave window
   // (or if a save request itself is in flight/failed), but real

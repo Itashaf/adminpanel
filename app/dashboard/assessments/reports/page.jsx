@@ -1,5 +1,5 @@
+import { redirect } from 'next/navigation';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { getCurrentUser } from '@/lib/currentUser';
 import { getClassSectionsMap } from '@/lib/classes';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getClassAssessmentSummary } from '@/lib/studentAssessments';
@@ -11,7 +11,10 @@ export const metadata = {
 
 export default async function AssessmentReportsPage({ searchParams }) {
   const query = await searchParams;
-  const currentUser = (await getCurrentUserInfo()) || (await getCurrentUser());
+  // Real session only — see app/dashboard/assessments/page.jsx for why the
+  // toggle-based fallback was removed from this module.
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) redirect('/login');
   const isTeacher = currentUser.role === 'Teacher';
 
   const [classSections, sessions, activeSession] = await Promise.all([

@@ -8,6 +8,10 @@ export async function GET() {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
 
-  const recent = await getRecentlyAssessed(currentUser, 5);
-  return NextResponse.json(recent);
+  try {
+    const recent = await getRecentlyAssessed(currentUser, 5);
+    return NextResponse.json(recent);
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 403 });
+  }
 }
