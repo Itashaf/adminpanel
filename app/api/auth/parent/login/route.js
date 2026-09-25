@@ -17,7 +17,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  const rateLimit = checkLoginRateLimit(request, email);
+  const rateLimit = checkLoginRateLimit(request.headers, email);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many login attempts. Please try again later.' },

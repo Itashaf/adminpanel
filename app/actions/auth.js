@@ -23,8 +23,10 @@ import { validateParentCredentials, verifyParentOwnsStudent } from '@/lib/parent
 import { getSchoolDirectoryEntry } from '@/lib/schools';
 import { setActiveSchoolContext } from '@/lib/school';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createSession, clearSession, getSession } from '@/lib/auth/session';
 import { setCurrentRole } from '@/lib/currentUser';
+import { checkLoginRateLimit, checkPasswordResetRateLimit, rateLimitMessage } from '@/lib/auth/loginRateLimit';
 
 // Every login action below ends with redirect() (not a client-side
 // router.push()) — this is the officially recommended App Router pattern for
@@ -38,6 +40,9 @@ import { setCurrentRole } from '@/lib/currentUser';
 export async function superAdminLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
+  const rateLimit = checkLoginRateLimit(await headers(), email);
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+
   const { superAdmin, error } = await validateSuperAdminCredentials(email, password);
   if (error) return { error };
 
@@ -47,6 +52,9 @@ export async function superAdminLoginAction({ email, password }) {
 
 export async function schoolAdminLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
+
+  const rateLimit = checkLoginRateLimit(await headers(), email);
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
 
   const { admin, error } = await validateAdminCredentials(email, password);
   if (error) return { error };
@@ -70,6 +78,9 @@ export async function schoolAdminLoginAction({ email, password }) {
 export async function teacherLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
+  const rateLimit = checkLoginRateLimit(await headers(), email);
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+
   const { teacher, schoolId, error } = await validateTeacherCredentials(email, password);
   if (error) return { error };
 
@@ -91,6 +102,9 @@ export async function teacherLoginAction({ email, password }) {
 
 export async function parentLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
+
+  const rateLimit = checkLoginRateLimit(await headers(), email);
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
 
   const { parentAccount, schoolId, students, error } = await validateParentCredentials(email, password);
   if (error) return { error };
@@ -128,6 +142,15 @@ export async function logoutAction() {
 
 export async function requestPasswordResetAction({ email }) {
   if (!email) return { error: 'Email is required' };
+
+  // Checked (and counted) before requestTeacherPasswordReset() runs, same as
+  // login — stops both a mail-bombing attempt against one inbox and a
+  // scripted sweep across many emails, without weakening the "never reveals
+  // whether this email actually matches an account" property below: the
+  // limit trips the same way whether or not the account exists.
+  const rateLimit = checkPasswordResetRateLimit(await headers(), email);
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+
   // Never reveals whether this email actually matches a teacher account —
   // requestTeacherPasswordReset() is itself a no-op for a non-match, so the
   // same "check your email" response is correct either way.
