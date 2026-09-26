@@ -66,7 +66,7 @@ function withPeriodTimes(dayStartTime, periods) {
   });
 }
 
-export default function TimeTableClient({ classSections: initialClassSections, academicSession: initialSession }) {
+export default function TimeTableClient({ classSections: initialClassSections, academicSession: initialSession, canManageAllClasses = true }) {
   const classSections = useClassSections();
   const effectiveClassSections = Object.keys(classSections).length > 0 ? classSections : initialClassSections;
   const subjectOptions = useSubjects();
@@ -344,14 +344,16 @@ export default function TimeTableClient({ classSections: initialClassSections, a
           <p className="text-sm text-gray-500 mt-1">Create and manage class timetables with subjects and breaks.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowViewModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition cursor-pointer"
-          >
-            <FiEye className="w-4 h-4" />
-            View Timetables
-          </button>
+          {canManageAllClasses && (
+            <button
+              type="button"
+              onClick={() => setShowViewModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition cursor-pointer"
+            >
+              <FiEye className="w-4 h-4" />
+              View Timetables
+            </button>
+          )}
           <button
             type="button"
             onClick={() => handleSave()}
@@ -408,15 +410,17 @@ export default function TimeTableClient({ classSections: initialClassSections, a
             />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={() => setShowCopyModal(true)}
-              disabled={!schedule}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FiCopy className="w-4 h-4" />
-              Copy Timetable
-            </button>
+            {canManageAllClasses && (
+              <button
+                type="button"
+                onClick={() => setShowCopyModal(true)}
+                disabled={!schedule}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FiCopy className="w-4 h-4" />
+                Copy Timetable
+              </button>
+            )}
             <button
               ref={menuAnchorRef}
               type="button"
