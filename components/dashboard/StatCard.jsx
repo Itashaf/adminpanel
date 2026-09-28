@@ -15,6 +15,18 @@ function Sparkline({ colorClass }) {
 const ACCENTS = {
   blue: { iconBg: 'bg-blue-100 text-blue-600', bar: 'bg-blue-400' },
   violet: { iconBg: 'bg-violet-100 text-violet-600', bar: 'bg-violet-400' },
+  green: { iconBg: 'bg-green-100 text-green-600', bar: 'bg-green-400' },
+  amber: { iconBg: 'bg-amber-100 text-amber-600', bar: 'bg-amber-400' },
+  // Same gradient as WelcomeBanner/SchoolPulseCard's hero card — the whole
+  // card carries it (cardBg), not just the icon tile, so it reads as
+  // "belonging to" that theme without the hero itself being on the page
+  // (see the Accountant dashboard). Icon tile and sparkline go translucent
+  // white instead of their own color since they now sit on a dark card.
+  brand: {
+    cardBg: 'bg-gradient-to-br from-blue-600 to-violet-700 text-white',
+    iconBg: 'bg-white/15 text-white',
+    bar: 'bg-white',
+  },
 };
 
 // `variant="minimal"` is the KPI row's own look — a colored icon tile, a
@@ -38,21 +50,34 @@ export default function StatCard({
 }) {
   if (variant === 'minimal') {
     const palette = ACCENTS[accent] || ACCENTS.blue;
+    const isBrand = Boolean(palette.cardBg);
     return (
-      <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-6 transition-all duration-200 hover:shadow-md">
+      <div
+        className={`rounded-[24px] shadow-sm p-6 transition-all duration-200 hover:shadow-md ${
+          isBrand ? palette.cardBg : 'bg-white border border-gray-100'
+        }`}
+      >
         <div className="flex items-center justify-between gap-3">
           {icon && (
             <span className={`flex items-center justify-center w-11 h-11 rounded-xl shrink-0 ${palette.iconBg}`}>{icon}</span>
           )}
           <Sparkline colorClass={palette.bar} />
         </div>
-        <p className="text-sm font-medium text-gray-500 mt-4">{label}</p>
-        <p className="text-4xl font-bold text-gray-900 tabular-nums tracking-tight leading-tight mt-1">{value}</p>
+        <p className={`text-sm font-medium mt-4 ${isBrand ? 'text-white/80' : 'text-gray-500'}`}>{label}</p>
+        <p className={`text-4xl font-bold tabular-nums tracking-tight leading-tight mt-1 ${isBrand ? 'text-white' : 'text-gray-900'}`}>
+          {value}
+        </p>
         {context && (
-          <p className="flex items-center gap-1.5 text-sm text-gray-400 mt-2">
+          <p className={`flex items-center gap-1.5 text-sm mt-2 ${isBrand ? 'text-white/70' : 'text-gray-400'}`}>
             <span
               className={`flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold shrink-0 ${
-                contextTone === 'up' ? 'bg-green-100 text-green-600' : contextTone === 'down' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'
+                isBrand
+                  ? 'bg-white/20 text-white'
+                  : contextTone === 'up'
+                    ? 'bg-green-100 text-green-600'
+                    : contextTone === 'down'
+                      ? 'bg-red-100 text-red-600'
+                      : 'bg-gray-100 text-gray-400'
               }`}
             >
               {contextTone === 'up' ? '▲' : contextTone === 'down' ? '▼' : '−'}

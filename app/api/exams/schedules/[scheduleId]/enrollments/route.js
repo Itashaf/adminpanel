@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getEligibleStudentsForSchedule, setEnrollmentsForSchedule } from '@/lib/examOptionalEnrollment';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 // GET/PUT /api/exams/schedules/[scheduleId]/enrollments — which students are
 // enrolled in one optional/elective ExamSchedule (Class 11/12-style).
 export async function GET(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('exams.manage');
   if (authError) return authError;
 
   const { scheduleId } = await params;
@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError, user: actor } = await requirePermission('exams.manage');
   if (authError) return authError;
 
   const { scheduleId } = await params;

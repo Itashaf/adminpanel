@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateExamResults, getExamResultForStudent, getExamResults } from '@/lib/examResults';
-import { getCurrentUserInfo, requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/exams/[id]/results — Admin sees every student's result (any
 // status); a Parent gets only their active child's, and only once published.
@@ -12,6 +13,10 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const studentId = searchParams.get('studentId');
+
+  const { error: permError } = await requirePermission('results.view');
+  if (permError) return permError;
+
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
@@ -23,9 +28,13 @@ export async function GET(request, { params }) {
   }
 
   // Only an Admin sees the full, unfiltered results list (every student,
-  // any status including unpublished Draft) — a Teacher has no scoped view
-  // of this yet, so give them nothing rather than leaking other classes'
-  // and other students' unpublished results.
+  // any status including unpublished Draft) — Teacher also holds
+  // results.view (for a future scoped view that doesn't exist yet), but
+  // this role check already excludes Teacher on its own (Teacher's legacy
+  // role is 'Teacher', never 'SchoolAdmin'/'SuperAdmin') — the permission
+  // gate above only adds "block Accountant/Parent-shaped tokens that
+  // shouldn't reach this route at all", it doesn't need a second Teacher
+  // check on top.
   if (currentUser.role !== 'SchoolAdmin' && currentUser.role !== 'SuperAdmin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
@@ -40,10 +49,16 @@ export async function GET(request, { params }) {
   return NextResponse.json(results);
 }
 
+// generateExamResults() calls its own assertIsAdmin() internally, checking
+// currentUser.role (legacy 'SchoolAdmin'/'SuperAdmin' string) — the RBAC
+// actor from requirePermission only has roleKey, so getCurrentUserInfo()'s
+// legacy-shaped actor is what actually gets passed in below, same fix as
+// the Marks module's verify route.
 export async function POST(request, { params }) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('results.publish');
   if (authError) return authError;
 
+  const actor = await getCurrentUserInfo();
   const { id } = await params;
 
   try {

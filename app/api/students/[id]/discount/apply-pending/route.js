@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { applyStandingDiscountToPendingFees } from '@/lib/fees';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function POST(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('students.update');
   if (error) return error;
 
   const { id } = await params;

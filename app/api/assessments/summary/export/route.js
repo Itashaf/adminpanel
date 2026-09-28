@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { NextResponse } from 'next/server';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { isModuleEnabled } from '@/lib/featureFlagGuard';
 import { getClassAssessmentSummary } from '@/lib/studentAssessments';
 
 const MONTH_NAMES = [
@@ -16,6 +17,9 @@ export async function GET(request) {
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+  if (!(await isModuleEnabled('assessments'))) {
+    return NextResponse.json({ error: 'This module is not enabled for your school.' }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

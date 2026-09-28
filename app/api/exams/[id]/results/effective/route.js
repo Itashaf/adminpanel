@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getEffectiveExamResult } from '@/lib/examResults';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/exams/[id]/results/effective?studentId=... — the reconciled
 // result for a Re-Test/Improvement/Supplementary exam (see
 // lib/examResults.js's getEffectiveExamResult), applying that exam's own
 // retakeResultPolicy (Best/Latest/Average) against its parent exam's
 // result. For a normal exam with no parentExamId this is just its own
-// result, unchanged.
+// result, unchanged. results.publish (not results.view) — Teacher holds
+// results.view but not results.publish, and this is a single-student
+// admin-only reconciliation view the original route never exposed to them.
 export async function GET(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('results.publish');
   if (authError) return authError;
 
   const { id } = await params;

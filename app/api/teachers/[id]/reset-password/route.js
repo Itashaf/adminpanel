@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { resetTeacherPassword } from '@/lib/teachers';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export async function POST(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('teachers.update');
   if (error) return error;
 
   const { id } = await params;

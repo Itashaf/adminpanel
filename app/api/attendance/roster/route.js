@@ -4,8 +4,12 @@ import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { isClassInTeacherScope } from '@/lib/roleGuard';
 import { getSchoolSettings } from '@/lib/schoolSettings';
+import { requirePermission } from '@/lib/rbac';
 
 export async function GET(request) {
+  const { error: permError } = await requirePermission('attendance.student.view');
+  if (permError) return permError;
+
   const { searchParams } = new URL(request.url);
   const academicSession = searchParams.get('session');
   const date = searchParams.get('date');

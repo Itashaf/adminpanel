@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { publishExamResults, unpublishExamResults } from '@/lib/examResults';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
+// publishExamResults()/unpublishExamResults() each call assertIsAdmin()
+// internally, checking currentUser.role — same reason as
+// app/api/exams/[id]/results/route.js's POST, the legacy-shaped actor is
+// what actually gets passed in below, not the RBAC one.
 export async function POST(request, { params }) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('results.publish');
   if (authError) return authError;
 
+  const actor = await getCurrentUserInfo();
   const { id } = await params;
 
   try {
@@ -17,9 +23,10 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('results.publish');
   if (authError) return authError;
 
+  const actor = await getCurrentUserInfo();
   const { id } = await params;
 
   try {

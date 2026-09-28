@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { addStudent, getAllStudents } from '@/lib/students';
-import { requireSchoolAdmin, getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { isClassInTeacherScope, getTeacherClassScope } from '@/lib/roleGuard';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
@@ -54,7 +55,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('students.create');
   if (authError) return authError;
 
   const data = await request.json();

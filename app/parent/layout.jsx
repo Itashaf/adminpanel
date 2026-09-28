@@ -6,7 +6,7 @@ import { getNoticesForStudent } from '@/lib/notices';
 import ParentShell from '@/components/parent/ParentShell';
 
 // Every /parent page is guarded here, once — unlike /dashboard and
-// /super-admin (see SKILL.md: "nothing checks edumanage_session" there),
+// /super-admin (see SKILL.md: "nothing checks schoolapp360_session" there),
 // this area genuinely needs it, since the only thing separating one
 // family's fee/payment data from another's is this session actually
 // resolving to their own child.

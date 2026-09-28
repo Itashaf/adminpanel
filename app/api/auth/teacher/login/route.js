@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { validateTeacherCredentials } from '@/lib/teachers';
 import { signSessionToken } from '@/lib/auth/jwt';
 import { checkLoginRateLimit } from '@/lib/auth/loginRateLimit';
+import { getUserFieldsForLegacyId } from '@/lib/rbac';
 
 // Token-returning counterpart to app/actions/auth.js's teacherLoginAction —
 // that Server Action only flips lib/currentUser.js's in-memory dashboard
 // toggle, which works for the single-browser web demo but has nothing a
 // mobile client can carry between requests. This route signs a real
-// edumanage_session JWT (role: 'Teacher') and returns it in the body so the
+// schoolapp360_session JWT (role: 'Teacher') and returns it in the body so the
 // mobile app can store it (expo-secure-store) and send it back as
 // `Authorization: Bearer <token>` — lib/auth/session.js's getSession() reads
 // that header as a fallback when there's no cookie.
@@ -30,7 +31,9 @@ export async function POST(request) {
     return NextResponse.json({ error }, { status: 401 });
   }
 
-  const token = await signSessionToken({ role: 'Teacher', id: teacher.id, schoolId, email: teacher.loginAccess.email });
+  // RBAC (task 14, mobile) — same expand-merge as the web Server Action.
+  const rbacFields = await getUserFieldsForLegacyId('teacher', teacher.id);
+  const token = await signSessionToken({ role: 'Teacher', id: teacher.id, schoolId, email: teacher.loginAccess.email, ...rbacFields });
 
   return NextResponse.json({
     token,

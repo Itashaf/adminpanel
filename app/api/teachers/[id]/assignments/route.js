@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { assignClassToTeacher, removeAssignmentFromTeacher } from '@/lib/teachers';
 import { getClassSectionsMap } from '@/lib/classes';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export async function POST(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('teachers.update');
   if (authError) return authError;
 
   const { id } = await params;
@@ -32,7 +32,7 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('teachers.update');
   if (authError) return authError;
 
   const { id } = await params;

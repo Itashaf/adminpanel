@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { duplicateExam } from '@/lib/exams';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function POST(request, { params }) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError, user: actor } = await requirePermission('exams.manage');
   if (authError) return authError;
 
   const { id } = await params;

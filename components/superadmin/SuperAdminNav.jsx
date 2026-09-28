@@ -7,6 +7,7 @@ import { FiHome, FiUsers } from 'react-icons/fi';
 const NAV_ITEMS = [
   { label: 'Schools', href: '/super-admin/schools', icon: FiHome },
   { label: 'Admins', href: '/super-admin/admins', icon: FiUsers },
+  { label: 'Users', href: '/super-admin/users', icon: FiUsers },
 ];
 
 export default function SuperAdminNav() {

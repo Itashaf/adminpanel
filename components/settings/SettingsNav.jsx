@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiHome, FiMapPin, FiImage, FiSliders, FiClock } from 'react-icons/fi';
+import { FiHome, FiMapPin, FiImage, FiSliders, FiClock, FiShield } from 'react-icons/fi';
 
 const NAV_ITEMS = [
   { label: 'School Profile', href: '/dashboard/settings/profile', icon: FiHome },
@@ -10,6 +10,12 @@ const NAV_ITEMS = [
   { label: 'Branding', href: '/dashboard/settings/branding', icon: FiImage },
   { label: 'System Preferences', href: '/dashboard/settings/preferences', icon: FiSliders },
   { label: 'Attendance Rules', href: '/dashboard/settings/attendance', icon: FiClock },
+  // Section gates itself on the real permission set (see
+  // app/dashboard/settings/roles/page.jsx) — this tab is always listed for
+  // anyone who reaches Settings at all (Teacher never does, see
+  // app/dashboard/settings/layout.jsx's blockIfTeacher), same convention as
+  // every other Settings tab here.
+  { label: 'Roles & Permissions', href: '/dashboard/settings/roles', icon: FiShield },
 ];
 
 export default function SettingsNav() {

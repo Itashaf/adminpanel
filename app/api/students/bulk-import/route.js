@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { bulkCreateStudents } from '@/lib/students';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export async function POST(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('students.create');
   if (error) return error;
 
   const { rows } = await request.json();

@@ -8,7 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import Toast from '@/components/Toast';
 import { deleteStudent } from '@/lib/api';
 
-export default function StudentActionsMenu({ student, onDeleted }) {
+export default function StudentActionsMenu({ student, onDeleted, canEdit = true }) {
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -41,11 +41,15 @@ export default function StudentActionsMenu({ student, onDeleted }) {
       icon: <FiEye className="w-4 h-4" />,
       onClick: () => router.push(`/dashboard/students/${student.id}`),
     },
-    {
-      label: 'Edit Student',
-      icon: <FiEdit2 className="w-4 h-4" />,
-      onClick: () => router.push(`/dashboard/students/${student.id}/edit`),
-    },
+    ...(canEdit
+      ? [
+          {
+            label: 'Edit Student',
+            icon: <FiEdit2 className="w-4 h-4" />,
+            onClick: () => router.push(`/dashboard/students/${student.id}/edit`),
+          },
+        ]
+      : []),
     {
       label: 'Change Class/Section',
       icon: <FiRepeat className="w-4 h-4" />,

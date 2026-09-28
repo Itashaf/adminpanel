@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { validateParentCredentials } from '@/lib/parentAccounts';
 import { signSessionToken } from '@/lib/auth/jwt';
 import { checkLoginRateLimit } from '@/lib/auth/loginRateLimit';
+import { getUserFieldsForLegacyId } from '@/lib/rbac';
 
 // Token-returning counterpart to app/actions/auth.js's parentLoginAction —
 // same payload shape as the cookie that action sets (role: 'Parent',
@@ -34,7 +35,9 @@ export async function POST(request) {
   }
 
   const activeStudentId = students[0].id;
-  const token = await signSessionToken({ role: 'Parent', id: parentAccount.id, schoolId, activeStudentId, email: parentAccount.email });
+  // RBAC (task 15, mobile) — same expand-merge as the web Server Action.
+  const rbacFields = await getUserFieldsForLegacyId('parentAccount', parentAccount.id);
+  const token = await signSessionToken({ role: 'Parent', id: parentAccount.id, schoolId, activeStudentId, email: parentAccount.email, ...rbacFields });
 
   return NextResponse.json({
     token,

@@ -1,7 +1,8 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import EditStudentForm from '@/components/students/EditStudentForm';
 import { getStudentById, getClassOptions } from '@/lib/students';
 import { blockIfTeacher } from '@/lib/roleGuard';
+import { getCurrentRBACUser } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export async function generateMetadata({ params }) {
@@ -13,6 +14,17 @@ export async function generateMetadata({ params }) {
 export default async function EditStudentPage({ params }) {
   const { id } = await params;
   await blockIfTeacher(`/dashboard/students/${id}`);
+
+  // blockIfTeacher only rules out Teacher — Accountant also passes that
+  // check (legacy-role fallback tags it 'SchoolAdmin', see lib/iam.js) but
+  // only holds students.view, not students.update. Without this, the page
+  // rendered the full edit form (Aadhaar number, contact info, etc.) before
+  // the PUT itself 403'd on submit — real permission check before
+  // fetching/rendering anything, same fix as the Add Student button gap.
+  const rbacUser = await getCurrentRBACUser();
+  if (rbacUser && !rbacUser.permissions.has('students.update')) {
+    redirect(`/dashboard/students/${id}`);
+  }
 
   const schoolId = await resolveSchoolId();
   const [student, classOptions] = await Promise.all([getStudentById(id, schoolId), getClassOptions()]);

@@ -1,21 +1,25 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUserInfo, requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
 import { applyForLeave, getAllLeaveRequests, getLeavesForTeacher } from '@/lib/teacherLeaves';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/leaves — a Teacher (real session, mobile JWT or web Teacher
 // login) sees only their own requests. A SchoolAdmin/SuperAdmin sees every
-// request in the school, optionally narrowed with ?status=Pending.
+// request in the school, optionally narrowed with ?status=Pending. Both
+// hold leave.view — the permission gate only confirms "can see leave data
+// at all"; which subset (own vs whole-school) stays a role branch, since
+// that's a data-shape difference the permission key doesn't carry.
 export async function GET(request) {
+  const { error: permError } = await requirePermission('leave.view');
+  if (permError) return permError;
+
   const actor = await getCurrentUserInfo();
 
   if (actor?.role === 'Teacher') {
     const leaves = await getLeavesForTeacher(actor.teacherId, actor.schoolId);
     return NextResponse.json(leaves);
   }
-
-  const { error } = await requireSchoolAdmin();
-  if (error) return error;
 
   const { searchParams } = new URL(request.url);
   const leaves = await getAllLeaveRequests(await resolveSchoolId(), searchParams.get('status') || '');
@@ -29,6 +33,14 @@ export async function GET(request) {
 // activity on the server had left the toggle set to a specific Teacher —
 // let an unauthenticated request apply for leave AS that teacher.
 export async function POST(request) {
+  // leave.apply is also held by Principal/SuperAdmin (full-access roles),
+  // but this endpoint only ever operates on a Teacher row — the
+  // `!currentUser.teacherId` check right after is what actually keeps this
+  // "only teachers" in practice, since only a real Teacher-shaped
+  // getCurrentUserInfo() result ever carries that field.
+  const { error: permError } = await requirePermission('leave.apply');
+  if (permError) return permError;
+
   const data = await request.json();
 
   const currentUser = await getCurrentUserInfo();

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { collectManualPayment } from '@/lib/fees';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function POST(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('fees.collect');
   if (error) return error;
 
   const { studentFeeId, method, amount } = await request.json();

@@ -7,6 +7,11 @@ function formatCurrency(amount) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
 function formatClassSection(payment) {
   if (!payment.class) return '—';
   return payment.section ? `${payment.class} - ${payment.section}` : payment.class;
@@ -35,7 +40,7 @@ export default function PaymentsTable({ payments, startIndex = 0 }) {
             {payments.map((payment, index) => (
               <tr key={payment.id} className="hover:bg-gray-50/60 transition">
                 <td className="py-4 pl-6 pr-2 text-gray-400">{startIndex + index + 1}</td>
-                <td className="py-4 pr-4 text-gray-700">{payment.paidAt || payment.createdAt}</td>
+                <td className="py-4 pr-4 text-gray-700">{formatDateTime(payment.paidAt || payment.createdAt)}</td>
                 <td className="py-4 pr-4 font-medium text-gray-900">{payment.studentName}</td>
                 <td className="py-4 pr-4 text-gray-700">{formatClassSection(payment)}</td>
                 <td className="py-4 pr-4 text-gray-700">{TERM_LABELS[payment.term] || payment.term}</td>
@@ -59,7 +64,7 @@ export default function PaymentsTable({ payments, startIndex = 0 }) {
               <div>
                 <p className="font-medium text-gray-900">{payment.studentName}</p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {formatClassSection(payment)} · {TERM_LABELS[payment.term] || payment.term} · {payment.paidAt || payment.createdAt}
+                  {formatClassSection(payment)} · {TERM_LABELS[payment.term] || payment.term} · {formatDateTime(payment.paidAt || payment.createdAt)}
                 </p>
               </div>
               <Badge label={payment.status} variant={STATUS_VARIANTS[payment.status] || 'gray'} />

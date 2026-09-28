@@ -3,17 +3,26 @@ import { getSchoolSettings } from '@/lib/schoolSettings';
 import { getActiveSession, getAllSessions } from '@/lib/academicSessions';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentRBACUser } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { getAllLeaveRequests } from '@/lib/teacherLeaves';
 
 export default async function DashboardLayout({ children }) {
-  const [school, activeSession, sessions, currentUser, userInfo] = await Promise.all([
+  const [school, activeSession, sessions, currentUser, userInfo, rbacUser] = await Promise.all([
     getSchoolSettings(),
     getActiveSession(),
     getAllSessions(),
     getCurrentUser(),
     getCurrentUserInfo(),
+    getCurrentRBACUser(),
   ]);
+  // Sets don't serialize across the Server -> Client Component boundary —
+  // spread into a plain array. `null` (no session at all — shouldn't happen
+  // behind middleware's own auth check, but a stale token before the login
+  // cutover isn't impossible) means Sidebar shows every item unfiltered,
+  // same as before this permission-gating existed, rather than hiding
+  // everything for someone who's otherwise validly signed in.
+  const permissions = rbacUser ? [...rbacUser.permissions] : null;
 
   // Sidebar badge on "Leave Requests" — an Admin's only real-time signal for
   // a new request, since (unlike Teacher/Parent) SchoolAdmin has no mobile
@@ -33,6 +42,7 @@ export default async function DashboardLayout({ children }) {
       sessions={sessions}
       currentUser={currentUser}
       userInfo={userInfo}
+      permissions={permissions}
       pendingLeaveCount={pendingLeaveCount}
     >
       {children}

@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { deleteFeeStructure, getFeeStructureById, updateFeeStructure } from '@/lib/fees';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function GET(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { user, error } = await requirePermission('fees.view');
   if (error) return error;
+  if (user.roleKey === 'Parent') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { id } = await params;
   const structure = await getFeeStructureById(id);
@@ -15,7 +18,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('fees.update');
   if (error) return error;
 
   const { id } = await params;
@@ -33,7 +36,7 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('fees.update');
   if (error) return error;
 
   const { id } = await params;

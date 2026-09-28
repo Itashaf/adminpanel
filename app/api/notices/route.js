@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createNotice, getVisibleNotices } from '@/lib/notices';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/notices — same visibility rule as the web dashboard's notice
 // board: everyone sees "Whole School" notices, a Teacher additionally sees
@@ -33,6 +34,15 @@ export async function POST(request) {
   // `{ role: 'SchoolAdmin' }` with zero credentials, so that pattern let
   // anyone POST a notice as SchoolAdmin (or as whatever teacher the process-
   // wide toggle happened to be set to) with no session at all.
+  //
+  // notices.create is held by Admin-tier and Teacher (Class notices for
+  // their own section, scoped/enforced inside createNotice's own
+  // assertScopeAllowed) — this permission gate is new; the route previously
+  // had no role check at all beyond "any signed-in user", relying entirely
+  // on that internal scope check.
+  const { error: permError } = await requirePermission('notices.create');
+  if (permError) return permError;
+
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });

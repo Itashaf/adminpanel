@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 import { getStudentById, updateStudent, deleteStudent } from '@/lib/students';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export async function GET(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { user, error } = await requirePermission('students.view');
   if (error) return error;
+
+  // students.view is legitimately held by Teacher too (for the field-
+  // stripped roster routes — GET /api/students, /paged, /print-details),
+  // but getStudentById() below returns the FULL admin record, including
+  // guardian/fee/address/aadhaar/documents — fields those other routes
+  // deliberately never send a Teacher. A flat permission check alone would
+  // reopen that leak; this route stays admin-tier only regardless of who
+  // else holds students.view.
+  if (user.roleKey === 'Teacher') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { id } = await params;
   const student = await getStudentById(id, await resolveSchoolId());
@@ -16,7 +27,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('students.update');
   if (authError) return authError;
 
   const { id } = await params;
@@ -38,7 +49,7 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('students.delete');
   if (authError) return authError;
 
   const { id } = await params;

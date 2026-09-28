@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { isModuleEnabled } from '@/lib/featureFlagGuard';
 import { getAssessmentForStudent, saveAssessment } from '@/lib/studentAssessments';
 
 // GET /api/assessments/student/[studentId]?month=&year= — the wizard's
@@ -9,6 +10,9 @@ export async function GET(request, { params }) {
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+  if (!(await isModuleEnabled('assessments'))) {
+    return NextResponse.json({ error: 'This module is not enabled for your school.' }, { status: 403 });
   }
 
   const { studentId } = await params;
@@ -37,6 +41,9 @@ export async function PUT(request, { params }) {
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+  if (!(await isModuleEnabled('assessments'))) {
+    return NextResponse.json({ error: 'This module is not enabled for your school.' }, { status: 403 });
   }
 
   const { studentId } = await params;

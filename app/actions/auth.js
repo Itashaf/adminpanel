@@ -27,6 +27,7 @@ import { headers } from 'next/headers';
 import { createSession, clearSession, getSession } from '@/lib/auth/session';
 import { setCurrentRole } from '@/lib/currentUser';
 import { checkLoginRateLimit, checkPasswordResetRateLimit, rateLimitMessage } from '@/lib/auth/loginRateLimit';
+import { getUserFieldsForLegacyId, validateUserCredentials, touchLastLogin } from '@/lib/rbac';
 
 // Every login action below ends with redirect() (not a client-side
 // router.push()) — this is the officially recommended App Router pattern for
@@ -41,12 +42,17 @@ export async function superAdminLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
   const rateLimit = checkLoginRateLimit(await headers(), email);
-  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { superAdmin, error } = await validateSuperAdminCredentials(email, password);
   if (error) return { error };
 
-  await createSession({ role: 'SuperAdmin', id: superAdmin.id, email: superAdmin.email });
+  // RBAC (task 12) — merges the new userId/roleId/roleKey fields into the
+  // same session payload alongside the legacy role/id/email fields; see
+  // lib/rbac.js's getUserFieldsForLegacyId for why this is additive, not a
+  // replacement.
+  const rbacFields = await getUserFieldsForLegacyId('superAdmin', superAdmin.id);
+  await createSession({ role: 'SuperAdmin', id: superAdmin.id, email: superAdmin.email, ...rbacFields });
   redirect('/super-admin/schools');
 }
 
@@ -54,10 +60,38 @@ export async function schoolAdminLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
   const rateLimit = checkLoginRateLimit(await headers(), email);
-  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { admin, error } = await validateAdminCredentials(email, password);
-  if (error) return { error };
+  if (error) {
+    // No legacy SchoolAdmin row matched — try a pure-User account
+    // (Principal/Accountant, created only through POST /api/users, task 21).
+    // Kept as a fallback rather than checked first, so an existing Admin's
+    // login never pays for or risks a second lookup.
+    const userResult = await validateUserCredentials(email, password);
+    if (userResult.error) return { error: userResult.error };
+
+    const { user } = userResult;
+    await touchLastLogin(user.id);
+    const school = await getSchoolDirectoryEntry(user.schoolId);
+    if (school) await setActiveSchoolContext(school);
+
+    // `role: 'SchoolAdmin'` / `id: user.id` — see lib/iam.js's
+    // getCurrentUserInfo() SchoolAdmin-branch fallback, which this session
+    // shape is built to match: no real SchoolAdmin row exists for this id,
+    // so that fallback resolves straight off the User table instead.
+    await createSession({
+      role: 'SchoolAdmin',
+      id: user.id,
+      schoolId: user.schoolId,
+      email: user.email,
+      userId: user.id,
+      roleId: user.roleId,
+      roleKey: user.role.key,
+    });
+    await setCurrentRole('SchoolAdmin');
+    redirect('/dashboard');
+  }
 
   // Signing in as a school's admin "steps into" that school for /dashboard —
   // same illusion of tenant-switching the super admin's "Manage This School"
@@ -66,7 +100,10 @@ export async function schoolAdminLoginAction({ email, password }) {
   const school = await getSchoolDirectoryEntry(admin.schoolId);
   if (school) await setActiveSchoolContext(school);
 
-  await createSession({ role: 'SchoolAdmin', id: admin.id, schoolId: admin.schoolId, email: admin.email });
+  // RBAC (task 13) — every SchoolAdmin row today migrated to RoleKey
+  // 'Admin' (prisma/migrate-rbac.js).
+  const rbacFields = await getUserFieldsForLegacyId('schoolAdmin', admin.id);
+  await createSession({ role: 'SchoolAdmin', id: admin.id, schoolId: admin.schoolId, email: admin.email, ...rbacFields });
   // Previously a second action the client called separately after this one
   // resolved (setCurrentRoleAction('SchoolAdmin')) — folded in here since
   // this action now redirects instead of returning, so there's no longer a
@@ -79,7 +116,7 @@ export async function teacherLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
   const rateLimit = checkLoginRateLimit(await headers(), email);
-  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { teacher, schoolId, error } = await validateTeacherCredentials(email, password);
   if (error) return { error };
@@ -93,7 +130,9 @@ export async function teacherLoginAction({ email, password }) {
   // name/logo depending on unrelated browser activity. Creating a real
   // session here — same as SchoolAdmin/Parent login — makes resolveSchoolId()
   // always return *this* teacher's actual school.
-  await createSession({ role: 'Teacher', id: teacher.id, schoolId, email: teacher.loginAccess.email });
+  // RBAC (task 14) — see superAdminLoginAction's comment above.
+  const rbacFields = await getUserFieldsForLegacyId('teacher', teacher.id);
+  await createSession({ role: 'Teacher', id: teacher.id, schoolId, email: teacher.loginAccess.email, ...rbacFields });
   // Resolves this specific teacher into the "current user" the rest of the
   // app (Attendance's class/section scoping, reports, etc.) reads from.
   await setCurrentRole('Teacher', teacher.id);
@@ -104,7 +143,7 @@ export async function parentLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
   const rateLimit = checkLoginRateLimit(await headers(), email);
-  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { parentAccount, schoolId, students, error } = await validateParentCredentials(email, password);
   if (error) return { error };
@@ -114,7 +153,9 @@ export async function parentLoginAction({ email, password }) {
   // /parent page and API call scopes to `activeStudentId`, never something
   // the caller can pass in (see requireParent). Starts on the first linked
   // child; switchActiveChildAction changes it after login.
-  await createSession({ role: 'Parent', id: parentAccount.id, schoolId, activeStudentId: students[0].id, email: parentAccount.email });
+  // RBAC (task 15) — see superAdminLoginAction's comment above.
+  const rbacFields = await getUserFieldsForLegacyId('parentAccount', parentAccount.id);
+  await createSession({ role: 'Parent', id: parentAccount.id, schoolId, activeStudentId: students[0].id, email: parentAccount.email, ...rbacFields });
   redirect('/parent');
 }
 
@@ -149,7 +190,7 @@ export async function requestPasswordResetAction({ email }) {
   // whether this email actually matches an account" property below: the
   // limit trips the same way whether or not the account exists.
   const rateLimit = checkPasswordResetRateLimit(await headers(), email);
-  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds) };
+  if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   // Never reveals whether this email actually matches a teacher account —
   // requestTeacherPasswordReset() is itself a no-op for a non-match, so the

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requireAnyPermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { getPresignedUploadUrl, buildPublicUrl } from '@/lib/storage';
 import { MAX_DOCUMENT_BYTES, DOCUMENT_ACCEPT_TYPES } from '@/lib/documentConstants';
@@ -7,7 +7,7 @@ import { MAX_DOCUMENT_BYTES, DOCUMENT_ACCEPT_TYPES } from '@/lib/documentConstan
 // Presign for a Teacher's 10th/12th/Graduation/Work Experience Certificate
 // or Aadhaar — same pattern as app/api/students/document-upload-url/route.js.
 export async function POST(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requireAnyPermission(['teachers.create', 'teachers.update']);
   if (error) return error;
 
   const { fileName, fileType, fileSize } = await request.json();

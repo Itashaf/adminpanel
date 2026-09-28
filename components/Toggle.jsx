@@ -1,17 +1,18 @@
-export default function Toggle({ checked, onChange, label, description }) {
+export default function Toggle({ checked, onChange, label, description, disabled = false }) {
   return (
     <div
       role="switch"
       aria-checked={checked}
-      tabIndex={0}
-      onClick={() => onChange(!checked)}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
+      onClick={() => !disabled && onChange(!checked)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
           onChange(!checked);
         }
       }}
-      className="flex items-center justify-between gap-4 cursor-pointer select-none"
+      className={`flex items-center justify-between gap-4 select-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {(label || description) && (
         <div>

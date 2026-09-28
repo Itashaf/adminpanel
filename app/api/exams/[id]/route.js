@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { deleteExam, getExamById, updateExam } from '@/lib/exams';
-import { getCurrentUserInfo, requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function GET(request, { params }) {
   const { id } = await params;
@@ -17,7 +18,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError, user: actor } = await requirePermission('exams.manage');
   if (authError) return authError;
 
   const { id } = await params;
@@ -39,7 +40,7 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError, user: actor } = await requirePermission('exams.manage');
   if (authError) return authError;
 
   const { id } = await params;

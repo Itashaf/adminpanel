@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTeachersPage } from '@/lib/teachers';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 // Real query-level pagination for the Teachers dashboard table — see
@@ -8,7 +8,7 @@ import { resolveSchoolId } from '@/lib/auth/schoolContext';
 // full-array GET /api/teachers response (unlike Students, this collection
 // had no GET route at all before this), so this is the only one.
 export async function GET(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('teachers.view');
   if (error) return error;
 
   const { searchParams } = new URL(request.url);

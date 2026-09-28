@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requireAnyPermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { getPresignedUploadUrl, buildPublicUrl } from '@/lib/storage';
 import { MAX_STUDENT_PHOTO_BYTES, STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
@@ -12,7 +12,7 @@ import { MAX_STUDENT_PHOTO_BYTES, STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/stude
 // one is the admin setting/replacing a teacher's photo, before the teacher
 // may even have an id yet (Add Teacher), so the key is keyed by timestamp.
 export async function POST(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requireAnyPermission(['teachers.create', 'teachers.update']);
   if (error) return error;
 
   const { fileName, fileType, fileSize } = await request.json();

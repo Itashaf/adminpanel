@@ -4,8 +4,18 @@ import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { isClassInTeacherScope } from '@/lib/roleGuard';
 import { getSchoolSettings } from '@/lib/schoolSettings';
+import { requirePermission } from '@/lib/rbac';
 
 export async function POST(request) {
+  // Permission gate first (task 26) — blocks any role that shouldn't mark
+  // attendance at all (e.g. Parent, who only holds attendance.student.view)
+  // before the class-scope check below even runs. Kept as an added first
+  // check, not a replacement — the classTeacherOf scope check right after
+  // still needs getCurrentUserInfo()'s own resolution (the RBAC actor here
+  // doesn't carry classTeacherOf), so both run.
+  const { error: permError } = await requirePermission('attendance.student.mark');
+  if (permError) return permError;
+
   const data = await request.json();
 
   if (!data.academicSession || !data.date || !data.className || data.sectionName === undefined || data.sectionName === null || !data.records) {

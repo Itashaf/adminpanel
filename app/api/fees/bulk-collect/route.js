@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { bulkCollectFullDue } from '@/lib/fees';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function POST(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('fees.collect');
   if (error) return error;
 
   const { studentIds, method } = await request.json();

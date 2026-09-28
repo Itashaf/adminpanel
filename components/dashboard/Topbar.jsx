@@ -70,7 +70,7 @@ export default function Topbar({ onMenuClick, activeSession, sessions, role, use
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    // Only the SchoolAdmin login sets the real `edumanage_session` cookie;
+    // Only the SchoolAdmin login sets the real `schoolapp360_session` cookie;
     // a Teacher's "session" is still the in-memory currentUser.js toggle, but
     // clearing the cookie unconditionally here is harmless for that case.
     await logoutAction();

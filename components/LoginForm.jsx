@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiShield, FiUser, FiUsers } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiShield, FiUser, FiUsers, FiBookOpen, FiDollarSign } from 'react-icons/fi';
 import Button from './Button';
 import Input from './Input';
 import Form from './Form';
@@ -15,11 +15,19 @@ import { schoolAdminLoginAction, teacherLoginAction, parentLoginAction } from '@
 
 const ROLE_ICONS = {
   Admin: <FiShield className="w-4 h-4" />,
+  Principal: <FiBookOpen className="w-4 h-4" />,
+  Accountant: <FiDollarSign className="w-4 h-4" />,
   Teacher: <FiUser className="w-4 h-4" />,
   Parent: <FiUsers className="w-4 h-4" />,
 };
 
-const VALID_ROLES = ['Admin', 'Teacher', 'Parent'];
+// Admin/Principal/Accountant all sign in through the same
+// schoolAdminLoginAction (app/actions/auth.js tries the legacy SchoolAdmin
+// table first, then falls back to a pure-User Principal/Accountant lookup)
+// — these are just three visible tabs for that one action, not three
+// separate code paths.
+const SCHOOL_ADMIN_ROLES = ['Admin', 'Principal', 'Accountant'];
+const VALID_ROLES = [...SCHOOL_ADMIN_ROLES, 'Teacher', 'Parent'];
 
 export default function LoginForm() {
   const router = useRouter();
@@ -33,6 +41,22 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [formError, setFormError] = useState('');
+  // Once the server says "too many attempts", the button stays disabled
+  // for that same window instead of letting every extra click fire another
+  // Server Action call the rate limiter will just reject again — the check
+  // is already server-enforced, this just stops pointlessly hammering it.
+  const [lockedUntil, setLockedUntil] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const tick = () => setSecondsLeft(Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil > Date.now();
 
   const handleRoleChange = (nextRole) => {
     setRole(nextRole);
@@ -55,24 +79,29 @@ export default function LoginForm() {
   // only the `{ error }` case for bad credentials ever reaches past the
   // `await` here.
   const onSubmit = async (data) => {
+    if (isLocked) return;
     setFormError('');
-    if (role === 'Admin') {
-      // Real, super-admin-assigned credentials (lib/admins.js).
-      const result = await schoolAdminLoginAction(data);
-      if (result.error) setFormError(result.error);
+    let result;
+    if (SCHOOL_ADMIN_ROLES.includes(role)) {
+      // Real, super-admin-assigned credentials — legacy SchoolAdmin table
+      // for Admin, User table for Principal/Accountant (lib/admins.js /
+      // lib/rbac.js's validateUserCredentials).
+      result = await schoolAdminLoginAction(data);
     } else if (role === 'Teacher') {
       // Real, school-admin-assigned credentials (lib/teachers.js's
       // loginAccess) — resolves and sets the specific signed-in teacher as
       // the current user server-side, so Attendance scoping etc. reflect
       // who actually logged in, not a hardcoded demo teacher.
-      const result = await teacherLoginAction(data);
-      if (result.error) setFormError(result.error);
+      result = await teacherLoginAction(data);
     } else {
       // Parent portal — a real per-request session scoped to exactly one
       // student (see lib/iam.js's requireParent), not the dashboard-role
       // toggle the other two branches use.
-      const result = await parentLoginAction(data);
-      if (result.error) setFormError(result.error);
+      result = await parentLoginAction(data);
+    }
+    if (result.error) {
+      setFormError(result.error);
+      if (result.retryAfterSeconds) setLockedUntil(Date.now() + result.retryAfterSeconds * 1000);
     }
   };
 
@@ -88,7 +117,7 @@ export default function LoginForm() {
 
       <div className="mb-4">
         <label className="block text-base font-medium text-gray-700 mb-2.5">Sign in as</label>
-        <RoleToggle role={role} onChange={handleRoleChange} options={['Admin', 'Teacher', 'Parent']} icons={ROLE_ICONS} />
+        <RoleToggle role={role} onChange={handleRoleChange} options={VALID_ROLES} icons={ROLE_ICONS} />
       </div>
 
       <Form onSubmit={handleSubmit(onSubmit)}>
@@ -157,9 +186,16 @@ export default function LoginForm() {
 
         <Button
           type="submit"
-          label={isSubmitting ? 'Signing in...' : 'Sign In'}
+          label={
+            isLocked
+              ? `Try again in ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
+              : isSubmitting
+                ? 'Signing in...'
+                : 'Sign In'
+          }
           icon={<FiArrowRight className="w-4 h-4" />}
           fullWidth
+          disabled={isSubmitting || isLocked}
         />
       </Form>
 

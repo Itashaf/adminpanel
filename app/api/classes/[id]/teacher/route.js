@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { assignClassTeacher } from '@/lib/classes';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 // For a class with no sections (Nursery/Playway) — assigns/unassigns the
 // class teacher directly on the class, without ever requiring a Section to
 // exist first. See lib/classes.js's assignClassTeacher.
 export async function PATCH(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('classes.manage');
   if (authError) return authError;
 
   const { id } = await params;

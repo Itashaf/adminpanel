@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUserInfo, requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
 import { getLeaveBalance } from '@/lib/teacherLeaves';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/leaves/balance — a Teacher (real session) gets their own
 // Casual/Sick/Earned/Other balance for the current year (or ?year=). A
 // SchoolAdmin/SuperAdmin can look up any teacher's via ?teacherId=, e.g. to
 // show context next to a request in the review queue.
 export async function GET(request) {
+  const { error: permError } = await requirePermission('leave.view');
+  if (permError) return permError;
+
   const { searchParams } = new URL(request.url);
   const year = searchParams.get('year') ? Number(searchParams.get('year')) : undefined;
 
-  // Real session required — was previously vulnerable to an unauthenticated
-  // caller reading whatever teacher the process-wide toggle happened to be
-  // set to (see app/api/leaves/route.js's POST for the same root cause).
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
@@ -25,9 +26,6 @@ export async function GET(request) {
     const balance = await getLeaveBalance(currentUser.teacherId, await resolveSchoolId(), year);
     return NextResponse.json(balance);
   }
-
-  const { error } = await requireSchoolAdmin();
-  if (error) return error;
 
   const teacherId = searchParams.get('teacherId');
   if (!teacherId) {

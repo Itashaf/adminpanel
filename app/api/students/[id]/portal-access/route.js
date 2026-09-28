@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { linkOrCreateParentAccount, getParentAccountForStudent, unlinkStudentFromParent } from '@/lib/parentAccounts';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export async function GET(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { user, error } = await requirePermission('students.view');
   if (error) return error;
+
+  // Same reasoning as GET /api/students/[id] — students.view is shared with
+  // Teacher for the field-stripped roster routes, but a parent account's own
+  // login email is admin-only account-management info, not roster data.
+  if (user.roleKey === 'Teacher') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { id } = await params;
   const account = await getParentAccountForStudent(id, await resolveSchoolId());
@@ -13,7 +20,7 @@ export async function GET(request, { params }) {
 }
 
 export async function POST(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('students.update');
   if (error) return error;
 
   const { id } = await params;
@@ -27,7 +34,7 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('students.update');
   if (error) return error;
 
   const { id } = await params;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +14,20 @@ import { superAdminLoginAction } from '@/app/actions/auth';
 export default function SuperAdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
+  // See components/LoginForm.jsx for why this exists — stops the button
+  // from firing more requests the server-side rate limiter will just reject.
+  const [lockedUntil, setLockedUntil] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const tick = () => setSecondsLeft(Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil > Date.now();
 
   const {
     register,
@@ -26,9 +40,13 @@ export default function SuperAdminLoginForm() {
   // risk hitting a stale entry in Next's Router Cache. So this only ever
   // returns normally for the `{ error }` (bad credentials) case.
   const onSubmit = async (data) => {
+    if (isLocked) return;
     setFormError('');
     const result = await superAdminLoginAction(data);
-    if (result.error) setFormError(result.error);
+    if (result.error) {
+      setFormError(result.error);
+      if (result.retryAfterSeconds) setLockedUntil(Date.now() + result.retryAfterSeconds * 1000);
+    }
   };
 
   return (
@@ -82,9 +100,16 @@ export default function SuperAdminLoginForm() {
 
           <Button
             type="submit"
-            label={isSubmitting ? 'Signing in...' : 'Sign In'}
+            label={
+              isLocked
+                ? `Try again in ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
+                : isSubmitting
+                  ? 'Signing in...'
+                  : 'Sign In'
+            }
             icon={<FiArrowRight className="w-4 h-4" />}
             fullWidth
+            disabled={isSubmitting || isLocked}
           />
         </Form>
 

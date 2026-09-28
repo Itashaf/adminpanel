@@ -29,6 +29,8 @@ export default function StudentsExplorer({
   classOptions,
   initialFilters,
   canManage = true,
+  canCreate = canManage,
+  canEdit = canManage,
   pageSize = 10,
 }) {
   const [studentsList, setStudentsList] = useState(initialStudents);
@@ -146,7 +148,7 @@ export default function StudentsExplorer({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <StudentsHeader canManage={canManage} />
 
-        {canManage && (
+        {canCreate && (
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
@@ -202,6 +204,7 @@ export default function StudentsExplorer({
               onToggleSelectAll={toggleSelectAll}
               onStudentDeleted={handleStudentDeleted}
               canManage={canManage}
+              canEdit={canEdit}
             />
           ) : (
             <p className="text-sm text-gray-500 text-center py-10">No students match your filters.</p>

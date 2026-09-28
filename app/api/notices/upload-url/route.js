@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { getPresignedUploadUrl, buildPublicUrl, MAX_ATTACHMENT_BYTES } from '@/lib/storage';
 
 // Step 1 of the Notices PDF attachment upload: the browser asks for a
 // presigned R2 PUT url here, then uploads the file bytes directly to R2 (see
 // components/notices/NoticeFormModal.jsx) — the file itself never passes
-// through this Next.js server. Notices are admin-only to write, so this is
-// gated the same way createNotice/updateNotice are.
+// through this Next.js server. Gated the same way createNotice is
+// (notices.create — Admin-tier or a Teacher attaching a PDF to their own
+// Class notice).
 export async function POST(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('notices.create');
   if (error) return error;
 
   const { fileName, fileType, fileSize } = await request.json();

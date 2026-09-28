@@ -8,6 +8,7 @@ const ACTIONS = [
     href: '/dashboard/students/add',
     icon: FiUserPlus,
     iconBg: 'bg-blue-100 text-blue-600',
+    permKey: 'students.create',
   },
   {
     label: 'Mark Attendance',
@@ -15,6 +16,7 @@ const ACTIONS = [
     href: '/dashboard/attendance/daily',
     icon: FiCheckSquare,
     iconBg: 'bg-green-100 text-green-600',
+    permKey: 'attendance.student.mark',
   },
   {
     label: 'Collect Fee',
@@ -22,6 +24,7 @@ const ACTIONS = [
     href: '/dashboard/fees/students',
     icon: FiCreditCard,
     iconBg: 'bg-orange-100 text-orange-600',
+    permKey: 'fees.collect',
   },
   {
     label: 'Create Exam',
@@ -29,13 +32,31 @@ const ACTIONS = [
     href: '/dashboard/exams/list',
     icon: FiFileText,
     iconBg: 'bg-violet-100 text-violet-600',
+    permKey: 'exams.manage',
   },
 ];
 
-export default function QuickActions() {
+// `permissions` null (no RBAC user resolved — pre-cutover legacy session)
+// means show everything, same fallback as Sidebar's filterByPermissions.
+export default function QuickActions({ permissions = null }) {
+  const actions = permissions === null ? ACTIONS : ACTIONS.filter((a) => permissions.includes(a.permKey));
+  if (actions.length === 0) return null;
+
+  // Fixed grid-cols-2/4 leaves empty cells once permission-filtering drops
+  // the count below 4 — cap the column count to how many cards there
+  // actually are, so a lone card never sits next to dead space.
+  const gridCols =
+    actions.length === 1
+      ? 'grid-cols-1'
+      : actions.length === 2
+        ? 'grid-cols-2'
+        : actions.length === 3
+          ? 'grid-cols-2 lg:grid-cols-3'
+          : 'grid-cols-2 lg:grid-cols-4';
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {ACTIONS.map(({ label, subtitle, href, icon: Icon, iconBg }) => (
+    <div className={`grid ${gridCols} gap-4`}>
+      {actions.map(({ label, subtitle, href, icon: Icon, iconBg }) => (
         <Link
           key={label}
           href={href}

@@ -91,10 +91,10 @@ async function main() {
   }
   const superAdminPasswordHash = await bcrypt.hash(superAdminPassword, 10);
   await prisma.superAdmin.upsert({
-    where: { email: 'superadmin@edumanage.io' },
+    where: { email: 'superadmin@schoolapp360.io' },
     update: {},
     create: {
-      email: 'superadmin@edumanage.io',
+      email: 'superadmin@schoolapp360.io',
       passwordHash: superAdminPasswordHash,
       name: 'Platform Super Admin',
     },

@@ -4,7 +4,7 @@ import { verifySessionToken } from './lib/auth/jwt';
 // `jose`-based (not next/headers) — safe to call directly from middleware's
 // edge runtime, unlike lib/auth/session.js's getSession() which needs the
 // cookies()/headers() helpers only available inside a route/page.
-const SESSION_COOKIE = 'edumanage_session';
+const SESSION_COOKIE = 'schoolapp360_session';
 
 // Sign-in screens — a visitor who already has a valid session gets bounced
 // to their own area instead of seeing a login form again.
@@ -14,6 +14,22 @@ function homePathFor(role) {
   if (role === 'SuperAdmin') return '/super-admin/schools';
   if (role === 'Parent') return '/parent';
   return '/dashboard'; // SchoolAdmin, Teacher
+}
+
+// RBAC (task 16) — every login flow today still writes the legacy `role`
+// field (SuperAdmin/SchoolAdmin/Teacher/Parent), so these checks alone
+// would already keep working unchanged. `roleKey` (Principal/Admin/
+// Accountant/Teacher/SuperAdmin/Parent) is checked as a second, additive
+// path — not yet reachable (no login flow issues a session without the
+// legacy `role` field), but user-management (task 18-22) will eventually
+// create Principal/Accountant users with no legacy table to fall back to,
+// so this needs somewhere to route to /dashboard once that exists.
+const DASHBOARD_LEGACY_ROLES = ['SchoolAdmin', 'Teacher', 'SuperAdmin'];
+const DASHBOARD_ROLE_KEYS = ['Principal', 'Admin', 'Accountant', 'Teacher', 'SuperAdmin'];
+
+function canAccessDashboard(session) {
+  if (session?.role && DASHBOARD_LEGACY_ROLES.includes(session.role)) return true;
+  return Boolean(session?.roleKey && DASHBOARD_ROLE_KEYS.includes(session.roleKey));
 }
 
 // The mobile app talks to /api/** from two very different contexts: a
@@ -65,7 +81,7 @@ export async function middleware(request) {
   }
 
   if (pathname.startsWith('/super-admin')) {
-    if (session?.role !== 'SuperAdmin') {
+    if (session?.role !== 'SuperAdmin' && session?.roleKey !== 'SuperAdmin') {
       return NextResponse.redirect(new URL('/', request.url));
     }
     return NextResponse.next();
@@ -77,7 +93,7 @@ export async function middleware(request) {
     // setCurrentRole) keeps their real SuperAdmin session cookie — only
     // lib/currentUser.js's in-memory dashboard-role toggle changes — so
     // SuperAdmin must stay allowed here alongside SchoolAdmin/Teacher.
-    if (!['SchoolAdmin', 'Teacher', 'SuperAdmin'].includes(session?.role)) {
+    if (!canAccessDashboard(session)) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     return NextResponse.next();
@@ -86,8 +102,11 @@ export async function middleware(request) {
   if (pathname.startsWith('/parent')) {
     // Already enforced in app/parent/layout.jsx too — this just fails fast,
     // before that layout's DB reads ever run, for an outright-unauthenticated
-    // hit (a stale bookmark, a shared link, ...).
-    if (session?.role !== 'Parent') {
+    // hit (a stale bookmark, a shared link, ...). `role`/`roleKey` are the
+    // same literal string ('Parent') in both vocabularies, so no divergence
+    // to bridge here — checking either is equivalent, kept as an OR anyway
+    // for the same not-yet-reachable no-legacy-row case as /dashboard above.
+    if (session?.role !== 'Parent' && session?.roleKey !== 'Parent') {
       return NextResponse.redirect(new URL('/login', request.url));
     }
     return NextResponse.next();

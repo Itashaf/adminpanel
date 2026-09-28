@@ -2,6 +2,7 @@ import StudentsExplorer from '@/components/students/StudentsExplorer';
 import { getStudentsPage, getStudentStats, getClassOptions } from '@/lib/students';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentRBACUser } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
 export const metadata = {
@@ -19,6 +20,17 @@ export default async function StudentsPage({ searchParams }) {
   // assignment of their own.
   const currentUser = (await getCurrentUserInfo()) || (await getCurrentUser());
   const canManage = currentUser.role !== 'Teacher';
+  // Add Student / Bulk Import buttons: canManage above is scope (Teacher's
+  // own classes vs whole school), not create permission — Accountant is
+  // also `role !== 'Teacher'` (legacy-shape fallback, see lib/iam.js) but
+  // has no students.create (prisma/rbacPermissions.js). Real permission
+  // check for the buttons specifically; POST /api/students already
+  // enforces this server-side regardless (see app/api/students/route.js).
+  const rbacUser = await getCurrentRBACUser();
+  const canCreateStudents = rbacUser ? rbacUser.permissions.has('students.create') : canManage;
+  // Same gap for the per-row Edit action — Accountant has students.view
+  // only, not students.update.
+  const canUpdateStudents = rbacUser ? rbacUser.permissions.has('students.update') : canManage;
   // A Teacher only ever sees students in a class they're the Class Teacher
   // of (Section.classTeacherId) — deliberately currentUser.classTeacherOf
   // directly, not getTeacherClassScope's merged assignments+classTeacherOf:
@@ -60,6 +72,8 @@ export default async function StudentsPage({ searchParams }) {
       classOptions={classOptions}
       initialFilters={initialFilters}
       canManage={canManage}
+      canCreate={canCreateStudents}
+      canEdit={canUpdateStudents}
       pageSize={PAGE_SIZE}
     />
   );

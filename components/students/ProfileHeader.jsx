@@ -11,7 +11,7 @@ import Toast from '@/components/Toast';
 import SetPortalAccessDialog from './SetPortalAccessDialog';
 import { deleteStudent } from '@/lib/api';
 
-export default function ProfileHeader({ student, canManage = true }) {
+export default function ProfileHeader({ student, canManage = true, canEdit = canManage }) {
   const router = useRouter();
   const isActive = student.status === 'Active';
   const [showConfirm, setShowConfirm] = useState(false);
@@ -89,15 +89,17 @@ export default function ProfileHeader({ student, canManage = true }) {
           </div>
         </div>
 
-        {canManage && (
+        {(canEdit || canManage) && (
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              label="Edit Student"
-              variant="secondary"
-              icon={<FiEdit2 className="w-4 h-4" />}
-              onClick={() => router.push(`/dashboard/students/${student.id}/edit`)}
-            />
-            <DropdownMenu trigger={<FiMoreVertical className="w-5 h-5" />} items={moreItems} />
+            {canEdit && (
+              <Button
+                label="Edit Student"
+                variant="secondary"
+                icon={<FiEdit2 className="w-4 h-4" />}
+                onClick={() => router.push(`/dashboard/students/${student.id}/edit`)}
+              />
+            )}
+            {canManage && <DropdownMenu trigger={<FiMoreVertical className="w-5 h-5" />} items={moreItems} />}
           </div>
         )}
       </div>

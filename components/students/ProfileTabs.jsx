@@ -33,6 +33,10 @@ const ALL_TABS = [
 // just Overview/Academic/Attendance instead of exposing every admin tab.
 const TEACHER_TABS = ['overview', 'academic', 'attendance'];
 
+// Accountant only holds fees.* on a student (see prisma/rbacPermissions.js)
+// — no students.update, no attendance.*, nothing to see in the other tabs.
+const ACCOUNTANT_TABS = ['fees'];
+
 const DOCUMENT_TYPES = [
   { label: 'Aadhaar Card', required: true, getFileName: (student) => student.aadhaarDocumentName },
   { label: 'Father Aadhaar', required: true, getFileName: (student) => student.guardian?.aadhaarDocumentName },
@@ -50,15 +54,20 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function ProfileTabs({ student, initialTab, canManage = true }) {
-  const TABS = canManage ? ALL_TABS : ALL_TABS.filter((t) => TEACHER_TABS.includes(t.key));
+export default function ProfileTabs({ student, initialTab, canManage = true, roleKey }) {
+  const TABS =
+    roleKey === 'Accountant'
+      ? ALL_TABS.filter((t) => ACCOUNTANT_TABS.includes(t.key))
+      : canManage
+        ? ALL_TABS
+        : ALL_TABS.filter((t) => TEACHER_TABS.includes(t.key));
 
   // `initialTab` comes from the page's `?tab=` search param (e.g. the
   // Attendance Report table's "View Attendance" link) — validated against
   // the real, non-comingSoon tab keys so an unrecognized or disabled value
   // can't leave the tab bar showing no active tab at all.
   const isValidTab = TABS.some((t) => t.key === initialTab && !t.comingSoon);
-  const [activeTab, setActiveTab] = useState(isValidTab ? initialTab : 'overview');
+  const [activeTab, setActiveTab] = useState(isValidTab ? initialTab : TABS[0]?.key || 'overview');
 
   const router = useRouter();
   const pathname = usePathname();

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { setStandingDiscount, removeStandingDiscount } from '@/lib/fees';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
+// Standing discount lives on the Student row itself (Student.discountType/
+// discountValue/discountReason), not StudentFee — students.update, not a
+// fees.* key, matches what this route actually mutates.
 export async function POST(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('students.update');
   if (error) return error;
 
   const { id } = await params;
@@ -17,7 +20,7 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('students.update');
   if (error) return error;
 
   const { id } = await params;

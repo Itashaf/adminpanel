@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { updateSubject, deleteSubject } from '@/lib/subjects';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function PATCH(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('subjects.manage');
   if (authError) return authError;
 
   const { id } = await params;
@@ -21,7 +21,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('subjects.manage');
   if (authError) return authError;
 
   const { id } = await params;

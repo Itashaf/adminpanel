@@ -12,6 +12,11 @@ function formatCurrency(amount) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
 // Every payment ever recorded for one student — a flat transaction history,
 // not scoped to one term the way the fee cards are.
 export default function PaymentLedgerModal({ isOpen, onClose, studentId, studentName }) {
@@ -62,7 +67,7 @@ export default function PaymentLedgerModal({ isOpen, onClose, studentId, student
             <tbody className="divide-y divide-gray-100">
               {ledger.map((payment) => (
                 <tr key={payment.id}>
-                  <td className="py-3 pl-6 pr-4 text-gray-700">{payment.paidAt || payment.createdAt}</td>
+                  <td className="py-3 pl-6 pr-4 text-gray-700">{formatDateTime(payment.paidAt || payment.createdAt)}</td>
                   <td className="py-3 pr-4 text-gray-700">{TERM_DISPLAY_NAMES[payment.term] || payment.term}</td>
                   <td className="py-3 pr-4 font-semibold text-gray-900">{formatCurrency(payment.amount)}</td>
                   <td className="py-3 pr-4">

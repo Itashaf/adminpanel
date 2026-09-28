@@ -3,6 +3,7 @@ import { getStudentAttendanceReport, getAttendanceTrend } from '@/lib/attendance
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { isClassInTeacherScope } from '@/lib/roleGuard';
+import { requirePermission } from '@/lib/rbac';
 
 function toLocalDateStr(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -16,6 +17,9 @@ function toLocalDateStr(date) {
 // route just exposes them over HTTP, scoped to one class+section, since
 // nothing called them from outside a server component before.
 export async function GET(request) {
+  const { error: permError } = await requirePermission('attendance.student.report');
+  if (permError) return permError;
+
   const { searchParams } = new URL(request.url);
   const academicSession = searchParams.get('session');
   const className = searchParams.get('class');

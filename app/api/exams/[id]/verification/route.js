@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getMarksForVerification } from '@/lib/examMarks';
-import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/exams/[id]/verification?className=...&sectionName=...&subject=...
 // Admin's marks-verification screen: pick Exam → Class → Section → Subject,
@@ -12,10 +12,8 @@ export async function GET(request, { params }) {
   const sectionName = searchParams.get('sectionName') || '';
   const subject = searchParams.get('subject');
 
-  const currentUser = await getCurrentUserInfo();
-  if (!currentUser || (currentUser.role !== 'SchoolAdmin' && currentUser.role !== 'SuperAdmin')) {
-    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
-  }
+  const { error } = await requirePermission('exams.manage');
+  if (error) return error;
   if (!className || !subject) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { updateSession } from '@/lib/academicSessions';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function PUT(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('settings.update');
   if (authError) return authError;
 
   const { id } = await params;

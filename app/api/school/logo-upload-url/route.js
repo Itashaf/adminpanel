@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 import { getPresignedUploadUrl, buildPublicUrl } from '@/lib/storage';
 import { STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
 
@@ -12,7 +12,7 @@ import { STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 export async function POST(request) {
-  const { actor, error } = await requireSchoolAdmin();
+  const { user: actor, error } = await requirePermission('settings.update');
   if (error) return error;
 
   const { fileName, fileType, fileSize } = await request.json();

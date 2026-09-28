@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { updateNotice, deleteNotice, getNoticeById } from '@/lib/notices';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 // GET /api/notices/:id — see app/api/notices/route.js's GET for why this
 // uses getCurrentUserInfo() rather than getCurrentActor(). A Teacher asking
@@ -31,7 +32,12 @@ export async function PUT(request, { params }) {
 
   // Real session required — see app/api/notices/route.js's POST for why the
   // old `sessionUser || mergeWithDashboardActor(sessionUser)` pattern let
-  // anyone edit any notice as SchoolAdmin with zero credentials.
+  // anyone edit any notice as SchoolAdmin with zero credentials. Own-post
+  // ownership (a Teacher may only edit a notice they themselves posted) is
+  // still enforced inside updateNotice's own canManageNotice check.
+  const { error: permError } = await requirePermission('notices.update');
+  if (permError) return permError;
+
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
@@ -50,6 +56,9 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const { id } = await params;
+  const { error: permError } = await requirePermission('notices.delete');
+  if (permError) return permError;
+
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });

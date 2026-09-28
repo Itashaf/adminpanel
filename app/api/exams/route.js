@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createExam, getVisibleExams } from '@/lib/exams';
-import { getCurrentUserInfo, requireSchoolAdmin } from '@/lib/iam';
+import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function GET() {
   const currentUser = await getCurrentUserInfo();
@@ -13,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const { error: authError, actor } = await requireSchoolAdmin();
+  const { error: authError, user: actor } = await requirePermission('exams.manage');
   if (authError) return authError;
 
   const data = await request.json();

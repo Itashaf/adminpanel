@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FaGraduationCap } from 'react-icons/fa';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   FiGrid,
   FiUsers,
@@ -26,8 +27,17 @@ import {
   FiClock,
   FiSend,
   FiAward,
+  FiTrendingUp,
+  FiFileText,
 } from 'react-icons/fi';
 
+// `permKey` (RBAC permission key, see prisma/rbacPermissions.js) gates an
+// item for Principal/Admin/Accountant/SuperAdmin, on top of the existing
+// `featureKey` (per-school module toggle) — both must pass. Only added
+// where the permission catalog actually has a matching key; a module the
+// catalog doesn't cover (Homework, Assessments, Calendar) is left ungated
+// here, same "don't build for a key that doesn't exist" call as the rest
+// of this RBAC project.
 const ADMIN_NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: FiGrid },
   {
@@ -35,11 +45,11 @@ const ADMIN_NAV_ITEMS = [
     icon: FiBookOpen,
     basePath: '/dashboard/academics',
     children: [
-      { label: 'Academic Sessions', href: '/dashboard/sessions', icon: FiCalendar },
-      { label: 'Classes & Sections', href: '/dashboard/classes', icon: FiLayers },
-      { label: 'Subjects', href: '/dashboard/academics/subjects', icon: FiBook },
-      { label: 'Time Table', href: '/dashboard/academics/timetable', icon: FiClock },
-      { label: 'Calendar', href: '/dashboard/academics/calendar', icon: FiCalendar },
+      { label: 'Academic Sessions', href: '/dashboard/sessions', icon: FiCalendar, permKey: 'settings.view' },
+      { label: 'Classes & Sections', href: '/dashboard/classes', icon: FiLayers, permKey: 'classes.view' },
+      { label: 'Subjects', href: '/dashboard/academics/subjects', icon: FiBook, permKey: 'subjects.view' },
+      { label: 'Time Table', href: '/dashboard/academics/timetable', icon: FiClock, permKey: 'timetable.view' },
+      { label: 'Calendar', href: '/dashboard/academics/calendar', icon: FiCalendar, permKey: 'classes.view' },
     ],
   },
   {
@@ -47,9 +57,9 @@ const ADMIN_NAV_ITEMS = [
     icon: FiUsers,
     basePath: '/dashboard/students',
     children: [
-      { label: 'All Students', href: '/dashboard/students', icon: FiUsers },
-      { label: 'Add Student', href: '/dashboard/students/add', icon: FiUserPlus },
-      { label: 'Student List', href: '/dashboard/students/list', icon: FiPrinter },
+      { label: 'All Students', href: '/dashboard/students', icon: FiUsers, permKey: 'students.view' },
+      { label: 'Add Student', href: '/dashboard/students/add', icon: FiUserPlus, permKey: 'students.create' },
+      { label: 'Student List', href: '/dashboard/students/list', icon: FiPrinter, permKey: 'students.view' },
     ],
   },
   {
@@ -57,18 +67,19 @@ const ADMIN_NAV_ITEMS = [
     icon: FiUser,
     basePath: '/dashboard/teachers',
     children: [
-      { label: 'All Teachers', href: '/dashboard/teachers', icon: FiUsers },
-      { label: 'Add Teacher', href: '/dashboard/teachers/add', icon: FiUserPlus },
+      { label: 'All Teachers', href: '/dashboard/teachers', icon: FiUsers, permKey: 'teachers.view' },
+      { label: 'Add Teacher', href: '/dashboard/teachers/add', icon: FiUserPlus, permKey: 'teachers.create' },
     ],
   },
   {
     label: 'Fees',
     icon: FiCreditCard,
     basePath: '/dashboard/fees',
+    featureKey: 'fees',
     children: [
-      { label: 'Fee Structures', href: '/dashboard/fees/structures', icon: FiLayers },
-      { label: 'Student Fees', href: '/dashboard/fees/students', icon: FiUsers },
-      { label: 'Payments', href: '/dashboard/fees/payments', icon: FiCreditCard },
+      { label: 'Fee Structures', href: '/dashboard/fees/structures', icon: FiLayers, permKey: 'fees.view' },
+      { label: 'Student Fees', href: '/dashboard/fees/students', icon: FiUsers, permKey: 'fees.view' },
+      { label: 'Payments', href: '/dashboard/fees/payments', icon: FiCreditCard, permKey: 'fees.view' },
     ],
   },
   {
@@ -76,9 +87,9 @@ const ADMIN_NAV_ITEMS = [
     icon: FiCheckSquare,
     basePath: '/dashboard/attendance',
     children: [
-      { label: 'Attendance Reports', href: '/dashboard/attendance/reports', icon: FiBarChart2 },
-      { label: 'Daily Attendance', href: '/dashboard/attendance/daily', icon: FiCheckSquare },
-      { label: 'Staff Attendance', href: '/dashboard/attendance/staff', icon: FiUser },
+      { label: 'Attendance Reports', href: '/dashboard/attendance/reports', icon: FiBarChart2, permKey: 'attendance.student.report' },
+      { label: 'Daily Attendance', href: '/dashboard/attendance/daily', icon: FiCheckSquare, permKey: 'attendance.student.mark' },
+      { label: 'Staff Attendance', href: '/dashboard/attendance/staff', icon: FiUser, permKey: 'attendance.teacher.view' },
     ],
   },
   {
@@ -86,24 +97,35 @@ const ADMIN_NAV_ITEMS = [
     icon: FiSend,
     basePath: '/dashboard/notices',
     children: [
-      { label: 'Notices', href: '/dashboard/notices', icon: FiBell },
-      { label: 'Homework', href: '/dashboard/homework', icon: FiBook },
+      { label: 'Notices', href: '/dashboard/notices', icon: FiBell, permKey: 'notices.view' },
+      { label: 'Homework', href: '/dashboard/homework', icon: FiBook, featureKey: 'homework' },
     ],
   },
   {
     label: 'Exams',
     icon: FiClipboard,
     basePath: '/dashboard/exams',
+    featureKey: 'exams',
     children: [
-      { label: 'Exam Dashboard', href: '/dashboard/exams', icon: FiGrid },
-      { label: 'Manage Exams', href: '/dashboard/exams/list', icon: FiClipboard },
-      { label: 'Enter Marks', href: '/dashboard/marks-entry', icon: FiEdit3 },
-      { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
+      { label: 'Exam Dashboard', href: '/dashboard/exams', icon: FiGrid, permKey: 'exams.view' },
+      { label: 'Manage Exams', href: '/dashboard/exams/list', icon: FiClipboard, permKey: 'exams.view' },
+      { label: 'Enter Marks', href: '/dashboard/marks-entry', icon: FiEdit3, permKey: 'marks.enter' },
+      { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter, permKey: 'results.view' },
     ],
   },
-  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward },
-  { label: 'Leave Requests', href: '/dashboard/leave', icon: FiClock },
-  { label: 'School Settings', href: '/dashboard/settings', icon: FiSettings },
+  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward, featureKey: 'assessments' },
+  {
+    label: 'Students Report',
+    icon: FiTrendingUp,
+    basePath: '/dashboard/performance',
+    children: [
+      { label: 'Monthly Reports', href: '/dashboard/performance/monthly', icon: FiClipboard, permKey: 'performanceReports.view' },
+      { label: 'Yearly Reports', href: '/dashboard/performance/yearly', icon: FiTrendingUp, permKey: 'performanceReports.view' },
+      { label: 'Subject Tests', href: '/dashboard/performance/tests', icon: FiFileText, permKey: 'performanceReports.view' },
+    ],
+  },
+  { label: 'Leave Requests', href: '/dashboard/leave', icon: FiClock, featureKey: 'leave', permKey: 'leave.approve' },
+  { label: 'School Settings', href: '/dashboard/settings', icon: FiSettings, permKey: 'settings.view' },
 ];
 
 // A Teacher only ever marks/views attendance and views (never manages) the
@@ -131,20 +153,69 @@ const TEACHER_NAV_ITEMS = [
       { label: 'Daily Attendance', href: '/dashboard/attendance/daily', icon: FiCheckSquare },
     ],
   },
+  // Only meaningful for a Class Teacher — the page itself restricts the
+  // class picker to currentUser.classTeacherOf (see
+  // app/dashboard/academics/timetable/page.jsx), same convention as "My
+  // Exams" below.
+  { label: 'Time Table', href: '/dashboard/academics/timetable', icon: FiClock },
   // Scoped content, not a scoped-away module — a Teacher sees/posts Notices
   // and Homework for their own classes (plus whole-school Notices), so this
   // stays a full nav entry rather than being hidden like Teachers/Classes.
   { label: 'Notices', href: '/dashboard/notices', icon: FiBell },
-  { label: 'Homework', href: '/dashboard/homework', icon: FiBook },
+  { label: 'Homework', href: '/dashboard/homework', icon: FiBook, featureKey: 'homework' },
   // Only meaningful for a Class Teacher (they can add their own class's
   // subjects to an exam's date sheet — see lib/examSchedules.js's
   // assertCanManageSchedule); the page itself 404s for anyone else's exam.
-  { label: 'My Exams', href: '/dashboard/exams/list', icon: FiClipboard },
-  { label: 'Marks Entry', href: '/dashboard/marks-entry', icon: FiEdit3 },
-  { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
-  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward },
-  { label: 'My Leave', href: '/dashboard/leave', icon: FiClock },
+  { label: 'My Exams', href: '/dashboard/exams/list', icon: FiClipboard, featureKey: 'exams' },
+  { label: 'Marks Entry', href: '/dashboard/marks-entry', icon: FiEdit3, featureKey: 'exams' },
+  { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter, featureKey: 'exams' },
+  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward, featureKey: 'assessments' },
+  {
+    label: 'Students Report',
+    icon: FiTrendingUp,
+    basePath: '/dashboard/performance',
+    children: [
+      { label: 'Monthly Reports', href: '/dashboard/performance/monthly', icon: FiClipboard, permKey: 'performanceReports.view' },
+      { label: 'Yearly Reports', href: '/dashboard/performance/yearly', icon: FiTrendingUp, permKey: 'performanceReports.view' },
+      { label: 'Subject Tests', href: '/dashboard/performance/tests', icon: FiFileText, permKey: 'performanceReports.view' },
+    ],
+  },
+  { label: 'My Leave', href: '/dashboard/leave', icon: FiClock, featureKey: 'leave' },
 ];
+
+// Drops any top-level item or group child whose `featureKey` the school has
+// disabled; a group left with zero children is dropped entirely rather than
+// rendered empty. Items with no `featureKey` (core modules) always pass.
+function filterByFeatures(navItems, disabledFeatures) {
+  return navItems
+    .map((item) => {
+      if (item.children) {
+        const children = item.children.filter((child) => !child.featureKey || isFeatureEnabled(disabledFeatures, child.featureKey));
+        return children.length ? { ...item, children } : null;
+      }
+      return item.featureKey && !isFeatureEnabled(disabledFeatures, item.featureKey) ? null : item;
+    })
+    .filter(Boolean);
+}
+
+// Same shape as filterByFeatures, gating on `permKey` against the signed-in
+// user's real permission set instead of a school's disabledFeatures.
+// `permissions === null` (no RBAC user resolved — see app/dashboard/
+// layout.jsx) means show everything unfiltered, matching this app's
+// pre-existing behavior before permission-gating existed.
+function filterByPermissions(navItems, permissions) {
+  if (!permissions) return navItems;
+  const has = (key) => permissions.includes(key);
+  return navItems
+    .map((item) => {
+      if (item.children) {
+        const children = item.children.filter((child) => !child.permKey || has(child.permKey));
+        return children.length ? { ...item, children } : null;
+      }
+      return item.permKey && !has(item.permKey) ? null : item;
+    })
+    .filter(Boolean);
+}
 
 function NavLink({ label, href, icon: Icon, isActive, badge }) {
   return (
@@ -200,10 +271,13 @@ function NavGroup({ item, pathname, isExpanded, onToggle }) {
   );
 }
 
-export default function Sidebar({ isOpen = false, onClose, school, role, pendingLeaveCount = 0 }) {
+export default function Sidebar({ isOpen = false, onClose, school, role, permissions = null, pendingLeaveCount = 0 }) {
   const pathname = usePathname();
   const displayName = school?.displayName || 'SchoolApp 360';
-  const navItems = role === 'Teacher' ? TEACHER_NAV_ITEMS : ADMIN_NAV_ITEMS;
+  const navItems = filterByPermissions(
+    filterByFeatures(role === 'Teacher' ? TEACHER_NAV_ITEMS : ADMIN_NAV_ITEMS, school?.disabledFeatures),
+    permissions
+  );
   // Accordion: only one group's children are expanded at a time. Starts
   // open on whichever group contains the current page (same default the
   // old per-group local state had), computed once — matches the rest of

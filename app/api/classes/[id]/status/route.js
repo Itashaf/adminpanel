@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { updateClassStatus } from '@/lib/classes';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function PATCH(request, { params }) {
-  const { error: authError } = await requireSchoolAdmin();
+  const { error: authError } = await requirePermission('classes.manage');
   if (authError) return authError;
 
   const { id } = await params;

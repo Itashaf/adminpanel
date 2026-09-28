@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { isModuleEnabled } from '@/lib/featureFlagGuard';
 import { getAssessmentsForClass } from '@/lib/studentAssessments';
 
 // GET /api/assessments?class=&section=&session=&month=&year= — the
@@ -12,6 +13,9 @@ export async function GET(request) {
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+  if (!(await isModuleEnabled('assessments'))) {
+    return NextResponse.json({ error: 'This module is not enabled for your school.' }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

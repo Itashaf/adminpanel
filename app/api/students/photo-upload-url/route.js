@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requireAnyPermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { getPresignedUploadUrl, buildPublicUrl } from '@/lib/storage';
 import { MAX_STUDENT_PHOTO_BYTES, STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
@@ -7,9 +7,10 @@ import { MAX_STUDENT_PHOTO_BYTES, STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/stude
 // Step 1 of the Student photo upload, same presign-then-PUT-direct-to-R2
 // pattern as app/api/notices/upload-url/route.js — the file bytes never pass
 // through this Next.js server. Called before create/update (the student may
-// not have an id yet), so the key is keyed by timestamp, not studentId.
+// not have an id yet), so the key is keyed by timestamp, not studentId. Used
+// by both the Add and Edit Student forms, hence either permission.
 export async function POST(request) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requireAnyPermission(['students.create', 'students.update']);
   if (error) return error;
 
   const { fileName, fileType, fileSize } = await request.json();

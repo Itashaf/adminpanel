@@ -31,7 +31,7 @@ function Avatar({ initials, photoUrl, index }) {
   );
 }
 
-export default function StudentsTable({ students, selectedIds, onToggleSelect, onToggleSelectAll, onStudentDeleted, canManage = true }) {
+export default function StudentsTable({ students, selectedIds, onToggleSelect, onToggleSelectAll, onStudentDeleted, canManage = true, canEdit = canManage }) {
   const allSelected = students.length > 0 && students.every((student) => selectedIds.includes(student.id));
 
   return (
@@ -104,7 +104,7 @@ export default function StudentsTable({ students, selectedIds, onToggleSelect, o
                 </td>
                 {canManage && (
                   <td className="py-5 pr-6 text-center">
-                    <StudentActionsMenu student={student} onDeleted={onStudentDeleted} />
+                    <StudentActionsMenu student={student} onDeleted={onStudentDeleted} canEdit={canEdit} />
                   </td>
                 )}
               </tr>
@@ -138,7 +138,7 @@ export default function StudentsTable({ students, selectedIds, onToggleSelect, o
                   <p className="text-xs text-gray-400">{student.admissionId}</p>
                 </div>
               </label>
-              {canManage && <StudentActionsMenu student={student} />}
+              {canManage && <StudentActionsMenu student={student} canEdit={canEdit} />}
             </div>
 
             <div className="grid grid-cols-2 gap-y-2 mt-3 text-sm">

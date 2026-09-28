@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { applyFeeDiscount, removeFeeDiscount } from '@/lib/fees';
-import { requireSchoolAdmin } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
 
 export async function POST(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('fees.update');
   if (error) return error;
 
   const { id } = await params;
@@ -17,7 +17,7 @@ export async function POST(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = await requireSchoolAdmin();
+  const { error } = await requirePermission('fees.update');
   if (error) return error;
 
   const { id } = await params;
