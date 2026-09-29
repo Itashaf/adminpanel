@@ -153,11 +153,20 @@ const TEACHER_NAV_ITEMS = [
       { label: 'Daily Attendance', href: '/dashboard/attendance/daily', icon: FiCheckSquare },
     ],
   },
-  // Only meaningful for a Class Teacher — the page itself restricts the
-  // class picker to currentUser.classTeacherOf (see
-  // app/dashboard/academics/timetable/page.jsx), same convention as "My
-  // Exams" below.
-  { label: 'Time Table', href: '/dashboard/academics/timetable', icon: FiClock },
+  {
+    label: 'Academics',
+    icon: FiBookOpen,
+    basePath: '/dashboard/academics',
+    children: [
+      // Every Teacher can view any class's timetable now — only editing
+      // stays restricted to a Class Teacher's own class (see
+      // app/dashboard/academics/timetable/page.jsx).
+      { label: 'Time Table', href: '/dashboard/academics/timetable', icon: FiClock },
+      // Read-only for a Teacher — same whole-school events Admin sees, no
+      // Add/Edit drawer (see TeacherCalendarView.jsx).
+      { label: 'Calendar', href: '/dashboard/academics/calendar', icon: FiCalendar },
+    ],
+  },
   // Scoped content, not a scoped-away module — a Teacher sees/posts Notices
   // and Homework for their own classes (plus whole-school Notices), so this
   // stays a full nav entry rather than being hidden like Teachers/Classes.

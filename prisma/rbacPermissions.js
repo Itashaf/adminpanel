@@ -190,6 +190,9 @@ const ACCOUNTANT = [
   'fees.view', 'fees.create', 'fees.update', 'fees.collect', 'fees.refund', 'fees.receipt', 'fees.report',
   'reports.view', 'reports.export',
   'notices.view',
+  // View-only — timetable should be visible to everyone in the school, per
+  // the same "any signed-in user" bar as /api/classes/sections-map.
+  'timetable.view',
 ];
 
 // Read-only, own linked children — same scope note as Teacher: "own linked

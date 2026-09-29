@@ -24,23 +24,21 @@ export default async function TimeTablePage() {
   ]);
   if (!currentUser) redirect('/login');
 
-  // Class Teacher scope only (currentUser.classTeacherOf) — a Teacher only
-  // builds a timetable for a class+section they're actually the Class
-  // Teacher of, same convention as Daily Attendance. Restricting the map
-  // itself (not just the API) means the Dropdown never even offers another
-  // class to pick.
+  // Every signed-in user can VIEW any class's timetable (see
+  // app/api/timetable/route.js's assertCanViewTimetable) — the Dropdown
+  // always offers the school's full class list, never scoped down for
+  // Teachers the way it used to be. Editing stays scoped: Admin-tier edits
+  // any class, a Teacher only their own Class Teacher assignment
+  // (currentUser.classTeacherOf) — same convention as Daily Attendance.
   const isTeacher = currentUser.role === 'Teacher';
-  const scopedClassSections = isTeacher
-    ? Object.fromEntries(
-        (currentUser.classTeacherOf || []).map((c) => [c.class, c.allSections?.length ? c.allSections : [c.section]])
-      )
-    : classSections;
+  const ownedClassSections = isTeacher ? (currentUser.classTeacherOf || []).map((c) => ({ class: c.class, section: c.section })) : [];
 
   return (
     <TimeTableClient
-      classSections={scopedClassSections}
+      classSections={classSections}
       academicSession={activeSession?.name || ACADEMIC_SESSIONS[0]}
       canManageAllClasses={!isTeacher}
+      ownedClassSections={ownedClassSections}
     />
   );
 }

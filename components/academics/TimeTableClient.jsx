@@ -66,7 +66,7 @@ function withPeriodTimes(dayStartTime, periods) {
   });
 }
 
-export default function TimeTableClient({ classSections: initialClassSections, academicSession: initialSession, canManageAllClasses = true }) {
+export default function TimeTableClient({ classSections: initialClassSections, academicSession: initialSession, canManageAllClasses = true, ownedClassSections = [] }) {
   const classSections = useClassSections();
   const effectiveClassSections = Object.keys(classSections).length > 0 ? classSections : initialClassSections;
   const subjectOptions = useSubjects();
@@ -112,6 +112,14 @@ export default function TimeTableClient({ classSections: initialClassSections, a
   // Print Marksheet/exam schedules treating a blank sectionName as "the
   // whole class" rather than blocking on an impossible section pick.
   const classNeedsSection = selectedClass ? classHasSections(effectiveClassSections, selectedClass) : true;
+
+  // Viewing is open to everyone (see page.jsx) — editing stays scoped:
+  // Admin-tier may edit any class, a Teacher only the class+section they're
+  // actually the Class Teacher of. Every mutation entry point below (drag,
+  // popover, Save, Add Period, Clear All) is gated on this one flag.
+  const canEditSelected =
+    canManageAllClasses ||
+    ownedClassSections.some((o) => o.class === selectedClass && (!classNeedsSection || o.section === selectedSection));
 
   // Picks up the class/section from the URL (?class=&section=) so a
   // refresh (or a shared link) lands back on the same class — falls back to
@@ -200,6 +208,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
   };
 
   const openPopover = (e, p) => {
+    if (!canEditSelected) return;
     anchorElRef.current = e.currentTarget;
     setPopover(p);
   };
@@ -212,6 +221,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
   const periods = useMemo(() => withPeriodTimes(schedule?.dayStartTime || '07:00', schedule?.periods || []), [schedule]);
 
   const addPeriod = () => {
+    if (!canEditSelected) return;
     const newPeriod = { id: `${Date.now()}`, duration: sessionMinutes, isBreak: false };
     setSchedule((s) => ({ ...s, periods: [...s.periods, newPeriod] }));
   };
@@ -221,6 +231,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
   // own header popover, since a school's lunch length rarely matches its
   // regular class length.
   const applySessionMinutes = (minutes) => {
+    if (!canEditSelected) return;
     setSessionMinutes(minutes);
     setSchedule((s) => (s ? { ...s, periods: s.periods.map((p) => (p.isBreak ? p : { ...p, duration: minutes })) } : s));
   };
@@ -265,12 +276,14 @@ export default function TimeTableClient({ classSections: initialClassSections, a
   };
 
   const clearAll = () => {
+    if (!canEditSelected) return;
     setSchedule((s) => ({ ...s, cells: Object.fromEntries(DAYS.map((d) => [d, {}])) }));
     setConfirmClearAll(false);
     setMenuOpen(false);
   };
 
   const setDayStartTime = (value) => {
+    if (!canEditSelected) return;
     setSchedule((s) => (s ? { ...s, dayStartTime: value } : s));
   };
 
@@ -282,6 +295,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
 
   const handlePeriodDrop = (e, targetPeriodId) => {
     e.preventDefault();
+    if (!canEditSelected) return;
     const raw = e.dataTransfer.getData('text/plain');
     if (!raw) return;
     const payload = JSON.parse(raw);
@@ -311,6 +325,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
   // that's the moment that actually decides the outcome.
   const handleCellDrop = (e, targetDay, targetPeriodId) => {
     e.preventDefault();
+    if (!canEditSelected) return;
     const raw = e.dataTransfer.getData('text/plain');
     if (!raw) return;
     const payload = JSON.parse(raw);
@@ -354,15 +369,17 @@ export default function TimeTableClient({ classSections: initialClassSections, a
               View Timetables
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => handleSave()}
-            disabled={!schedule || isSaving}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FiSave className="w-4 h-4" />
-            {isSaving ? 'Saving...' : 'Save Timetable'}
-          </button>
+          {canEditSelected && (
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={!schedule || isSaving}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiSave className="w-4 h-4" />
+              {isSaving ? 'Saving...' : 'Save Timetable'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -421,17 +438,19 @@ export default function TimeTableClient({ classSections: initialClassSections, a
                 Copy Timetable
               </button>
             )}
-            <button
-              ref={menuAnchorRef}
-              type="button"
-              onClick={(e) => {
-                anchorElRef.current = e.currentTarget;
-                setMenuOpen((v) => !v);
-              }}
-              className="p-2.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition cursor-pointer"
-            >
-              <FiMoreVertical className="w-4 h-4" />
-            </button>
+            {canEditSelected && (
+              <button
+                ref={menuAnchorRef}
+                type="button"
+                onClick={(e) => {
+                  anchorElRef.current = e.currentTarget;
+                  setMenuOpen((v) => !v);
+                }}
+                className="p-2.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition cursor-pointer"
+              >
+                <FiMoreVertical className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -459,14 +478,16 @@ export default function TimeTableClient({ classSections: initialClassSections, a
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={addPeriod}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-indigo-600 border border-dashed border-indigo-200 hover:bg-indigo-50 transition cursor-pointer"
-              >
-                <FiPlus className="w-4 h-4" />
-                Add Period
-              </button>
+              {canEditSelected && (
+                <button
+                  type="button"
+                  onClick={addPeriod}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-indigo-600 border border-dashed border-indigo-200 hover:bg-indigo-50 transition cursor-pointer"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  Add Period
+                </button>
+              )}
               <a
                 href="/dashboard/academics/subjects"
                 onClick={handleManageSubjectsClick}
@@ -496,12 +517,12 @@ export default function TimeTableClient({ classSections: initialClassSections, a
                     <button
                       key={period.id}
                       type="button"
-                      draggable
+                      draggable={canEditSelected}
                       onDragStart={(e) => handlePeriodDragStart(e, period.id)}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => handlePeriodDrop(e, period.id)}
                       onClick={(e) => openPopover(e, { kind: 'period', periodId: period.id })}
-                      className={`px-2 py-2 border-b border-gray-100 text-center cursor-grab active:cursor-grabbing transition hover:bg-gray-100 ${
+                      className={`px-2 py-2 border-b border-gray-100 text-center transition hover:bg-gray-100 ${canEditSelected ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} ${
                         period.isBreak ? 'bg-gray-100' : 'bg-gray-50'
                       }`}
                     >
@@ -539,7 +560,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
                             <button
                               key={`${day}-${period.id}`}
                               type="button"
-                              draggable
+                              draggable={canEditSelected}
                               onDragStart={(e) => handleCellDragStart(e, day, period.id)}
                               onDragOver={(e) => {
                                 e.preventDefault();
@@ -547,7 +568,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
                               }}
                               onDrop={(e) => handleCellDrop(e, day, period.id)}
                               onClick={(e) => openPopover(e, { kind: 'cell', day, periodId: period.id })}
-                              className={`m-1 rounded-lg border px-1.5 py-1.5 text-left transition hover:opacity-80 cursor-grab active:cursor-grabbing ${color.bg} ${color.border}`}
+                              className={`m-1 rounded-lg border px-1.5 py-1.5 text-left transition hover:opacity-80 ${canEditSelected ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} ${color.bg} ${color.border}`}
                             >
                               <p className={`text-[10px] font-bold ${color.text}`}>{code}</p>
                               <p className={`text-[10px] font-medium ${color.text} truncate`}>{cell.subject}</p>

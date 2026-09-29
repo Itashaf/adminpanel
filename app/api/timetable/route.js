@@ -19,6 +19,18 @@ async function assertCanManageTimetable(className, sectionName) {
   return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
 }
 
+// Viewing a timetable is not a management action — any real signed-in
+// session may read any class's timetable (same "any signed-in user" bar as
+// /api/classes/sections-map), only PUT/DELETE stay scoped to
+// assertCanManageTimetable above.
+async function assertCanViewTimetable() {
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return { error: NextResponse.json({ error: 'Not signed in.' }, { status: 401 }) };
+  }
+  return {};
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const className = searchParams.get('className');
@@ -29,7 +41,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const { error: authError } = await assertCanManageTimetable(className, sectionName);
+  const { error: authError } = await assertCanViewTimetable();
   if (authError) return authError;
 
   const timeTable = await getTimeTable(className, sectionName, academicSession);
