@@ -488,14 +488,16 @@ export default function TimeTableClient({ classSections: initialClassSections, a
                   Add Period
                 </button>
               )}
-              <a
-                href="/dashboard/academics/subjects"
-                onClick={handleManageSubjectsClick}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition cursor-pointer"
-              >
-                <FiSettings className="w-4 h-4" />
-                Manage Subjects
-              </a>
+              {canManageAllClasses && (
+                <a
+                  href="/dashboard/academics/subjects"
+                  onClick={handleManageSubjectsClick}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition cursor-pointer"
+                >
+                  <FiSettings className="w-4 h-4" />
+                  Manage Subjects
+                </a>
+              )}
             </div>
           </div>
 
