@@ -167,17 +167,33 @@ const TEACHER_NAV_ITEMS = [
       { label: 'Calendar', href: '/dashboard/academics/calendar', icon: FiCalendar },
     ],
   },
-  // Scoped content, not a scoped-away module — a Teacher sees/posts Notices
-  // and Homework for their own classes (plus whole-school Notices), so this
-  // stays a full nav entry rather than being hidden like Teachers/Classes.
-  { label: 'Notices', href: '/dashboard/notices', icon: FiBell },
-  { label: 'Homework', href: '/dashboard/homework', icon: FiBook, featureKey: 'homework' },
-  // Only meaningful for a Class Teacher (they can add their own class's
-  // subjects to an exam's date sheet — see lib/examSchedules.js's
-  // assertCanManageSchedule); the page itself 404s for anyone else's exam.
-  { label: 'My Exams', href: '/dashboard/exams/list', icon: FiClipboard, featureKey: 'exams' },
-  { label: 'Marks Entry', href: '/dashboard/marks-entry', icon: FiEdit3, featureKey: 'exams' },
-  { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter, featureKey: 'exams' },
+  {
+    label: 'Communication',
+    icon: FiSend,
+    basePath: '/dashboard/notices',
+    children: [
+      // Scoped content, not a scoped-away module — a Teacher sees/posts
+      // Notices and Homework for their own classes (plus whole-school
+      // Notices), so this stays a full nav entry rather than being hidden
+      // like Teachers/Classes.
+      { label: 'Notices', href: '/dashboard/notices', icon: FiBell },
+      { label: 'Homework', href: '/dashboard/homework', icon: FiBook, featureKey: 'homework' },
+    ],
+  },
+  {
+    label: 'Exams',
+    icon: FiClipboard,
+    basePath: '/dashboard/exams',
+    featureKey: 'exams',
+    children: [
+      // Only meaningful for a Class Teacher (they can add their own class's
+      // subjects to an exam's date sheet — see lib/examSchedules.js's
+      // assertCanManageSchedule); the page itself 404s for anyone else's exam.
+      { label: 'My Exams', href: '/dashboard/exams/list', icon: FiClipboard },
+      { label: 'Marks Entry', href: '/dashboard/marks-entry', icon: FiEdit3 },
+      { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
+    ],
+  },
   { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward, featureKey: 'assessments' },
   {
     label: 'Students Report',

@@ -40,10 +40,18 @@ export default async function StudentsPage({ searchParams }) {
   // it in JS.
   const scopePairs = canManage ? null : currentUser.classTeacherOf || [];
 
+  // A Class Teacher lands on their own class already selected, not "All
+  // Classes" — same scope as scopePairs above (Section.classTeacherId, not
+  // subject assignments), just reflected in the filter UI instead of only
+  // the query. A URL param always wins (a bookmarked/shared link), and a
+  // Teacher who's Class Teacher of more than one section still starts
+  // unfiltered — there's no single "own class" to default to.
+  const ownClass = scopePairs?.length === 1 ? scopePairs[0] : null;
+
   const initialFilters = {
     search: '',
-    class: params?.class || '',
-    section: params?.section || '',
+    class: params?.class || ownClass?.class || '',
+    section: params?.section || ownClass?.section || '',
     status: '',
   };
 
