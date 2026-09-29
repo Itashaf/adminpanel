@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiArrowLeft,
@@ -101,7 +101,18 @@ export default function MonthlyReportForm({
 }) {
   const router = useRouter();
   const [activities, setActivities] = useState(report.activities);
-  const [holistic, setHolistic] = useState(report.holistic);
+  const [holistic, setHolisticState] = useState(report.holistic);
+  // Rapid pill clicks across categories land inside the same React batch,
+  // so a second handleHolisticPick call reading the `holistic` state
+  // variable would still see the pre-first-click value (stale closure) and
+  // silently drop that first pick when it builds `next`. A ref always
+  // holds the latest value synchronously, so back-to-back clicks never
+  // race each other.
+  const holisticRef = useRef(report.holistic);
+  const setHolistic = (value) => {
+    holisticRef.current = value;
+    setHolisticState(value);
+  };
   const [remarkText, setRemarkText] = useState(report.remarks?.remarkText || '');
   const [overallRating, setOverallRatingState] = useState(report.overallRating);
   const [status, setStatus] = useState(report.status);
@@ -137,7 +148,7 @@ export default function MonthlyReportForm({
   };
 
   const handleHolisticPick = async (category, value) => {
-    const next = { ...(holistic || {}), [category]: value };
+    const next = { ...(holisticRef.current || {}), [category]: value };
     const complete = HOLISTIC_CATEGORIES.every((c) => next[c.key]);
     setHolistic(next);
     if (!complete) return; // save once all 5 categories have a value
@@ -155,7 +166,7 @@ export default function MonthlyReportForm({
     setFormError('');
     try {
       await setMonthlyRemarks(report.studentId, { academicSession, month, remarkText });
-      setToastMessage('Remarks saved.');
+      setToastMessage('Report saved.');
       setStatus('COMPLETED');
     } catch (err) {
       setFormError(err.message);
@@ -436,6 +447,14 @@ export default function MonthlyReportForm({
 
         <div className="flex justify-end gap-2 mt-6 pt-5 border-t border-gray-100">
           <Button label="Generate PDF" variant="secondary" icon={<FiPrinter className="w-4 h-4" />} onClick={handlePrint} />
+          {!readOnly && (
+            <Button
+              label={savingRemarks ? 'Saving...' : 'Save Report'}
+              icon={<FiSave className="w-4 h-4" />}
+              onClick={handleSaveRemarks}
+              disabled={savingRemarks}
+            />
+          )}
         </div>
       </Section>
 
@@ -567,7 +586,7 @@ function AddTestModal({ academicSession, className, sectionName, subjects, teach
       }
     >
       {error && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3 mb-3">{error}</p>}
-      <div className="space-y-3">
+      <div className="space-y-3 pb-[10px]">
         <Dropdown placeholder="Subject" value={subjectId} onChange={setSubjectId} options={subjects} />
         {!isTeacher && <Dropdown placeholder="Teacher" value={teacherId} onChange={setTeacherId} options={teacherOptions} searchable />}
         <input
@@ -631,7 +650,7 @@ function AddActivityModal({ onClose, onAdd }) {
       }
     >
       {error && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3 mb-3">{error}</p>}
-      <div className="space-y-3">
+      <div className="space-y-3 pt-[10px] pb-[10px]">
         <input
           type="text"
           placeholder="Activity name (e.g. Inter-school Debate)"
