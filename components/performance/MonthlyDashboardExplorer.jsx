@@ -7,10 +7,8 @@ import {
   FiUsers,
   FiCheckCircle,
   FiClock,
-  FiLock,
   FiArrowRight,
   FiUpload,
-  FiDownload,
   FiPrinter,
   FiFileText,
 } from 'react-icons/fi';
@@ -18,30 +16,12 @@ import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
 import Toast from '@/components/Toast';
 import Pagination from '@/components/Pagination';
-import { getMonthlyDashboard, getMonthlyReport, lockMonthlyReport } from '@/lib/api';
+import { getMonthlyDashboard, getMonthlyReport } from '@/lib/api';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
 import { printMonthlyReport, printMonthlyReportsBulk } from './printMonthlyReport';
-import PerformanceTabs from './PerformanceTabs';
+import BulkImportModal from './BulkImportModal';
 
 const PAGE_SIZE = 10;
-
-// Same palette/component shape as StudentsTable.jsx's Avatar — this table
-// is styled to match that one exactly, so it reuses the same convention
-// rather than a different one.
-const AVATAR_COLORS = ['bg-blue-500', 'bg-violet-700', 'bg-purple-500', 'bg-indigo-600', 'bg-pink-500', 'bg-cyan-600'];
-
-function initialsOf(name) {
-  const parts = (name || '').trim().split(/\s+/);
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
-}
-
-function Avatar({ name, index }) {
-  return (
-    <span className={`flex items-center justify-center w-10 h-10 rounded-full text-white text-sm font-semibold shrink-0 ${AVATAR_COLORS[index % AVATAR_COLORS.length]}`}>
-      {initialsOf(name)}
-    </span>
-  );
-}
 
 const STATUS_STYLE = {
   DRAFT: { label: 'Draft', dot: 'bg-gray-400', className: 'bg-gray-100 text-gray-500' },
@@ -67,6 +47,7 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
   const [busyRowId, setBusyRowId] = useState(null);
   const [isBulkBusy, setIsBulkBusy] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const classSections = useClassSections();
 
   const refresh = () => {
@@ -123,19 +104,6 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
     }
   };
 
-  const handleLockRow = async (studentId) => {
-    setBusyRowId(studentId);
-    setError('');
-    try {
-      await lockMonthlyReport(studentId, { academicSession, month });
-      refresh();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusyRowId(null);
-    }
-  };
-
   // "Print Selected" / "Generate PDFs" — same combined print job (every
   // selected student's report as its own page, see printMonthlyReportsBulk)
   // under two labels, matching the reference's two separate buttons for
@@ -156,33 +124,8 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
     }
   };
 
-  // "Lock Selected" — sequential, not Promise.all: each lock call also
-  // writes a ReportLock audit row, and running them one at a time keeps
-  // "3 of 12 failed" reporting simple and avoids hammering the DB with a
-  // burst of concurrent transactions for a large section.
-  const handleLockSelected = async () => {
-    if (selectedIds.size === 0) return;
-    setIsBulkBusy(true);
-    setError('');
-    let succeeded = 0;
-    const failures = [];
-    for (const id of selectedIds) {
-      try {
-        await lockMonthlyReport(id, { academicSession, month });
-        succeeded += 1;
-      } catch (err) {
-        failures.push(err.message);
-      }
-    }
-    setIsBulkBusy(false);
-    setToastMessage(failures.length === 0 ? `${succeeded} report(s) locked.` : `${succeeded} locked, ${failures.length} failed.`);
-    refresh();
-  };
-
   return (
     <div className="space-y-6">
-      <PerformanceTabs />
-
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Monthly Reports</h1>
@@ -190,15 +133,7 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
         </div>
         {canManage && (
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/performance/monthly/import">
-              <Button label="Import Excel" variant="secondary" icon={<FiDownload className="w-4 h-4" />} />
-            </Link>
-            <Link href="/dashboard/performance/monthly/import">
-              <Button label="Download Template" variant="secondary" icon={<FiDownload className="w-4 h-4" />} />
-            </Link>
-            <Link href="/dashboard/performance/monthly/import">
-              <Button label="Bulk Import" icon={<FiUpload className="w-4 h-4" />} />
-            </Link>
+            <Button label="Bulk Import" icon={<FiUpload className="w-4 h-4" />} onClick={() => setShowBulkImport(true)} />
           </div>
         )}
       </div>
@@ -262,7 +197,7 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
         <p className="text-sm text-gray-400 text-center py-8">Loading...</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-2xl p-5 bg-indigo-50">
               <div className="flex items-center gap-2 text-indigo-500 text-xs font-medium uppercase tracking-wide">
                 <FiUsers className="w-4 h-4" /> Total Students
@@ -285,15 +220,6 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
               <p className="text-3xl font-bold text-gray-900 mt-2">{data.cards.pendingReports}</p>
               <p className="text-xs text-gray-400 mt-0.5">
                 {data.cards.totalStudents > 0 ? Math.round((data.cards.pendingReports / data.cards.totalStudents) * 100) : 0}% of students
-              </p>
-            </div>
-            <div className="rounded-2xl p-5 bg-emerald-50">
-              <div className="flex items-center gap-2 text-emerald-600 text-xs font-medium uppercase tracking-wide">
-                <FiLock className="w-4 h-4" /> Locked Reports
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{data.cards.lockedReports}</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {data.cards.totalStudents > 0 ? Math.round((data.cards.lockedReports / data.cards.totalStudents) * 100) : 0}% of students
               </p>
             </div>
           </div>
@@ -319,12 +245,6 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
                   variant="secondary"
                   icon={<FiFileText className="w-4 h-4" />}
                   onClick={handlePrintSelected}
-                  disabled={isBulkBusy || selectedIds.size === 0}
-                />
-                <Button
-                  label={isBulkBusy ? 'Locking...' : 'Lock Selected'}
-                  icon={<FiLock className="w-4 h-4" />}
-                  onClick={handleLockSelected}
                   disabled={isBulkBusy || selectedIds.size === 0}
                 />
               </div>
@@ -357,7 +277,7 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {pagedRows.map((r, index) => {
+                    {pagedRows.map((r) => {
                       const status = STATUS_STYLE[r.status] || { label: r.status, dot: 'bg-gray-400', className: 'bg-gray-100 text-gray-500' };
                       return (
                         <tr key={r.studentId} className="hover:bg-gray-50/60 transition">
@@ -372,12 +292,9 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
                             </td>
                           )}
                           <td className={`py-5 pr-4 ${canManage ? '' : 'pl-6'}`}>
-                            <div className="flex items-center gap-3">
-                              <Avatar name={r.studentName} index={index} />
-                              <div>
-                                <p className="font-semibold text-gray-900">{r.studentName}</p>
-                                <p className="text-xs text-gray-400">{r.admissionId}</p>
-                              </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">{r.studentName}</p>
+                              <p className="text-xs text-gray-400">{r.admissionId}</p>
                             </div>
                           </td>
                           <td className="py-5 pr-4">
@@ -410,17 +327,6 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
                               >
                                 <FiFileText className="w-4 h-4" />
                               </button>
-                              {canManage && (
-                                <button
-                                  type="button"
-                                  onClick={() => r.status !== 'LOCKED' && handleLockRow(r.studentId)}
-                                  disabled={busyRowId === r.studentId || r.status === 'LOCKED'}
-                                  className={`cursor-pointer ${r.status === 'LOCKED' ? 'text-emerald-500 cursor-default' : 'text-gray-400 hover:text-emerald-600'} disabled:opacity-60`}
-                                  title={r.status === 'LOCKED' ? 'Locked' : 'Lock Report'}
-                                >
-                                  <FiLock className="w-4 h-4" />
-                                </button>
-                              )}
                               <Link
                                 href={`/dashboard/performance/monthly/${r.studentId}?academicSession=${encodeURIComponent(academicSession)}&month=${month}`}
                                 className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
@@ -448,6 +354,17 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
       )}
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        classOptions={classOptions}
+        defaultAcademicSession={academicSession}
+        defaultMonth={month}
+        defaultClassName={className}
+        defaultSectionName={sectionName}
+        onImported={refresh}
+      />
     </div>
   );
 }

@@ -63,7 +63,6 @@ export default async function MonthlyStudentReportPage({ params, searchParams })
       month={month}
       sessionOptions={sessions.map((s) => ({ value: s.name, label: s.name }))}
       canManage={can.manage}
-      canUnlock={can.manage && Boolean(rbacUser) && rbacUser.roleKey !== 'Teacher'}
       school={school}
       canManageTests={canManageTests}
       isTeacher={isTeacher}

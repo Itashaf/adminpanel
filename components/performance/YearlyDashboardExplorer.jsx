@@ -2,32 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FiSearch, FiUsers, FiCheckCircle, FiClock, FiArrowRight, FiFileText } from 'react-icons/fi';
+import { FiSearch, FiUsers, FiCheckCircle, FiClock, FiArrowRight, FiFileText, FiPrinter } from 'react-icons/fi';
+import Button from '@/components/Button';
 import Dropdown from '@/components/Dropdown';
 import Pagination from '@/components/Pagination';
 import { getYearlyDashboard, getYearlyReport } from '@/lib/api';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
-import { printYearlyReport } from './printYearlyReport';
-import PerformanceTabs from './PerformanceTabs';
+import { printYearlyReport, printYearlyReportsBulk } from './printYearlyReport';
 
 const PAGE_SIZE = 10;
-
-// Same palette/component as StudentsTable.jsx's Avatar / Monthly Reports'
-// table — all three tables in this app share one look.
-const AVATAR_COLORS = ['bg-blue-500', 'bg-violet-700', 'bg-purple-500', 'bg-indigo-600', 'bg-pink-500', 'bg-cyan-600'];
-
-function initialsOf(name) {
-  const parts = (name || '').trim().split(/\s+/);
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
-}
-
-function Avatar({ name, index }) {
-  return (
-    <span className={`flex items-center justify-center w-10 h-10 rounded-full text-white text-sm font-semibold shrink-0 ${AVATAR_COLORS[index % AVATAR_COLORS.length]}`}>
-      {initialsOf(name)}
-    </span>
-  );
-}
 
 const RATING_STYLE = {
   EXCELLENT: { label: 'Excellent', dot: 'bg-emerald-600', className: 'bg-emerald-50 text-emerald-700' },
@@ -45,6 +28,8 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busyRowId, setBusyRowId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isBulkBusy, setIsBulkBusy] = useState(false);
   const classSections = useClassSections();
 
   const handleGeneratePdf = async (studentId) => {
@@ -60,9 +45,28 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
     }
   };
 
+  // Same "one combined print job" convention as MonthlyDashboardExplorer's
+  // Print Selected — this app has never generated a downloadable PDF file
+  // server-side, this just opens the browser's print dialog with every
+  // selected student's report as its own page.
+  const handlePrintSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setIsBulkBusy(true);
+    setError('');
+    try {
+      const reports = await Promise.all([...selectedIds].map((id) => getYearlyReport(id, { academicSession })));
+      printYearlyReportsBulk({ school, reports, academicSession });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsBulkBusy(false);
+    }
+  };
+
   useEffect(() => {
     if (!academicSession) return;
     setError('');
+    setSelectedIds(new Set());
     getYearlyDashboard({ academicSession, class: className, section: sectionName, search })
       .then(setData)
       .catch((err) => setError(err.message));
@@ -76,10 +80,26 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
     setPage(1);
   };
 
+  const allPagedSelected = pagedRows.length > 0 && pagedRows.every((r) => selectedIds.has(r.studentId));
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPagedSelected) pagedRows.forEach((r) => next.delete(r.studentId));
+      else pagedRows.forEach((r) => next.add(r.studentId));
+      return next;
+    });
+  };
+  const toggleSelectOne = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-6">
-      <PerformanceTabs />
-
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Yearly Reports</h1>
         <p className="text-sm text-gray-500 mt-1">View and manage students&apos; yearly performance reports.</p>
@@ -156,9 +176,22 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
             </div>
           </div>
 
-          <div>
-            <h3 className="text-base font-bold text-gray-900">Students ({data.rows.length})</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Manage yearly reports for all students</p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Students ({data.rows.length})</h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Manage yearly reports for all students'}
+              </p>
+            </div>
+            {canManage && (
+              <Button
+                label={isBulkBusy ? 'Printing...' : 'Print Selected'}
+                variant="secondary"
+                icon={<FiPrinter className="w-4 h-4" />}
+                onClick={handlePrintSelected}
+                disabled={isBulkBusy || selectedIds.size === 0}
+              />
+            )}
           </div>
 
           {/* Same wrapper/spacing/colors/fonts as StudentsTable.jsx. */}
@@ -170,7 +203,12 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      <th className="py-4 pl-6 pr-4">Student &amp; ID</th>
+                      {canManage && (
+                        <th className="py-4 pl-6 pr-3 w-10">
+                          <input type="checkbox" checked={allPagedSelected} onChange={toggleSelectAll} className="w-[18px] h-[18px] rounded-md border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                        </th>
+                      )}
+                      <th className={`py-4 pr-4 ${canManage ? '' : 'pl-6'}`}>Student &amp; ID</th>
                       <th className="py-4 pr-4">Class / Section</th>
                       <th className="py-4 pr-4">Attendance %</th>
                       <th className="py-4 pr-4">Academic Avg</th>
@@ -181,15 +219,22 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {pagedRows.map((r, index) => {
+                    {pagedRows.map((r) => {
                       const rating = r.finalRating ? RATING_STYLE[r.finalRating] : null;
                       return (
                         <tr key={r.studentId} className="hover:bg-gray-50/60 transition">
-                          <td className="py-5 pl-6 pr-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar name={r.studentName} index={index} />
-                              <p className="font-semibold text-gray-900">{r.studentName}</p>
-                            </div>
+                          {canManage && (
+                            <td className="py-5 pl-6 pr-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(r.studentId)}
+                                onChange={() => toggleSelectOne(r.studentId)}
+                                className="w-[18px] h-[18px] rounded-md border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              />
+                            </td>
+                          )}
+                          <td className={`py-5 pr-4 ${canManage ? '' : 'pl-6'}`}>
+                            <p className="font-semibold text-gray-900">{r.studentName}</p>
                           </td>
                           <td className="py-5 pr-4">
                             <div className="flex items-center gap-2">

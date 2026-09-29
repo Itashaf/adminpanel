@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import { FiArrowLeft, FiCalendar, FiBook, FiAward, FiUsers, FiTrendingUp, FiMessageSquare, FiPrinter } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
 import Button from '@/components/Button';
-import { Avatar } from '@/components/settings/RolesPermissionsExplorer';
 import GrowthTrendChart from './GrowthTrendChart';
 import { printYearlyReport } from './printYearlyReport';
-import { setYearlyRating, setYearlyRemark, lockYearlyReport, unlockYearlyReport } from '@/lib/api';
+import { setYearlyRating, setYearlyRemark } from '@/lib/api';
 
 const ACHIEVEMENT_LABEL = { PARTICIPANT: 'Participant', FIRST: '1st', SECOND: '2nd', THIRD: '3rd', SPECIAL_MENTION: 'Special Mention' };
 const HOLISTIC_LABEL = { EXCELLENT: 'Excellent', GOOD: 'Good', SUPPORT: 'Support' };
@@ -35,46 +34,22 @@ const STATUS_BADGE = {
   LOCKED: 'bg-emerald-50 text-emerald-700',
 };
 
-export default function YearlyReportView({ report, academicSession, sessionOptions, canManage, canUnlock, school }) {
+export default function YearlyReportView({ report, academicSession, sessionOptions, canManage, school }) {
   const router = useRouter();
   const [finalRating, setFinalRating] = useState(report.finalRating);
   const [teacherRemark, setTeacherRemark] = useState(report.teacherRemark || '');
   const [status, setStatus] = useState(report.status);
   const [savingRemark, setSavingRemark] = useState(false);
-  const [isLocking, setIsLocking] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // A report that was locked before this feature was removed from the UI
+  // still renders read-only — the schema/backend lock state is untouched,
+  // only the Lock/Unlock controls are gone.
   const isLocked = status === 'LOCKED';
   const readOnly = isLocked || !canManage;
 
   const handlePrint = () => {
     printYearlyReport({ school, academicSession, report: { ...report, finalRating, teacherRemark } });
-  };
-
-  const handleLock = async () => {
-    setIsLocking(true);
-    setFormError('');
-    try {
-      const locked = await lockYearlyReport(report.studentId, { academicSession });
-      setStatus(locked.status);
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setIsLocking(false);
-    }
-  };
-
-  const handleUnlock = async () => {
-    setIsLocking(true);
-    setFormError('');
-    try {
-      const unlocked = await unlockYearlyReport(report.studentId, { academicSession });
-      setStatus(unlocked.status);
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setIsLocking(false);
-    }
   };
 
   const changeSession = (nextSession) => {
@@ -119,7 +94,6 @@ export default function YearlyReportView({ report, academicSession, sessionOptio
 
       {/* Student Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5">
-        <Avatar name={report.studentName} photoUrl={report.photoUrl} seed={0} />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{report.studentName}</h1>
           <p className="text-sm text-gray-400 mt-0.5">{report.admissionId}</p>
@@ -137,12 +111,6 @@ export default function YearlyReportView({ report, academicSession, sessionOptio
           <Dropdown value={academicSession} onChange={changeSession} options={sessionOptions} />
         </div>
       </div>
-
-      {isLocked && (
-        <p className="text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2.5">
-          This report is locked — read-only, except Attendance which always shows live data.
-        </p>
-      )}
 
       {/* Yearly Attendance */}
       <Section icon={FiCalendar} iconBg="bg-cyan-100 text-cyan-700" title="Yearly Attendance" subtitle="Auto-generated, always live">
@@ -263,13 +231,6 @@ export default function YearlyReportView({ report, academicSession, sessionOptio
 
         <div className="flex justify-end gap-2 mt-6 pt-5 border-t border-gray-100">
           <Button label="Generate PDF" variant="secondary" icon={<FiPrinter className="w-4 h-4" />} onClick={handlePrint} />
-          {isLocked
-            ? canUnlock && (
-                <Button label={isLocking ? 'Unlocking...' : 'Unlock Report'} variant="secondary" onClick={handleUnlock} disabled={isLocking} />
-              )
-            : canManage && (
-                <Button label={isLocking ? 'Locking...' : 'Lock Report'} onClick={handleLock} disabled={isLocking} />
-              )}
         </div>
       </Section>
     </div>

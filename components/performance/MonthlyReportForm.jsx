@@ -36,8 +36,6 @@ import {
   setMonthlyHolistic,
   setMonthlyRemarks,
   setMonthlyRating,
-  lockMonthlyReport,
-  unlockMonthlyReport,
   createSubjectTest,
 } from '@/lib/api';
 
@@ -89,18 +87,12 @@ function monthLabel(month) {
   return new Date(Number(year), Number(m) - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
-function initialsOf(name) {
-  const parts = (name || '').trim().split(/\s+/);
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
-}
-
 export default function MonthlyReportForm({
   report,
   academicSession,
   month,
   sessionOptions,
   canManage,
-  canUnlock,
   school,
   canManageTests,
   isTeacher,
@@ -116,10 +108,12 @@ export default function MonthlyReportForm({
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAddTest, setShowAddTest] = useState(false);
   const [savingRemarks, setSavingRemarks] = useState(false);
-  const [isLocking, setIsLocking] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [formError, setFormError] = useState('');
 
+  // A report locked before this feature was removed from the UI still
+  // renders read-only — the schema/backend lock state is untouched, only
+  // the Lock/Unlock controls are gone.
   const isLocked = status === 'LOCKED';
   const readOnly = isLocked || !canManage;
 
@@ -170,34 +164,6 @@ export default function MonthlyReportForm({
     }
   };
 
-  const handleLock = async () => {
-    setIsLocking(true);
-    setFormError('');
-    try {
-      const locked = await lockMonthlyReport(report.studentId, { academicSession, month });
-      setStatus(locked.status);
-      setToastMessage('Report locked.');
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setIsLocking(false);
-    }
-  };
-
-  const handleUnlock = async () => {
-    setIsLocking(true);
-    setFormError('');
-    try {
-      const unlocked = await unlockMonthlyReport(report.studentId, { academicSession, month });
-      setStatus(unlocked.status);
-      setToastMessage('Report unlocked.');
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setIsLocking(false);
-    }
-  };
-
   const handlePrint = () => {
     printMonthlyReport({
       school,
@@ -236,12 +202,6 @@ export default function MonthlyReportForm({
 
       {formError && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{formError}</p>}
 
-      {isLocked && (
-        <p className="text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2.5">
-          This report was locked on {new Date(report.lockedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} — read-only, except Attendance which always shows live data.
-        </p>
-      )}
-
       {/* Student Details + Attendance — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Student Header */}
@@ -250,9 +210,6 @@ export default function MonthlyReportForm({
             <div className="pointer-events-none absolute -bottom-10 -right-10 w-48 h-48 rounded-full bg-white/40 blur-2xl" />
             <div className="pointer-events-none absolute bottom-0 right-0 w-40 h-40 rounded-full border-[24px] border-indigo-100/50" />
             <div className="relative flex items-center gap-4">
-              <span className="flex items-center justify-center w-16 h-16 rounded-full text-white text-xl font-bold shrink-0 bg-gradient-to-br from-violet-600 to-blue-600">
-                {initialsOf(report.studentName)}
-              </span>
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl font-bold text-gray-900">{report.studentName}</h1>
                 <p className="text-sm text-gray-500 mt-0.5">{report.admissionId}</p>
@@ -479,13 +436,6 @@ export default function MonthlyReportForm({
 
         <div className="flex justify-end gap-2 mt-6 pt-5 border-t border-gray-100">
           <Button label="Generate PDF" variant="secondary" icon={<FiPrinter className="w-4 h-4" />} onClick={handlePrint} />
-          {isLocked
-            ? canUnlock && (
-                <Button label={isLocking ? 'Unlocking...' : 'Unlock Report'} variant="secondary" onClick={handleUnlock} disabled={isLocking} />
-              )
-            : canManage && (
-                <Button label={isLocking ? 'Locking...' : 'Lock Report'} onClick={handleLock} disabled={isLocking} />
-              )}
         </div>
       </Section>
 

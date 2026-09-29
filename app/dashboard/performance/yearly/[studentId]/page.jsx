@@ -44,7 +44,6 @@ export default async function YearlyStudentReportPage({ params, searchParams }) 
       academicSession={academicSession}
       sessionOptions={sessions.map((s) => ({ value: s.name, label: s.name }))}
       canManage={can.manage}
-      canUnlock={can.manage && Boolean(rbacUser) && rbacUser.roleKey !== 'Teacher'}
       school={school}
     />
   );
