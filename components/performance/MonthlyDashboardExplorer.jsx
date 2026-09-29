@@ -20,6 +20,7 @@ import { getMonthlyDashboard, getMonthlyReport } from '@/lib/api';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
 import { printMonthlyReport, printMonthlyReportsBulk } from './printMonthlyReport';
 import BulkImportModal from './BulkImportModal';
+import PerformanceListSkeleton from './PerformanceListSkeleton';
 
 const PAGE_SIZE = 10;
 
@@ -194,7 +195,7 @@ export default function MonthlyDashboardExplorer({ classOptions, sessionOptions,
           <span className="font-medium text-gray-600">Manage This School</span> for the school you want to view first.
         </p>
       ) : !data ? (
-        <p className="text-sm text-gray-400 text-center py-8">Loading...</p>
+        <PerformanceListSkeleton statCount={3} />
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

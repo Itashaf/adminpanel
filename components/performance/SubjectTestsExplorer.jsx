@@ -10,6 +10,7 @@ import DatePicker from '@/components/DatePicker';
 import Pagination from '@/components/Pagination';
 import { getSubjectTests, createSubjectTest } from '@/lib/api';
 import { useClassSections, getSectionOptions, classHasSections } from '@/lib/hooks/useClassSections';
+import PerformanceListSkeleton from './PerformanceListSkeleton';
 
 const PAGE_SIZE = 10;
 
@@ -133,7 +134,7 @@ export default function SubjectTestsExplorer({ classOptions, sessionOptions, def
           <span className="font-medium text-gray-600">Manage This School</span> for the school you want to view first.
         </p>
       ) : !tests ? (
-        <p className="text-sm text-gray-400 text-center py-8">Loading...</p>
+        <PerformanceListSkeleton statCount={4} />
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
