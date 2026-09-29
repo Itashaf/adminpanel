@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
-export default function DashboardShell({ children, school, activeSession, sessions, currentUser, userInfo, permissions = null, pendingLeaveCount = 0 }) {
+export default function DashboardShell({ children, school, activeSession, sessions, currentUser, userInfo, permissions = null, pendingLeaveCount = 0, isClassTeacher = false }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // A real signed-in session (userInfo, from lib/iam.js's getCurrentUserInfo)
@@ -27,6 +27,7 @@ export default function DashboardShell({ children, school, activeSession, sessio
         role={effectiveRole}
         permissions={permissions}
         pendingLeaveCount={pendingLeaveCount}
+        isClassTeacher={isClassTeacher}
       />
       <div className="flex flex-col flex-1 min-w-0">
         <Topbar

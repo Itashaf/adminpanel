@@ -9,7 +9,7 @@ import Dropdown from '@/components/Dropdown';
 import DatePicker from '@/components/DatePicker';
 import Pagination from '@/components/Pagination';
 import { getSubjectTests, createSubjectTest } from '@/lib/api';
-import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
+import { useClassSections, getSectionOptions, classHasSections } from '@/lib/hooks/useClassSections';
 
 const PAGE_SIZE = 10;
 
@@ -273,9 +273,11 @@ function CreateTestModal({ academicSession, sessionOptions, classOptions, classS
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const needsSection = className ? classHasSections(classSections, className) : true;
+
   const handleSubmit = async () => {
     setError('');
-    if (!className || !sectionName || !subjectId || !testName || !testDate || !maxMarks || (!isTeacher && !teacherId)) {
+    if (!className || (needsSection && !sectionName) || !subjectId || !testName || !testDate || !maxMarks || (!isTeacher && !teacherId)) {
       setError('All fields are required.');
       return;
     }
@@ -324,7 +326,13 @@ function CreateTestModal({ academicSession, sessionOptions, classOptions, classS
             }}
             options={classOptions}
           />
-          <Dropdown placeholder="Section" value={sectionName} onChange={setSectionName} options={getSectionOptions(classSections, className)} disabled={!className} />
+          <Dropdown
+            placeholder={!className ? 'Section' : needsSection ? 'Section' : 'No sections for this class'}
+            value={sectionName}
+            onChange={setSectionName}
+            options={getSectionOptions(classSections, className)}
+            disabled={!className || !needsSection}
+          />
         </div>
         <Dropdown placeholder="Subject" value={subjectId} onChange={setSubjectId} options={subjects} />
         {!isTeacher && <Dropdown placeholder="Teacher" value={teacherId} onChange={setTeacherId} options={teacherOptions} searchable />}

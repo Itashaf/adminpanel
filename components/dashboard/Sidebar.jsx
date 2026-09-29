@@ -200,8 +200,12 @@ const TEACHER_NAV_ITEMS = [
     icon: FiTrendingUp,
     basePath: '/dashboard/performance',
     children: [
-      { label: 'Monthly Reports', href: '/dashboard/performance/monthly', icon: FiClipboard, permKey: 'performanceReports.view' },
-      { label: 'Yearly Reports', href: '/dashboard/performance/yearly', icon: FiTrendingUp, permKey: 'performanceReports.view' },
+      // Monthly/Yearly Reports are a Class Teacher's own homeroom
+      // reporting — a Teacher who isn't a Class Teacher of any class only
+      // gets Subject Tests (they can still test/grade a subject they
+      // teach without owning a homeroom). See filterByClassTeacher below.
+      { label: 'Monthly Reports', href: '/dashboard/performance/monthly', icon: FiClipboard, permKey: 'performanceReports.view', classTeacherOnly: true },
+      { label: 'Yearly Reports', href: '/dashboard/performance/yearly', icon: FiTrendingUp, permKey: 'performanceReports.view', classTeacherOnly: true },
       { label: 'Subject Tests', href: '/dashboard/performance/tests', icon: FiFileText, permKey: 'performanceReports.view' },
     ],
   },
@@ -238,6 +242,21 @@ function filterByPermissions(navItems, permissions) {
         return children.length ? { ...item, children } : null;
       }
       return item.permKey && !has(item.permKey) ? null : item;
+    })
+    .filter(Boolean);
+}
+
+// Drops a `classTeacherOnly` child for a Teacher who isn't the Class
+// Teacher of any class — Admin-tier never has this flag on anything so
+// it's a no-op for them regardless of the flag passed in.
+function filterByClassTeacher(navItems, isClassTeacher) {
+  return navItems
+    .map((item) => {
+      if (item.children) {
+        const children = item.children.filter((child) => !child.classTeacherOnly || isClassTeacher);
+        return children.length ? { ...item, children } : null;
+      }
+      return item.classTeacherOnly && !isClassTeacher ? null : item;
     })
     .filter(Boolean);
 }
@@ -296,12 +315,15 @@ function NavGroup({ item, pathname, isExpanded, onToggle }) {
   );
 }
 
-export default function Sidebar({ isOpen = false, onClose, school, role, permissions = null, pendingLeaveCount = 0 }) {
+export default function Sidebar({ isOpen = false, onClose, school, role, permissions = null, pendingLeaveCount = 0, isClassTeacher = false }) {
   const pathname = usePathname();
   const displayName = school?.displayName || 'SchoolApp 360';
-  const navItems = filterByPermissions(
-    filterByFeatures(role === 'Teacher' ? TEACHER_NAV_ITEMS : ADMIN_NAV_ITEMS, school?.disabledFeatures),
-    permissions
+  const navItems = filterByClassTeacher(
+    filterByPermissions(
+      filterByFeatures(role === 'Teacher' ? TEACHER_NAV_ITEMS : ADMIN_NAV_ITEMS, school?.disabledFeatures),
+      permissions
+    ),
+    isClassTeacher
   );
   // Accordion: only one group's children are expanded at a time. Starts
   // open on whichever group contains the current page (same default the

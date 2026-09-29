@@ -24,6 +24,12 @@ export default async function DashboardLayout({ children }) {
   // everything for someone who's otherwise validly signed in.
   const permissions = rbacUser ? [...rbacUser.permissions] : null;
 
+  // Class Teacher of at least one section — gates the Sidebar's Monthly/
+  // Yearly Reports children (see Sidebar.jsx's filterByClassTeacher); a
+  // Teacher who only teaches a subject, without owning a homeroom, still
+  // gets Subject Tests.
+  const isClassTeacher = (userInfo?.classTeacherOf?.length ?? 0) > 0;
+
   // Sidebar badge on "Leave Requests" — an Admin's only real-time signal for
   // a new request, since (unlike Teacher/Parent) SchoolAdmin has no mobile
   // app and no registered push tokens (see lib/pushTokens.js) to send a push
@@ -44,6 +50,7 @@ export default async function DashboardLayout({ children }) {
       userInfo={userInfo}
       permissions={permissions}
       pendingLeaveCount={pendingLeaveCount}
+      isClassTeacher={isClassTeacher}
     >
       {children}
     </DashboardShell>
