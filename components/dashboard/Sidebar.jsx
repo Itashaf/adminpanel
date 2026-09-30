@@ -26,7 +26,6 @@ import {
   FiBookOpen,
   FiClock,
   FiSend,
-  FiAward,
   FiTrendingUp,
   FiFileText,
 } from 'react-icons/fi';
@@ -113,7 +112,6 @@ const ADMIN_NAV_ITEMS = [
       { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter, permKey: 'results.view' },
     ],
   },
-  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward, featureKey: 'assessments' },
   {
     label: 'Students Report',
     icon: FiTrendingUp,
@@ -194,7 +192,6 @@ const TEACHER_NAV_ITEMS = [
       { label: 'Print Marksheet', href: '/dashboard/print-marksheet', icon: FiPrinter },
     ],
   },
-  { label: 'Assessments', href: '/dashboard/assessments', icon: FiAward, featureKey: 'assessments' },
   {
     label: 'Students Report',
     icon: FiTrendingUp,

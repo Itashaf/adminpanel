@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FiClock, FiCheckCircle } from 'react-icons/fi';
+import { FiClock, FiCheckCircle, FiPlay } from 'react-icons/fi';
 import { checkInForToday } from '@/lib/api';
 
 function formatTime(iso) {
@@ -26,39 +26,50 @@ export default function TeacherCheckInCard({ initialStatus }) {
     }
   };
 
-  if (status.checkedIn) {
-    return (
-      <div className="flex items-center gap-3 rounded-2xl bg-green-50 border border-green-100 px-5 py-4">
-        <span className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-green-600 shrink-0">
-          <FiCheckCircle className="w-5 h-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-green-800">Checked in for today</p>
-          <p className="text-xs text-green-600 mt-0.5">at {formatTime(status.checkInAt)}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl bg-white border border-gray-100 shadow-sm px-5 py-4">
-      <div className="flex items-center gap-3">
-        <span className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 text-amber-600 shrink-0">
-          <FiClock className="w-5 h-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-gray-900">You haven't checked in today</p>
-          {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 h-full flex flex-col">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
+            <FiClock className="w-4 h-4" />
+          </span>
+          <h2 className="text-base font-bold text-gray-900">Attendance Status</h2>
         </div>
+        <span
+          className={`text-xs font-semibold rounded-full px-3 py-1 shrink-0 ${
+            status.checkedIn ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+          }`}
+        >
+          {status.checkedIn ? `Checked in at ${formatTime(status.checkInAt)}` : "You haven't checked in today"}
+        </span>
       </div>
-      <button
-        type="button"
-        onClick={handleCheckIn}
-        disabled={isSubmitting}
-        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer disabled:opacity-60 shrink-0"
-      >
-        {isSubmitting ? 'Checking in...' : 'Check In'}
-      </button>
+
+      <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-5">
+        <div className="min-w-0">
+          <p className="text-2xl font-bold text-gray-900">{status.checkedIn ? 'Checked In' : 'Not Checked In'}</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {status.checkedIn ? 'You are checked in for today.' : 'Check in to start your school day.'}
+          </p>
+          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </div>
+
+        {status.checkedIn ? (
+          <span className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium text-green-700 bg-green-50 shrink-0">
+            <FiCheckCircle className="w-4 h-4" />
+            Checked In
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleCheckIn}
+            disabled={isSubmitting}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer disabled:opacity-60 shrink-0"
+          >
+            <FiPlay className="w-4 h-4" />
+            {isSubmitting ? 'Checking in...' : 'Check In'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

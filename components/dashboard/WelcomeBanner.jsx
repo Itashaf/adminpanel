@@ -72,8 +72,9 @@ export default function WelcomeBanner({ name, snapshot }) {
       <div className="relative px-5 sm:px-7 py-6 sm:py-7">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              {greeting}, {name} 👋
+            <p className="text-[11px] font-semibold text-blue-100/80 uppercase tracking-wide">{greeting}</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-0.5">
+              {name} 👋
             </h1>
             <p className="text-sm text-blue-100/90 mt-1">
               {today} · Here&apos;s what&apos;s happening at your school today.

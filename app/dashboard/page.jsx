@@ -220,38 +220,59 @@ async function TeacherDashboard({ currentUser }) {
     <div className="space-y-6">
       <WelcomeBanner name={actor?.name || currentUser.name} />
 
-      {checkInStatus && <TeacherCheckInCard initialStatus={checkInStatus} />}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {checkInStatus && <TeacherCheckInCard initialStatus={checkInStatus} />}
+        <MyClassesCard classRows={classRows} />
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard
+        <TeacherStatTile
           label="My Classes"
           value={stats.totalClasses}
-          icon={<FiFileText className="w-4 h-4 text-violet-700" />}
-          iconBgClassName="bg-violet-100"
+          icon={<FiFileText className="w-4 h-4" />}
+          tone="violet"
         />
-        <StatCard
+        <TeacherStatTile
           label="My Students"
           value={stats.totalStudents}
-          icon={<FiUsers className="w-4 h-4 text-blue-600" />}
-          iconBgClassName="bg-blue-100"
+          icon={<FiUsers className="w-4 h-4" />}
+          tone="blue"
         />
-        <StatCard
+        <TeacherStatTile
           label="Today's Attendance"
           value={`${stats.attendanceMarkedCount}/${stats.attendanceTotal}`}
-          icon={<FiCheckSquare className="w-4 h-4 text-green-600" />}
-          iconBgClassName="bg-green-100"
+          icon={<FiCheckSquare className="w-4 h-4" />}
+          tone="green"
         />
-        <StatCard
+        <TeacherStatTile
           label="Active Homework"
           value={stats.activeHomeworkCount}
-          icon={<FiBook className="w-4 h-4 text-amber-600" />}
-          iconBgClassName="bg-amber-100"
+          icon={<FiBook className="w-4 h-4" />}
+          tone="amber"
         />
       </div>
 
-      <MyClassesCard classRows={classRows} />
-
       <TeacherQuickLists recentNotices={recentNotices} upcomingHomework={upcomingHomework} />
+    </div>
+  );
+}
+
+const STAT_TILE_TONE = {
+  violet: 'bg-violet-50 text-violet-600',
+  blue: 'bg-blue-50 text-blue-600',
+  green: 'bg-green-50 text-green-600',
+  amber: 'bg-amber-50 text-amber-600',
+};
+
+// Same pastel-tile convention as the Students Report dashboards (Monthly/
+// Yearly/Subject Tests) — icon in its own tint circle, small uppercase
+// label, big bold number, no border/shadow chrome needed on a light bg.
+function TeacherStatTile({ label, value, icon, tone }) {
+  return (
+    <div className={`rounded-2xl p-5 ${STAT_TILE_TONE[tone]}`}>
+      <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/70 shrink-0">{icon}</span>
+      <p className="text-xs font-medium uppercase tracking-wide mt-3 opacity-80">{label}</p>
+      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
     </div>
   );
 }

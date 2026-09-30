@@ -93,10 +93,10 @@ export default function StudentsTable({ students, selectedIds, onToggleSelect, o
                   </div>
                 </td>
                 <td className="py-5 pr-4">
-                  <p className="font-medium text-gray-900">{student.guardian.fullName}</p>
+                  <p className="font-medium text-gray-900">{student.guardian?.fullName || '—'}</p>
                   <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
                     <FiPhone className="w-3 h-3" />
-                    {student.guardian.phone}
+                    {student.guardian?.phone || '—'}
                   </p>
                 </td>
                 <td className="py-5 pr-4">
@@ -152,7 +152,7 @@ export default function StudentsTable({ students, selectedIds, onToggleSelect, o
               </div>
               <div className="col-span-2">
                 <p className="text-xs text-gray-400">Parent/Guardian</p>
-                <p className="text-gray-700">{student.guardian.fullName} · {student.guardian.phone}</p>
+                <p className="text-gray-700">{student.guardian?.fullName || '—'} · {student.guardian?.phone || '—'}</p>
               </div>
             </div>
           </div>

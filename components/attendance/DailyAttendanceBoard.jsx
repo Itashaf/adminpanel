@@ -23,8 +23,15 @@ export default function DailyAttendanceBoard({ initialSession, initialDate, clas
   // page reads, not a per-page override.
   const session = initialSession;
   const [date, setDate] = useState(initialDate);
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedSection, setSelectedSection] = useState('');
+  // A Class Teacher of exactly one class+section lands on it already
+  // selected instead of "Select Class" — same default as the All Students
+  // page (app/dashboard/students/page.jsx's ownClass). A Teacher who's
+  // Class Teacher of more than one section still starts unfiltered, same
+  // reasoning as there: no single "own class" to default to.
+  const ownClass =
+    currentUser.role === 'Teacher' && currentUser.assignedClasses?.length === 1 ? currentUser.assignedClasses[0] : null;
+  const [selectedClass, setSelectedClass] = useState(ownClass?.class || '');
+  const [selectedSection, setSelectedSection] = useState(ownClass?.section || '');
   const [search, setSearch] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);

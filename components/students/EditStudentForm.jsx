@@ -53,13 +53,13 @@ export default function EditStudentForm({ student, classOptions }) {
     feePaymentStatus: student.feeDetails?.paymentStatus || '',
     outstandingDues: student.feeDetails?.outstandingDues || '',
     guardian: {
-      relationship: student.guardian.relationship,
-      fullName: student.guardian.fullName,
-      phone: student.guardian.phone,
-      email: student.guardian.email || '',
-      occupation: student.guardian.occupation || '',
-      aadhaarNumber: student.guardian.aadhaarNumber || '',
-      aadhaarDocument: student.guardian.aadhaarDocumentUrl || student.guardian.aadhaarDocumentName || '',
+      relationship: student.guardian?.relationship || '',
+      fullName: student.guardian?.fullName || '',
+      phone: student.guardian?.phone || '',
+      email: student.guardian?.email || '',
+      occupation: student.guardian?.occupation || '',
+      aadhaarNumber: student.guardian?.aadhaarNumber || '',
+      aadhaarDocument: student.guardian?.aadhaarDocumentUrl || student.guardian?.aadhaarDocumentName || '',
     },
     secondaryGuardian: student.secondaryGuardian
       ? {
