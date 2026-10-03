@@ -155,7 +155,7 @@ function printReceipt(student, fee, school = {}) {
   win.focus();
 }
 
-export default function StudentFeeDetailPanel({ studentId, academicSession, autoCollect = false, onClose, onCollected, school }) {
+export default function StudentFeeDetailPanel({ studentId, academicSession, autoCollect = false, onClose, onCollected, school, className = '' }) {
   const [student, setStudent] = useState(null);
   const [fees, setFees] = useState(null);
   const [error, setError] = useState('');
@@ -235,7 +235,16 @@ export default function StudentFeeDetailPanel({ studentId, academicSession, auto
   const latestPaidFee = (fees || []).filter((f) => f.paidAmount > 0).slice(-1)[0];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-fit sticky top-4">
+    // `sticky` must land on the actual flex item the parent row lays out —
+    // applying it to a child nested one level inside a separate flex-item
+    // wrapper div measurably fails to stick in this app's nested flex shell
+    // (DashboardShell's row-flex > col-flex > `main` overflow-y-auto chain),
+    // confirmed via a live CDP repro: identical markup sticks correctly when
+    // `sticky` is the flex item itself, and silently no-ops (scrolls 1:1
+    // with the page) when it's one div deeper. `className` lets the caller
+    // pass the sizing classes (`w-full lg:w-96 shrink-0`) that used to live
+    // on that now-removed wrapper, straight onto this root instead.
+    <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm h-fit sticky top-4 ${className}`}>
       <div className="flex items-start justify-between p-5 border-b border-gray-100">
         {student ? (
           <div className="flex items-center gap-3 min-w-0">

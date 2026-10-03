@@ -3,9 +3,10 @@
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 // Always keeps the first/last page and a small window around the current
-// page, collapsing everything else into a single '...' — without this a
-// roster with enough pages (e.g. 82 students / 5 per page = 17 pages) renders
-// every single page number and overflows/wraps the pagination bar.
+// page, collapsing every other gap into a single '...' — including a gap
+// of exactly one hidden page (e.g. page 4 of 19 is "1 ... 3 4 5 ... 19",
+// not "1 2 3 4 5 ... 19"); silently revealing that one hidden number
+// instead of collapsing it is what made the list read as too busy.
 function getPageItems(page, totalPages, siblingCount = 1) {
   const delta = siblingCount;
   const range = [];
@@ -18,13 +19,7 @@ function getPageItems(page, totalPages, siblingCount = 1) {
   const items = [];
   let previous;
   for (const i of range) {
-    if (previous !== undefined) {
-      if (i - previous === 2) {
-        items.push(previous + 1);
-      } else if (i - previous !== 1) {
-        items.push('...');
-      }
-    }
+    if (previous !== undefined && i - previous !== 1) items.push('...');
     items.push(i);
     previous = i;
   }

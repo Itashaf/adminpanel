@@ -32,7 +32,7 @@ export default async function ParentDashboardPage() {
   const [fees, attendance, notices, homework] = await Promise.all([
     getStudentFees(student.id, student.academicSession),
     getStudentAttendanceStats(student.id, {}),
-    getNoticesForStudent(student),
+    getNoticesForStudent(student, actor.id),
     getHomeworkForStudent(student),
   ]);
 

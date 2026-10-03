@@ -55,7 +55,9 @@ export default function TeacherQuickLists({ recentNotices, upcomingHomework }) {
           <div key={notice.id} className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{notice.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{notice.audience === 'Whole School' ? 'Whole School' : `${notice.className} • Sec ${notice.sectionName}`}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {notice.audience === 'Class' ? `${notice.className}${notice.sectionName ? ` • Sec ${notice.sectionName}` : ''}` : notice.audience}
+              </p>
             </div>
             <Badge label={notice.priority} variant={PRIORITY_VARIANTS[notice.priority]} />
           </div>

@@ -17,6 +17,22 @@ import { createFeeStructure, createFeeStructuresBulk, updateFeeStructure } from 
 
 const EMPTY_TERMS = { T1: [], T2: [], T3: [], T4: [] };
 const EMPTY_TERM_DATES = { T1: '', T2: '', T3: '', T4: '' };
+
+// Quarterly default for a brand-new structure — Apr 1 / Jul 1 / Oct 1 / Jan 1
+// of whatever academic session it's for, so Generate Fees never needs a
+// manual click for a term again (the daily cron handles it — see
+// lib/fees.js's generateDueStudentFees). Still fully editable in the form
+// below before saving, this is just the starting point instead of blank.
+function quarterlyTermDates(academicSession) {
+  const startYear = Number((academicSession || '').split('-')[0]);
+  if (!startYear) return EMPTY_TERM_DATES;
+  return {
+    T1: `${startYear}-04-01`,
+    T2: `${startYear}-07-01`,
+    T3: `${startYear}-10-01`,
+    T4: `${startYear + 1}-01-01`,
+  };
+}
 const REQUIRED_OPTIONS = [
   { value: 'required', label: 'Required' },
   { value: 'optional', label: 'Optional' },
@@ -408,11 +424,12 @@ export default function FeeStructureFormModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    const newSession = duplicateFrom?.academicSession || defaultSession || sessionOptions[0]?.value || '';
     reset(
       isEdit
         ? { academicSession: structure.academicSession, className: structure.className, name: structure.name }
         : {
-            academicSession: duplicateFrom?.academicSession || defaultSession || sessionOptions[0]?.value || '',
+            academicSession: newSession,
             className: '',
             name: '',
           }
@@ -423,7 +440,7 @@ export default function FeeStructureFormModal({
         ? { ...EMPTY_TERM_DATES, ...structure.termDates }
         : duplicateFrom
         ? { ...EMPTY_TERM_DATES, ...duplicateFrom.termDates }
-        : EMPTY_TERM_DATES
+        : quarterlyTermDates(newSession)
     );
     setSelectedClasses(isEdit ? [structure.className] : []);
     setClassError('');

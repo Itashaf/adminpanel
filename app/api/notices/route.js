@@ -4,9 +4,9 @@ import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
 
 // GET /api/notices — same visibility rule as the web dashboard's notice
-// board: everyone sees "Whole School" notices, a Teacher additionally sees
-// "Class" notices for their own assigned class+section (see
-// lib/notices.js's getVisibleNotices). Uses getCurrentUserInfo() (not
+// board: see lib/notices.js's getVisibleNotices for the full per-audience
+// breakdown (All Staff/All Parents/Role/Class/Individual). Uses
+// getCurrentUserInfo() (not
 // getCurrentActor()) because this only needs to serve a real signed-in
 // session — mobile's Teacher/Parent JWT or a web SchoolAdmin cookie — not
 // the web dashboard's role-preview toggle.

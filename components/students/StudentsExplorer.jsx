@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FiUploadCloud, FiPlus, FiLoader } from 'react-icons/fi';
 import StudentsHeader from './StudentsHeader';
@@ -9,8 +10,9 @@ import StudentsToolbar from './StudentsToolbar';
 import BulkActionsBar from './BulkActionsBar';
 import StudentsTable from './StudentsTable';
 import BulkImportModal from './BulkImportModal';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 import { getStudentsPage as fetchStudentsPage } from '@/lib/api';
 
 const EMPTY_FILTERS = { search: '', class: '', section: '', status: '' };
@@ -33,10 +35,18 @@ export default function StudentsExplorer({
   canEdit = canManage,
   pageSize = 10,
 }) {
+  const searchParams = useSearchParams();
   const [studentsList, setStudentsList] = useState(initialStudents);
   const [total, setTotal] = useState(initialTotal);
-  const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, ...initialFilters }));
-  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState(() => ({
+    ...EMPTY_FILTERS,
+    ...initialFilters,
+    search: searchParams.get('search') || initialFilters?.search || '',
+    status: searchParams.get('status') || initialFilters?.status || '',
+  }));
+  const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
+
+  useUrlSync({ ...filters, page }, { ...EMPTY_FILTERS, page: 1 });
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -56,15 +66,22 @@ export default function StudentsExplorer({
     setTotal(initialTotal);
   }
 
-  // Skip the very first effect run — the initial page/filters already match
-  // what the server component fetched and passed in as props, so an
-  // immediate re-fetch on mount would just duplicate that request.
-  const isFirstRun = useRef(true);
+  // React 18 Strict Mode double-invokes this effect once in dev (mount →
+  // cleanup → mount again), reusing the SAME ref instance — a plain "skip
+  // the first run" boolean flag gets flipped by the first invocation and
+  // no longer skips the second, firing a spurious re-fetch of the exact
+  // same first page a moment after load (the table briefly dims under the
+  // loading overlay even though nothing actually changed). Comparing
+  // against an immutable baseline captured once at mount, instead of a
+  // flag that mutates, stays correct under the double-invoke: both
+  // invocations re-evaluate the same (page, filters) vs baseline
+  // comparison and both skip, while a real user-driven change (which does
+  // change page/filters) still fetches exactly as before.
+  const baselineRef = useRef({ page, filters });
   useEffect(() => {
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      return;
-    }
+    const isUnchanged =
+      page === baselineRef.current.page && JSON.stringify(filters) === JSON.stringify(baselineRef.current.filters);
+    if (isUnchanged) return;
     let cancelled = false;
     // Debounced so typing in the search box doesn't fire one request per
     // keystroke — page/filter-dropdown changes still feel instant since
@@ -114,7 +131,6 @@ export default function StudentsExplorer({
     // filter would otherwise see no change at all).
     setFilters(EMPTY_FILTERS);
     setPage(1);
-    isFirstRun.current = false;
     refetchCurrentPage();
   };
 
@@ -144,7 +160,7 @@ export default function StudentsExplorer({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <StudentsHeader canManage={canManage} />
 
@@ -209,14 +225,10 @@ export default function StudentsExplorer({
           ) : (
             <p className="text-sm text-gray-500 text-center py-10">No students match your filters.</p>
           )}
-
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-100">
-              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} />
-            </div>
-          )}
         </div>
       </div>
+
+      <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} itemLabel="students" />
 
       {canManage && (
         <BulkImportModal isOpen={showBulkImport} onClose={() => setShowBulkImport(false)} onImported={handleImported} />

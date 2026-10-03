@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { bulkCreateStudents } from '@/lib/students';
+import { generateFeesForNewStudent } from '@/lib/fees';
 import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
@@ -13,7 +14,11 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No rows to import' }, { status: 400 });
   }
 
-  const { imported, skipped } = await bulkCreateStudents(rows, await resolveSchoolId());
+  const schoolId = await resolveSchoolId();
+  const { imported, skipped } = await bulkCreateStudents(rows, schoolId);
+  // Best-effort, one per imported student — see generateFeesForNewStudent's
+  // own doc comment; never allowed to fail the import response.
+  await Promise.all(imported.map((student) => generateFeesForNewStudent(schoolId, student)));
   return NextResponse.json({
     importedCount: imported.length,
     // Full decorated student records (not just id/admissionId) — the

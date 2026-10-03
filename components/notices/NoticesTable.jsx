@@ -34,9 +34,11 @@ function NoticeAttachmentLink({ notice }) {
 }
 
 function audienceLabelFor(notice) {
-  return notice.audience === 'Whole School'
-    ? 'Whole School'
-    : `${notice.className}${notice.sectionName ? ` • Sec ${notice.sectionName}` : ''}`;
+  if (notice.audience === 'All Staff') return 'All Staff';
+  if (notice.audience === 'All Parents') return 'All Parents';
+  if (notice.audience === 'Role') return `Role: ${notice.targetRoleKey}`;
+  if (notice.audience === 'Individual') return `${notice.recipientType}: ${notice.recipientName || notice.recipientId}`;
+  return `${notice.className}${notice.sectionName ? ` • Sec ${notice.sectionName}` : ''}`;
 }
 
 function DetailChip({ icon: Icon, value }) {
@@ -71,7 +73,7 @@ function NoticeDetailModal({ notice, isOpen, onClose }) {
 // (each fully mounted, just CSS-hidden on the other breakpoint, same
 // convention StudentsTable already uses) share one implementation instead of
 // two copies of the same modal/confirm/toast wiring.
-function NoticeRowActions({ notice, sessionOptions, defaultSession, currentUser }) {
+function NoticeRowActions({ notice, sessionOptions, defaultSession, currentUser, teacherOptions, parentOptions }) {
   const router = useRouter();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -107,6 +109,8 @@ function NoticeRowActions({ notice, sessionOptions, defaultSession, currentUser 
         sessionOptions={sessionOptions}
         defaultSession={defaultSession}
         currentUser={currentUser}
+        teacherOptions={teacherOptions}
+        parentOptions={parentOptions}
         onSuccess={(message) => {
           setShowEditModal(false);
           setToastMessage(message);
@@ -129,7 +133,7 @@ function NoticeRowActions({ notice, sessionOptions, defaultSession, currentUser 
   );
 }
 
-function NoticeTableRow({ notice, serialNumber, canManage, sessionOptions, defaultSession, currentUser }) {
+function NoticeTableRow({ notice, serialNumber, canManage, sessionOptions, defaultSession, currentUser, teacherOptions, parentOptions }) {
   const [showDetail, setShowDetail] = useState(false);
 
   return (
@@ -153,7 +157,7 @@ function NoticeTableRow({ notice, serialNumber, canManage, sessionOptions, defau
         <td className="py-4 pr-6">
           <div className="flex items-center justify-end gap-2">
             {canManage && (
-              <NoticeRowActions notice={notice} sessionOptions={sessionOptions} defaultSession={defaultSession} currentUser={currentUser} />
+              <NoticeRowActions notice={notice} sessionOptions={sessionOptions} defaultSession={defaultSession} currentUser={currentUser} teacherOptions={teacherOptions} parentOptions={parentOptions} />
             )}
           </div>
         </td>
@@ -164,7 +168,7 @@ function NoticeTableRow({ notice, serialNumber, canManage, sessionOptions, defau
   );
 }
 
-function NoticeMobileCard({ notice, serialNumber, canManage, sessionOptions, defaultSession, currentUser }) {
+function NoticeMobileCard({ notice, serialNumber, canManage, sessionOptions, defaultSession, currentUser, teacherOptions, parentOptions }) {
   const [showDetail, setShowDetail] = useState(false);
 
   return (
@@ -193,7 +197,7 @@ function NoticeMobileCard({ notice, serialNumber, canManage, sessionOptions, def
           </div>
         </div>
         {canManage && (
-          <NoticeRowActions notice={notice} sessionOptions={sessionOptions} defaultSession={defaultSession} currentUser={currentUser} />
+          <NoticeRowActions notice={notice} sessionOptions={sessionOptions} defaultSession={defaultSession} currentUser={currentUser} teacherOptions={teacherOptions} parentOptions={parentOptions} />
         )}
       </div>
 
@@ -202,7 +206,7 @@ function NoticeMobileCard({ notice, serialNumber, canManage, sessionOptions, def
   );
 }
 
-export default function NoticesTable({ notices, serialStart = 1, canManageFor, sessionOptions, defaultSession, currentUser }) {
+export default function NoticesTable({ notices, serialStart = 1, canManageFor, sessionOptions, defaultSession, currentUser, teacherOptions = [], parentOptions = [] }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       {notices.length === 0 ? (
@@ -232,6 +236,8 @@ export default function NoticesTable({ notices, serialStart = 1, canManageFor, s
                     sessionOptions={sessionOptions}
                     defaultSession={defaultSession}
                     currentUser={currentUser}
+                    teacherOptions={teacherOptions}
+                    parentOptions={parentOptions}
                   />
                 ))}
               </tbody>
@@ -248,6 +254,8 @@ export default function NoticesTable({ notices, serialStart = 1, canManageFor, s
                 sessionOptions={sessionOptions}
                 defaultSession={defaultSession}
                 currentUser={currentUser}
+                teacherOptions={teacherOptions}
+                parentOptions={parentOptions}
               />
             ))}
           </div>

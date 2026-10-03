@@ -18,8 +18,19 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const { error: authError, user: actor } = await requirePermission('exams.manage');
+  const { error: authError } = await requirePermission('exams.manage');
   if (authError) return authError;
+
+  // requirePermission's own `user` is the RBAC-shaped actor (`roleKey`,
+  // `permissions`) — lib/exams.js's assertIsAdmin/assertCanSetExamStatus
+  // check the legacy shape (`role`, `teacherId`) instead, same convention
+  // app/api/notices/route.js already uses: requirePermission is only the
+  // coarse "can even attempt this" gate, getCurrentUserInfo() is the actor
+  // actually passed into the lib function.
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   const { id } = await params;
   const data = await request.json();
@@ -29,7 +40,7 @@ export async function PUT(request, { params }) {
   }
 
   try {
-    const exam = await updateExam(id, data, actor);
+    const exam = await updateExam(id, data, currentUser);
     if (!exam) {
       return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
     }
@@ -40,13 +51,18 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error: authError, user: actor } = await requirePermission('exams.manage');
+  const { error: authError } = await requirePermission('exams.manage');
   if (authError) return authError;
+
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   const { id } = await params;
 
   try {
-    const deleted = await deleteExam(id, actor);
+    const deleted = await deleteExam(id, currentUser);
     if (!deleted) {
       return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
     }

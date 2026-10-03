@@ -4,6 +4,7 @@ import SchoolStatsCards from '@/components/superadmin/SchoolStatsCards';
 import SchoolOverviewCard from '@/components/superadmin/SchoolOverviewCard';
 import SchoolAdminCard from '@/components/superadmin/SchoolAdminCard';
 import SchoolFeaturesCard from '@/components/superadmin/SchoolFeaturesCard';
+import SchoolPaymentSettingsCard from '@/components/superadmin/SchoolPaymentSettingsCard';
 import { getSchoolDirectoryEntry } from '@/lib/schools';
 import { getAdminBySchoolId } from '@/lib/admins';
 
@@ -25,6 +26,7 @@ export default async function SchoolDetailsPage({ params }) {
       <SchoolStatsCards school={school} />
       <SchoolAdminCard school={school} admin={admin} />
       <SchoolFeaturesCard school={school} />
+      <SchoolPaymentSettingsCard school={school} />
       <SchoolOverviewCard school={school} />
     </div>
   );

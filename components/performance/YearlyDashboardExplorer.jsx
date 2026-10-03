@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FiSearch, FiUsers, FiCheckCircle, FiClock, FiArrowRight, FiFileText, FiPrinter } from 'react-icons/fi';
 import Button from '@/components/Button';
+import KPICard from '@/components/dashboard/KPICard';
 import Dropdown from '@/components/Dropdown';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import { getYearlyDashboard, getYearlyReport } from '@/lib/api';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 import { printYearlyReport, printYearlyReportsBulk } from './printYearlyReport';
 import PerformanceListSkeleton from './PerformanceListSkeleton';
 
@@ -21,11 +24,17 @@ const RATING_STYLE = {
 };
 
 export default function YearlyDashboardExplorer({ classOptions, sessionOptions, defaultAcademicSession, canManage, school }) {
-  const [academicSession, setAcademicSession] = useState(defaultAcademicSession);
-  const [className, setClassName] = useState('');
-  const [sectionName, setSectionName] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const searchParams = useSearchParams();
+  const [academicSession, setAcademicSession] = useState(() => searchParams.get('session') || defaultAcademicSession);
+  const [className, setClassName] = useState(() => searchParams.get('class') || '');
+  const [sectionName, setSectionName] = useState(() => searchParams.get('section') || '');
+  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+  const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
+
+  useUrlSync(
+    { session: academicSession, class: className, section: sectionName, q: search, page },
+    { session: defaultAcademicSession, class: '', section: '', q: '', page: 1 }
+  );
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busyRowId, setBusyRowId] = useState(null);
@@ -100,11 +109,19 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Yearly Reports</h1>
         <p className="text-sm text-gray-500 mt-1">View and manage students&apos; yearly performance reports.</p>
       </div>
+
+      {academicSession && data && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <KPICard label="Total Students" icon={<FiUsers className="w-4 h-4" />} value={data.cards.totalStudents} />
+          <KPICard label="Reports Generated" icon={<FiCheckCircle className="w-4 h-4" />} value={data.cards.reportsGenerated} />
+          <KPICard label="Reports Pending" icon={<FiClock className="w-4 h-4" />} value={data.cards.reportsPending} />
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end">
         <div className="w-40">
@@ -153,30 +170,9 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
           <span className="font-medium text-gray-600">Manage This School</span> for the school you want to view first.
         </p>
       ) : !data ? (
-        <PerformanceListSkeleton statCount={3} />
+        <PerformanceListSkeleton statCount={0} />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-2xl p-5 bg-indigo-50">
-              <div className="flex items-center gap-2 text-indigo-500 text-xs font-medium uppercase tracking-wide">
-                <FiUsers className="w-4 h-4" /> Total Students
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{data.cards.totalStudents}</p>
-            </div>
-            <div className="rounded-2xl p-5 bg-emerald-50">
-              <div className="flex items-center gap-2 text-emerald-600 text-xs font-medium uppercase tracking-wide">
-                <FiCheckCircle className="w-4 h-4" /> Reports Generated
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{data.cards.reportsGenerated}</p>
-            </div>
-            <div className="rounded-2xl p-5 bg-amber-50">
-              <div className="flex items-center gap-2 text-amber-600 text-xs font-medium uppercase tracking-wide">
-                <FiClock className="w-4 h-4" /> Reports Pending
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{data.cards.reportsPending}</p>
-            </div>
-          </div>
-
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h3 className="text-base font-bold text-gray-900">Students ({data.rows.length})</h3>
@@ -289,14 +285,11 @@ export default function YearlyDashboardExplorer({ classOptions, sessionOptions, 
               </div>
             )}
 
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-100">
-                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={data.rows.length} pageSize={PAGE_SIZE} itemLabel="students" />
-              </div>
-            )}
           </div>
         </>
       )}
+
+      <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={data?.rows.length ?? 0} pageSize={PAGE_SIZE} itemLabel="students" />
     </div>
   );
 }

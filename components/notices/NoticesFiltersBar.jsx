@@ -2,7 +2,7 @@
 
 import { FiSearch, FiFlag, FiUsers, FiLayers, FiRotateCcw } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
-import { NOTICE_PRIORITIES } from '@/lib/noticeConstants';
+import { NOTICE_AUDIENCES, NOTICE_PRIORITIES } from '@/lib/noticeConstants';
 
 export default function NoticesFiltersBar({ filters, onFilterChange, onReset, classOptions }) {
   const handleChange = (key) => (value) => onFilterChange({ ...filters, [key]: value });
@@ -28,10 +28,7 @@ export default function NoticesFiltersBar({ filters, onFilterChange, onReset, cl
             icon={<FiUsers className="w-4 h-4" />}
             value={filters.audience}
             onChange={handleChange('audience')}
-            options={[
-              { value: 'Whole School', label: 'Whole School' },
-              { value: 'Class', label: 'Class' },
-            ]}
+            options={NOTICE_AUDIENCES.map((a) => ({ value: a, label: a }))}
           />
         </div>
 

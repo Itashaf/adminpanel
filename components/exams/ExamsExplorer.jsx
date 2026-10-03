@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { FiPlus } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import Dropdown from '@/components/Dropdown';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import ExamsFiltersBar from './ExamsFiltersBar';
 import ExamCard, { EXAM_GRID_COLS } from './ExamCard';
 import ExamFormModal from './ExamFormModal';
 import ExamsEmptyState from './ExamsEmptyState';
 import { useClassSections } from '@/lib/hooks/useClassSections';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 
 const PAGE_SIZE = 10;
 
@@ -24,7 +25,9 @@ export default function ExamsExplorer({ exams, sessionOptions, defaultSession, e
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [showAddModal, setShowAddModal] = useState(false);
+  // Dashboard's "Create Exam" quick action links here with ?compose=1 so the
+  // create-exam modal opens immediately instead of landing on a bare list.
+  const [showAddModal, setShowAddModal] = useState(() => searchParams.get('compose') === '1');
   const [toastMessage, setToastMessage] = useState('');
   const [selectedSession, setSelectedSession] = useState(() => searchParams.get('session') || '');
   const [selectedClass, setSelectedClass] = useState(() => searchParams.get('class') || '');
@@ -41,26 +44,10 @@ export default function ExamsExplorer({ exams, sessionOptions, defaultSession, e
     setPage(1);
   };
 
-  // Debounced so typing in the search box doesn't fire a URL replace (and a
-  // matching RSC round-trip) on every keystroke — only the settled value
-  // lands in the URL, keeping filters/sort/page/search shareable & reloadable.
-  const syncTimer = useRef(null);
-  useEffect(() => {
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => {
-      const params = new URLSearchParams();
-      if (selectedSession) params.set('session', selectedSession);
-      if (selectedClass) params.set('class', selectedClass);
-      if (selectedStatus) params.set('status', selectedStatus);
-      if (selectedType) params.set('type', selectedType);
-      if (search) params.set('q', search);
-      if (sortBy !== 'latest') params.set('sort', sortBy);
-      if (page !== 1) params.set('page', String(page));
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    }, 300);
-    return () => clearTimeout(syncTimer.current);
-  }, [selectedSession, selectedClass, selectedStatus, selectedType, search, sortBy, page, pathname, router]);
+  useUrlSync(
+    { session: selectedSession, class: selectedClass, status: selectedStatus, type: selectedType, q: search, sort: sortBy, page },
+    { session: '', class: '', status: '', type: '', q: '', sort: 'latest', page: 1 }
+  );
 
   const filteredExams = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -177,17 +164,14 @@ export default function ExamsExplorer({ exams, sessionOptions, defaultSession, e
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-30 bg-gray-50 border-t border-gray-100 px-4 sm:px-6 py-3 print:hidden">
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          totalCount={filteredExams.length}
-          pageSize={PAGE_SIZE}
-          itemLabel="exams"
-          alwaysShow
-        />
-      </div>
+      <FixedPaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={filteredExams.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="exams"
+      />
 
       <ExamFormModal
         isOpen={showAddModal}

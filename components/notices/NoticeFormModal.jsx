@@ -3,24 +3,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FiUsers, FiLayers, FiGrid, FiFlag, FiCalendar, FiPaperclip, FiX, FiUploadCloud } from 'react-icons/fi';
+import { FiUsers, FiLayers, FiGrid, FiFlag, FiCalendar, FiPaperclip, FiX, FiUploadCloud, FiPlus, FiShield, FiUser } from 'react-icons/fi';
 import Modal from '@/components/Modal';
 import Input from '@/components/Input';
 import Dropdown from '@/components/Dropdown';
 import DatePicker from '@/components/DatePicker';
 import Button from '@/components/Button';
 import { noticeSchema } from '@/lib/schemas';
-import { NOTICE_AUDIENCES, NOTICE_PRIORITIES, MAX_NOTICE_ATTACHMENT_BYTES } from '@/lib/noticeConstants';
+import { NOTICE_AUDIENCES, NOTICE_ROLE_TARGETS, NOTICE_RECIPIENT_TYPES, NOTICE_PRIORITIES, MAX_NOTICE_ATTACHMENT_BYTES } from '@/lib/noticeConstants';
 import { createNotice, updateNotice, uploadNoticeAttachment } from '@/lib/api';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
 
 const EMPTY_VALUES = {
   title: '',
   message: '',
-  audience: 'Whole School',
+  audience: 'All Staff',
   academicSession: '',
   className: '',
   sectionName: '',
+  targetRoleKey: '',
+  recipientType: '',
+  recipientId: '',
   priority: 'Normal',
   expiryDate: '',
 };
@@ -68,13 +71,19 @@ function CompactAttachmentField({ value, onSelect, error }) {
   );
 }
 
-export default function NoticeFormModal({ isOpen, onClose, notice, sessionOptions, defaultSession, currentUser, onSuccess }) {
+export default function NoticeFormModal({ isOpen, onClose, notice, sessionOptions, defaultSession, currentUser, teacherOptions = [], parentOptions = [], onSuccess }) {
   const isEdit = Boolean(notice);
   const isTeacher = currentUser.role === 'Teacher';
   const [formError, setFormError] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [attachmentError, setAttachmentError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  // Extra classes for a multi-class "Class" notice (Admin-tier only, create
+  // only — editing an existing notice stays single-class, same as before).
+  // The form's own className/sectionName/academicSession fields are always
+  // "the next one to add" (or, if never added, the only one) — not its own
+  // separate chip, so a single-class post needs zero extra clicks.
+  const [extraClassRows, setExtraClassRows] = useState([]);
 
   const {
     handleSubmit,
@@ -88,9 +97,12 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
 
   const audience = watch('audience');
   const selectedClass = watch('className');
+  const selectedSection = watch('sectionName');
+  const academicSession = watch('academicSession');
+  const recipientType = watch('recipientType');
 
   // A Teacher can only ever post to one of their own Class-Teacher sections
-  // — the audience is always "Class", never "Whole School", and the
+  // — the audience is always "Class", never anything else, and the
   // class/section dropdowns only ever offer sections they're the Class
   // Teacher of (currentUser.classTeacherOf, from Section.classTeacherId),
   // never a class they merely teach a subject in (currentUser.assignedClasses
@@ -122,21 +134,26 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
     reset(
       isEdit
         ? {
+            ...EMPTY_VALUES,
             title: notice.title,
             message: notice.message,
             audience: notice.audience,
             academicSession: notice.academicSession || defaultSession || '',
             className: notice.className || '',
             sectionName: notice.sectionName || '',
+            targetRoleKey: notice.targetRoleKey || '',
+            recipientType: notice.recipientType || '',
+            recipientId: notice.recipientId || '',
             priority: notice.priority,
             expiryDate: notice.expiryDate || '',
           }
         : {
             ...EMPTY_VALUES,
-            audience: isTeacher ? 'Class' : 'Whole School',
+            audience: isTeacher ? 'Class' : 'All Staff',
             academicSession: defaultSession || '',
           }
     );
+    setExtraClassRows([]);
     setAttachment(isEdit && notice.attachmentUrl ? { name: notice.attachmentName, url: notice.attachmentUrl, size: notice.attachmentSize } : null);
     setAttachmentError('');
     setFormError('');
@@ -165,6 +182,17 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
     setValue('sectionName', '');
   };
 
+  const handleAddAnotherClass = () => {
+    if (!selectedClass) return;
+    setExtraClassRows((prev) => [...prev, { academicSession, className: selectedClass, sectionName: selectedSection }]);
+    setValue('className', '');
+    setValue('sectionName', '');
+  };
+
+  const handleRemoveClassRow = (index) => {
+    setExtraClassRows((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleClose = () => {
     setFormError('');
     onClose();
@@ -180,14 +208,32 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
       } else if (attachment?.url) {
         attachmentFields = { attachmentUrl: attachment.url, attachmentName: attachment.name, attachmentSize: attachment.size };
       }
-      const payload = { ...data, ...attachmentFields };
 
-      if (isEdit) {
-        await updateNotice(notice.id, payload);
-      } else {
-        await createNotice(payload);
+      // "Class" + at least one chip already added + the form's own class
+      // still filled in = post the same notice to every one of those
+      // classes (one row per class, no new "multi-class" concept on the
+      // backend — see lib/notices.js).
+      const classRows =
+        data.audience === 'Class'
+          ? [...extraClassRows, ...(data.className ? [{ academicSession: data.academicSession, className: data.className, sectionName: data.sectionName }] : [])]
+          : [{}];
+
+      if (data.audience === 'Class' && classRows.length === 0) {
+        setFormError('Select at least one class.');
+        setIsUploading(false);
+        return;
       }
-      onSuccess?.(isEdit ? 'Notice updated successfully.' : 'Notice posted successfully.');
+
+      for (const row of classRows) {
+        const payload = { ...data, ...row, ...attachmentFields };
+        if (isEdit) {
+          await updateNotice(notice.id, payload);
+        } else {
+          await createNotice(payload);
+        }
+      }
+
+      onSuccess?.(isEdit ? 'Notice updated successfully.' : classRows.length > 1 ? `Notice posted to ${classRows.length} classes.` : 'Notice posted successfully.');
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -195,10 +241,12 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
     }
   };
 
+  const recipientOptions = recipientType === 'Teacher' ? teacherOptions : recipientType === 'Parent' ? parentOptions : [];
+
   return (
     <Modal
       title={isEdit ? 'Edit Notice' : 'Post Notice'}
-      description={isEdit ? 'Update this notice’s details.' : 'Share an announcement with the school or a specific class.'}
+      description={isEdit ? 'Update this notice’s details.' : 'Share an announcement with staff, parents, a role, a class, or one person.'}
       isOpen={isOpen}
       onClose={handleClose}
       size="lg"
@@ -253,7 +301,10 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
                     icon={<FiUsers className="w-4 h-4" />}
                     options={NOTICE_AUDIENCES.map((a) => ({ value: a, label: a }))}
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      setExtraClassRows([]);
+                    }}
                   />
                 )}
               />
@@ -277,8 +328,92 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
           </div>
         </div>
 
+        {audience === 'Role' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Role <span className="text-red-500">*</span>
+            </label>
+            <Controller
+              name="targetRoleKey"
+              control={control}
+              render={({ field }) => (
+                <Dropdown
+                  placeholder="Select role"
+                  icon={<FiShield className="w-4 h-4" />}
+                  options={NOTICE_ROLE_TARGETS.map((r) => ({ value: r, label: r }))}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.targetRoleKey?.message}
+                />
+              )}
+            />
+          </div>
+        )}
+
+        {audience === 'Individual' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Recipient Type <span className="text-red-500">*</span>
+              </label>
+              <Controller
+                name="recipientType"
+                control={control}
+                render={({ field }) => (
+                  <Dropdown
+                    placeholder="Teacher or Parent"
+                    icon={<FiUser className="w-4 h-4" />}
+                    options={NOTICE_RECIPIENT_TYPES.map((t) => ({ value: t, label: t }))}
+                    value={field.value}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      setValue('recipientId', '');
+                    }}
+                    error={errors.recipientType?.message}
+                  />
+                )}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Recipient <span className="text-red-500">*</span>
+              </label>
+              <Controller
+                name="recipientId"
+                control={control}
+                render={({ field }) => (
+                  <Dropdown
+                    placeholder={recipientType ? 'Select person' : 'Pick a type first'}
+                    icon={<FiUser className="w-4 h-4" />}
+                    options={recipientOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={!recipientType}
+                    searchable
+                    error={errors.recipientId?.message}
+                  />
+                )}
+              />
+            </div>
+          </div>
+        )}
+
         {audience === 'Class' && (
           <>
+            {extraClassRows.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {extraClassRows.map((row, index) => (
+                  <span key={index} className="inline-flex items-center gap-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full pl-3 pr-1.5 py-1">
+                    {row.className}
+                    {row.sectionName ? ` - ${row.sectionName}` : ' (all sections)'}
+                    <button type="button" onClick={() => handleRemoveClassRow(index)} className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-indigo-100 cursor-pointer">
+                      <FiX className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Academic Session</label>
               <Controller
@@ -299,7 +434,7 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Class <span className="text-red-500">*</span>
+                  Class {extraClassRows.length === 0 && <span className="text-red-500">*</span>}
                 </label>
                 <Controller
                   name="className"
@@ -339,6 +474,18 @@ export default function NoticeFormModal({ isOpen, onClose, notice, sessionOption
                 />
               </div>
             </div>
+
+            {!isTeacher && !isEdit && (
+              <button
+                type="button"
+                onClick={handleAddAnotherClass}
+                disabled={!selectedClass}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:text-indigo-800 disabled:text-gray-300 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <FiPlus className="w-4 h-4" />
+                Add another class
+              </button>
+            )}
           </>
         )}
 

@@ -68,12 +68,16 @@ export default function ClassDetailsClient({ cls, teacherOptions }) {
         />
       )}
 
-      <ClassFormModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        cls={cls}
-        onSuccess={handleSuccess}
-      />
+      {/* ClassFormModal/SubjectsModal each call useSubjects() unconditionally
+          on mount (not gated on `isOpen`) — rendering them unconditionally
+          here fired 2 parallel getSubjects() requests on every visit to
+          this page, before either was ever opened. Mounting them only once
+          actually open avoids that (SectionFormModal needs no such guard —
+          it only reads the already-fetched `teacherOptions` prop, no fetch
+          of its own). */}
+      {showEditModal && (
+        <ClassFormModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} cls={cls} onSuccess={handleSuccess} />
+      )}
 
       <SectionFormModal
         isOpen={showAddSectionModal}
@@ -86,12 +90,9 @@ export default function ClassDetailsClient({ cls, teacherOptions }) {
         onSuccess={handleSuccess}
       />
 
-      <SubjectsModal
-        isOpen={showSubjectsModal}
-        onClose={() => setShowSubjectsModal(false)}
-        cls={cls}
-        onSuccess={handleSuccess}
-      />
+      {showSubjectsModal && (
+        <SubjectsModal isOpen={showSubjectsModal} onClose={() => setShowSubjectsModal(false)} cls={cls} onSuccess={handleSuccess} />
+      )}
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
     </div>

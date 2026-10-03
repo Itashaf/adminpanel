@@ -12,9 +12,9 @@ function formatDate(dateString) {
 }
 
 function audienceLabelFor(notice) {
-  return notice.audience === 'Whole School'
-    ? 'Whole School'
-    : `${notice.className}${notice.sectionName ? ` • Sec ${notice.sectionName}` : ''}`;
+  if (notice.audience === 'Class') return `${notice.className}${notice.sectionName ? ` • Sec ${notice.sectionName}` : ''}`;
+  if (notice.audience === 'Individual') return 'Just for you';
+  return notice.audience;
 }
 
 function NoticeRow({ notice }) {

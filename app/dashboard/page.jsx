@@ -1,26 +1,31 @@
-import { FiUsers, FiUser, FiFileText, FiCheckSquare, FiBook, FiCreditCard } from 'react-icons/fi';
-import SchoolPulseCard from '@/components/dashboard/SchoolPulseCard';
+import Link from 'next/link';
+import { FiUsers, FiUser, FiFileText, FiCheckSquare, FiBook, FiCreditCard, FiArrowRight } from 'react-icons/fi';
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
 import StatCard from '@/components/dashboard/StatCard';
+import KPICard from '@/components/dashboard/KPICard';
+import TotalStudentsKPICard from '@/components/dashboard/TotalStudentsKPICard';
 import QuickActions from '@/components/dashboard/QuickActions';
 import AccountantQuickActions from '@/components/dashboard/AccountantQuickActions';
 import FeeOverviewCard from '@/components/dashboard/FeeOverviewCard';
+import FeeCollectionChart from '@/components/dashboard/FeeCollectionChart';
 import FeeCollectionBreakdownCard from '@/components/dashboard/FeeCollectionBreakdownCard';
 import RecentFeePaymentsCard from '@/components/dashboard/RecentFeePaymentsCard';
 import PendingFeesCard from '@/components/dashboard/PendingFeesCard';
-import AttendanceOverviewCard from '@/components/dashboard/AttendanceOverviewCard';
-import PromoBanner from '@/components/dashboard/PromoBanner';
+import AttendanceCollectionChart from '@/components/dashboard/AttendanceCollectionChart';
+import FeeDefaultersCard from '@/components/dashboard/FeeDefaultersCard';
+import UpcomingExamsCard from '@/components/dashboard/UpcomingExamsCard';
 import MyClassesCard from '@/components/dashboard/MyClassesCard';
 import TeacherQuickLists from '@/components/dashboard/TeacherQuickLists';
 import TeacherCheckInCard from '@/components/dashboard/TeacherCheckInCard';
 import { getDashboardOverview, getTeacherDashboardOverview } from '@/lib/dashboard';
-import { getPayments, getPendingFeesList, getPendingFeesStudentCount } from '@/lib/fees';
+import { getPayments, getPendingFeesList, getPendingFeesStudentCount, getFeeCollectionTrend } from '@/lib/fees';
+import { getAllExams, getExamDashboardStats } from '@/lib/exams';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentRBACUser } from '@/lib/rbac';
 import { getTeacherCheckInStatus } from '@/lib/teacherAttendance';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
-import { toLocalDateStr } from '@/lib/attendance';
+import { toLocalDateStr, getAttendanceCollectionTrend } from '@/lib/attendance';
 
 export const metadata = {
   title: 'Dashboard | SchoolApp 360',
@@ -36,7 +41,7 @@ export default async function DashboardPage() {
     return <TeacherDashboard currentUser={currentUser} />;
   }
 
-  const [{ stats, feesStats, attendanceToday, schoolPulse, snapshot }, userInfo, rbacUser] = await Promise.all([
+  const [{ stats, feesStats, attendanceToday, attendanceWeekly, snapshot }, userInfo, rbacUser] = await Promise.all([
     getDashboardOverview(),
     getCurrentActor(),
     getCurrentRBACUser(),
@@ -48,11 +53,6 @@ export default async function DashboardPage() {
   // /login (no real session, no Teacher toggle either) — see lib/iam.js.
   const displayName = userInfo?.name || 'Admin';
 
-  // Accountant only ever holds fees.*/students.view/reports/notices.view —
-  // SchoolPulseCard's Attendance Today/New Admissions/Pending Tasks/Health
-  // Score are all attendance-derived or outside that scope entirely, same
-  // reasoning as the per-card permission gates below, just for the one card
-  // that isn't built out of separately-gatable pieces.
   if (rbacUser?.roleKey === 'Accountant') {
     const [recentPayments, pendingFeesRows, pendingFeesStudentCount] = await Promise.all([
       getPayments({ status: 'SUCCESS', pageSize: 5 }),
@@ -81,33 +81,77 @@ export default async function DashboardPage() {
   const showTeachers = can('teachers.view');
   const showAttendance = can('attendance.student.view');
   const showFees = can('fees.view');
+  const showExams = can('exams.view');
+
+  const [defaulters, [dailyFeeTrend, monthlyFeeTrend, yearlyFeeTrend], pendingFeesStudentCount] = await Promise.all([
+    showFees ? getPendingFeesList(5, { onlyOverdue: true }) : Promise.resolve([]),
+    showFees
+      ? Promise.all([getFeeCollectionTrend('daily'), getFeeCollectionTrend('monthly'), getFeeCollectionTrend('yearly')])
+      : Promise.resolve([null, null, null]),
+    showFees ? getPendingFeesStudentCount() : Promise.resolve(0),
+  ]);
+  const [upcomingExams, examStats] = showExams
+    ? await Promise.all([
+        getAllExams().then((exams) =>
+          exams
+            .filter((e) => e.startDate > toLocalDateStr(new Date()))
+            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+            .slice(0, 4)
+        ),
+        getExamDashboardStats(),
+      ])
+    : [[], null];
+  const [dailyAttendanceTrend, monthlyAttendanceTrend, yearlyAttendanceTrend] = showAttendance
+    ? await Promise.all([
+        getAttendanceCollectionTrend('daily'),
+        getAttendanceCollectionTrend('monthly'),
+        getAttendanceCollectionTrend('yearly'),
+      ])
+    : [null, null, null];
 
   return (
     <div className="space-y-6">
-      <SchoolPulseCard name={displayName} pulse={schoolPulse} />
+      <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Good to see you, {displayName}</h1>
 
-      {(showStudents || showTeachers) && (
-        <div className={`grid gap-4 ${showStudents && showTeachers ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      {(showStudents || showTeachers || showFees || showAttendance) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {showStudents && (
-            <StatCard
-              variant="minimal"
-              accent="blue"
-              label="Students"
+            <TotalStudentsKPICard
               value={stats.totalStudents.value.toLocaleString()}
-              icon={<FiUsers className="w-5 h-5" />}
-              context={stats.totalStudents.newThisMonth > 0 ? `+${stats.totalStudents.newThisMonth} this month` : 'No change this month'}
-              contextTone={stats.totalStudents.newThisMonth > 0 ? 'up' : undefined}
+              classWise={stats.totalStudents.classWise}
             />
           )}
           {showTeachers && (
-            <StatCard
-              variant="minimal"
-              accent="violet"
-              label="Teachers"
-              value={stats.totalTeachers.value}
-              icon={<FiUser className="w-5 h-5" />}
-              context={stats.totalTeachers.newThisMonth > 0 ? `+${stats.totalTeachers.newThisMonth} this month` : 'No change this month'}
-              contextTone={stats.totalTeachers.newThisMonth > 0 ? 'up' : undefined}
+            <KPICard
+              label="Total Teachers"
+              icon={<FiUser className="w-4 h-4" />}
+              value={stats.totalTeachers.value.toLocaleString()}
+              footer={
+                <Link href="/dashboard/teachers" className="flex items-center gap-1 text-xs font-semibold text-white/90 hover:text-white">
+                  View All Teachers
+                  <FiArrowRight className="w-3 h-3" />
+                </Link>
+              }
+            />
+          )}
+          {showFees && (
+            <KPICard
+              label="Pending Fees"
+              icon={<FiCreditCard className="w-4 h-4" />}
+              value={`₹${feesStats.pending.toLocaleString('en-IN')}`}
+              context={`${pendingFeesStudentCount} student${pendingFeesStudentCount === 1 ? '' : 's'}`}
+            />
+          )}
+          {showAttendance && (
+            <KPICard
+              label="Today's Attendance"
+              icon={<FiCheckSquare className="w-4 h-4" />}
+              value={attendanceToday ? `${attendanceToday.percent}%` : '—'}
+              pillLabel={
+                attendanceWeekly?.trendVsLastWeek != null
+                  ? `${attendanceWeekly.trendVsLastWeek > 0 ? '+' : ''}${attendanceWeekly.trendVsLastWeek}%`
+                  : null
+              }
             />
           )}
         </div>
@@ -117,19 +161,25 @@ export default async function DashboardPage() {
 
       {(showAttendance || showFees) && (
         <div className={`grid grid-cols-1 gap-4 ${showAttendance && showFees ? 'lg:grid-cols-2' : ''}`}>
-          {showAttendance && <AttendanceOverviewCard attendance={attendanceToday} />}
           {showFees && (
-            <FeeOverviewCard
-              totalFees={feesStats.totalFees}
-              collected={feesStats.collected}
-              pending={feesStats.pending}
-              overdue={feesStats.overdue}
+            <FeeCollectionChart dailyData={dailyFeeTrend} monthlyData={monthlyFeeTrend} yearlyData={yearlyFeeTrend} />
+          )}
+          {showAttendance && (
+            <AttendanceCollectionChart
+              dailyData={dailyAttendanceTrend}
+              monthlyData={monthlyAttendanceTrend}
+              yearlyData={yearlyAttendanceTrend}
             />
           )}
         </div>
       )}
 
-      <PromoBanner />
+      {(showFees || showExams) && (
+        <div className={`grid grid-cols-1 gap-4 ${showFees && showExams ? 'lg:grid-cols-2' : ''}`}>
+          {showFees && <FeeDefaultersCard rows={defaulters} />}
+          {showExams && <UpcomingExamsCard exams={upcomingExams} stats={examStats} />}
+        </div>
+      )}
     </div>
   );
 }

@@ -45,12 +45,16 @@ export default function DatePicker({
   // predictable.
   minDate,
   maxDate,
+  // Sunday is a school holiday — attendance isn't marked that day, so its
+  // date picker greys Sundays out rather than letting one get picked at all.
+  disableSundays = false,
 }) {
   const selectedDate = toDateOnly(value);
   const today = new Date();
   const minBound = toDateOnly(minDate);
   const maxBound = toDateOnly(maxDate);
-  const isDisabled = (date) => (minBound && date < minBound) || (maxBound && date > maxBound);
+  const isDisabled = (date) =>
+    (minBound && date < minBound) || (maxBound && date > maxBound) || (disableSundays && date.getDay() === 0);
 
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('day');

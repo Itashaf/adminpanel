@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { FiCheckSquare, FiUser, FiSave, FiSearch, FiUsers } from 'react-icons/fi';
 import DatePicker from '@/components/DatePicker';
 import Dropdown from '@/components/Dropdown';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import Toast from '@/components/Toast';
 import { STATUS_META, STATUS_ORDER } from '@/components/attendance/statusStyles';
+import KPICard from '@/components/dashboard/KPICard';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 import { getStaffAttendance, saveStaffAttendance } from '@/lib/api';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -18,35 +21,6 @@ const NOT_MARKED_META = { label: 'Not Marked', pill: 'bg-gray-100 text-gray-500'
 
 function formatTime(iso) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
-
-// Decorative-only sparkline (no historical series exists to chart honestly)
-// — same convention as components/dashboard/StatCard.jsx's own, just with
-// its own accent colors since that component's ACCENTS map only has
-// blue/violet.
-function Sparkline({ colorClass }) {
-  const heights = [30, 45, 35, 55, 40, 65, 50, 75, 60, 85];
-  return (
-    <div className="hidden sm:flex items-end gap-1 h-8 shrink-0">
-      {heights.map((h, i) => (
-        <span key={i} className={`w-1 rounded-full ${colorClass}`} style={{ height: `${h}%`, opacity: 0.25 + (i / heights.length) * 0.55 }} />
-      ))}
-    </div>
-  );
-}
-
-function StatCard({ label, value, pct, icon, iconBg, barColor }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-center justify-between gap-3">
-        <span className={`flex items-center justify-center w-11 h-11 rounded-xl shrink-0 ${iconBg}`}>{icon}</span>
-        <Sparkline colorClass={barColor} />
-      </div>
-      <p className="text-sm font-medium text-gray-500 mt-3">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-      {pct !== undefined && <p className="text-xs text-gray-400 mt-1">{pct}% of staff</p>}
-    </div>
-  );
 }
 
 function formatDateTime(iso) {
@@ -158,7 +132,8 @@ function TeacherTableRow({ teacher, serialNumber, status, remark, onStatusChange
 }
 
 export default function StaffAttendanceBoard({ initialDate, initialData }) {
-  const [date, setDate] = useState(initialDate);
+  const searchParams = useSearchParams();
+  const [date, setDate] = useState(() => searchParams.get('date') || initialDate);
   const [data, setData] = useState(initialData);
   const [records, setRecords] = useState(() =>
     Object.fromEntries(initialData.roster.map((t) => [t.teacherId, { status: t.status, remark: t.remark || '' }]))
@@ -167,19 +142,27 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [error, setError] = useState('');
-  const isFirstRun = useRef(true);
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [subjectFilter, setSubjectFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || '');
+  const [subjectFilter, setSubjectFilter] = useState(() => searchParams.get('subject') || '');
+  const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
+  const [pageSize, setPageSize] = useState(() => Number(searchParams.get('pageSize')) || 10);
 
+  useUrlSync(
+    { date, search, status: statusFilter, subject: subjectFilter, page, pageSize },
+    { date: initialDate, search: '', status: '', subject: '', page: 1, pageSize: 10 }
+  );
+
+  // `initialData` was fetched server-side for `initialDate` — only
+  // actually re-fetch when `date` differs from that baseline (covers both
+  // a later user-picked date AND a date restored from the URL on mount),
+  // rather than a mutable "skip the first effect run" flag, which React 18
+  // Strict Mode's dev-only double-invoke (mount → cleanup → mount again)
+  // would desync — see StudentsExplorer.jsx's own fix for the same bug.
+  const dateBaselineRef = useRef(initialDate);
   useEffect(() => {
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      return;
-    }
+    if (date === dateBaselineRef.current) return;
     let cancelled = false;
     setIsLoading(true);
     setError('');
@@ -277,7 +260,7 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
   const pct = (n) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Staff Attendance</h1>
@@ -299,37 +282,25 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
+        <KPICard
           label="Present"
           value={counts.Present || 0}
-          pct={pct(counts.Present || 0)}
-          icon={<FiUsers className="w-5 h-5" />}
-          iconBg="bg-green-100 text-green-600"
-          barColor="bg-green-400"
+          context={`${pct(counts.Present || 0)}% of staff`}
+          icon={<FiUsers className="w-4 h-4" />}
         />
-        <StatCard
+        <KPICard
           label="Absent"
           value={counts.Absent || 0}
-          pct={pct(counts.Absent || 0)}
-          icon={<FiUser className="w-5 h-5" />}
-          iconBg="bg-red-100 text-red-600"
-          barColor="bg-red-400"
+          context={`${pct(counts.Absent || 0)}% of staff`}
+          icon={<FiUser className="w-4 h-4" />}
         />
-        <StatCard
+        <KPICard
           label="On Leave"
           value={counts.Leave || 0}
-          pct={pct(counts.Leave || 0)}
-          icon={<FiUser className="w-5 h-5" />}
-          iconBg="bg-blue-100 text-blue-600"
-          barColor="bg-blue-400"
+          context={`${pct(counts.Leave || 0)}% of staff`}
+          icon={<FiUser className="w-4 h-4" />}
         />
-        <StatCard
-          label="Total Staff"
-          value={total}
-          icon={<FiUsers className="w-5 h-5" />}
-          iconBg="bg-violet-100 text-violet-600"
-          barColor="bg-violet-400"
-        />
+        <KPICard label="Total Staff" value={total} icon={<FiUsers className="w-4 h-4" />} />
       </div>
 
       {data.isMarked && (
@@ -416,7 +387,7 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
       </div>
 
       {filteredRoster.length > 0 && (
-        <Pagination
+        <FixedPaginationBar
           page={page}
           totalPages={totalPages}
           onPageChange={setPage}

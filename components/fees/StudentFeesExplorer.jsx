@@ -9,6 +9,7 @@ import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Toast from '@/components/Toast';
+import KPICard from '@/components/dashboard/KPICard';
 import StudentFeeDetailPanel from './StudentFeeDetailPanel';
 import BulkCollectModal from './BulkCollectModal';
 import { useClassSections } from '@/lib/hooks/useClassSections';
@@ -181,7 +182,7 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
   const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 items-start">
+    <div className="flex flex-col lg:flex-row gap-6 items-start">
       <div className="flex-1 min-w-0 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -199,27 +200,9 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 mb-3">
-              <FiUsers className="w-4 h-4" />
-            </span>
-            <p className="text-xs font-medium text-gray-500">Total Students</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{totalStudents}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 mb-3">
-              <FiCreditCard className="w-4 h-4" />
-            </span>
-            <p className="text-xs font-medium text-gray-500">Amount Collected</p>
-            <p className="text-xl font-bold text-green-600 mt-1">{formatCurrency(stats.collected)}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 mb-3">
-              <FiClock className="w-4 h-4" />
-            </span>
-            <p className="text-xs font-medium text-gray-500">Pending Amount</p>
-            <p className="text-xl font-bold text-amber-600 mt-1">{formatCurrency(stats.pending)}</p>
-          </div>
+          <KPICard label="Total Students" icon={<FiUsers className="w-4 h-4" />} value={totalStudents} />
+          <KPICard label="Amount Collected" icon={<FiCreditCard className="w-4 h-4" />} value={formatCurrency(stats.collected)} />
+          <KPICard label="Pending Amount" icon={<FiClock className="w-4 h-4" />} value={formatCurrency(stats.pending)} />
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -365,37 +348,36 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
       </div>
 
       {activeStudentId && (
-        <div className="w-full xl:w-96 shrink-0">
-          <StudentFeeDetailPanel
-            studentId={activeStudentId}
-            academicSession=""
-            autoCollect={autoCollect}
-            school={school}
-            onClose={() => {
-              setActiveStudentId(null);
-              setAutoCollect(false);
-            }}
-            onCollected={(studentId, totals, message) => {
-              // The row itself patches optimistically — the panel already
-              // collected against the real backend and handed back this
-              // student's fresh totals, so there's nothing stale about
-              // that part. The two stat cards, though, are re-fetched fresh
-              // (one cheap aggregate query) rather than patched by a
-              // client-computed delta — a delta subtracts against this
-              // page's locally-cached "before" value, which silently drifts
-              // from the real DB total whenever something outside this
-              // page's own state has touched fees since it loaded (e.g. a
-              // fee structure created elsewhere auto-generating new pending
-              // fees) — the exact "wrong until refresh" symptom this fixes.
-              setResult((prev) => ({
-                ...prev,
-                rows: prev.rows.map((r) => (r.studentId === studentId ? { ...r, ...totals } : r)),
-              }));
-              getStudentFeesStats().then(setStats);
-              setToastMessage(message);
-            }}
-          />
-        </div>
+        <StudentFeeDetailPanel
+          className="w-full lg:w-96 shrink-0"
+          studentId={activeStudentId}
+          academicSession=""
+          autoCollect={autoCollect}
+          school={school}
+          onClose={() => {
+            setActiveStudentId(null);
+            setAutoCollect(false);
+          }}
+          onCollected={(studentId, totals, message) => {
+            // The row itself patches optimistically — the panel already
+            // collected against the real backend and handed back this
+            // student's fresh totals, so there's nothing stale about
+            // that part. The two stat cards, though, are re-fetched fresh
+            // (one cheap aggregate query) rather than patched by a
+            // client-computed delta — a delta subtracts against this
+            // page's locally-cached "before" value, which silently drifts
+            // from the real DB total whenever something outside this
+            // page's own state has touched fees since it loaded (e.g. a
+            // fee structure created elsewhere auto-generating new pending
+            // fees) — the exact "wrong until refresh" symptom this fixes.
+            setResult((prev) => ({
+              ...prev,
+              rows: prev.rows.map((r) => (r.studentId === studentId ? { ...r, ...totals } : r)),
+            }));
+            getStudentFeesStats().then(setStats);
+            setToastMessage(message);
+          }}
+        />
       )}
 
       <BulkCollectModal

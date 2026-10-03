@@ -31,7 +31,11 @@ export default function RazorpayPayButton({ fee, studentName, contact, email, on
       const order = await createRazorpayOrder(fee.id);
 
       const razorpay = new window.Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        // This school's own Razorpay key_id if the Super Admin set one, the
+        // platform-wide fallback otherwise — comes back from
+        // createRazorpayOrder itself (lib/fees.js), not a single build-time
+        // NEXT_PUBLIC_ env var, since it now varies per school.
+        key: order.keyId,
         amount: order.amount,
         currency: order.currency,
         order_id: order.orderId,

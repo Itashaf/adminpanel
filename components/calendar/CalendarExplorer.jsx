@@ -179,42 +179,9 @@ export default function CalendarExplorer({ events, sessionOptions, defaultSessio
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 shrink-0">
-              <FiCalendar className="w-6 h-6" />
-            </span>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Academic Calendar</h1>
-              <p className="text-sm text-gray-500 mt-0.5">Plan and manage all academic activities, holidays, exams and events.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              {['calendar', 'agenda'].map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setViewTab(tab)}
-                  className={`px-4 h-9 rounded-md text-sm font-semibold capitalize cursor-pointer transition ${
-                    viewTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={handleOpenAdd}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer whitespace-nowrap"
-            >
-              <FiPlus className="w-4 h-4" />
-              Add Event
-            </button>
-          </div>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Academic Calendar</h1>
+        <p className="text-sm text-gray-500 mt-1">Plan and manage all academic activities, holidays, exams and events.</p>
       </div>
 
       {/* Desktop layout */}
@@ -247,12 +214,37 @@ export default function CalendarExplorer({ events, sessionOptions, defaultSessio
             <button
               type="button"
               onClick={() => setSelectedDate(null)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer shrink-0 ml-auto"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer shrink-0"
             >
               {formatDate(selectedDate)}
               <FiX className="w-3.5 h-3.5" />
             </button>
           )}
+
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              {['calendar', 'agenda'].map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setViewTab(tab)}
+                  className={`px-4 h-9 rounded-md text-sm font-semibold capitalize cursor-pointer transition ${
+                    viewTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer whitespace-nowrap"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Event
+            </button>
+          </div>
         </div>
 
         {viewTab === 'calendar' ? (

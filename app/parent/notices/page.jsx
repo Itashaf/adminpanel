@@ -15,7 +15,7 @@ export default async function ParentNoticesPage() {
   const student = await getStudentById(actor.studentId, actor.schoolId);
   if (!student) redirect('/login');
 
-  const notices = await getNoticesForStudent(student);
+  const notices = await getNoticesForStudent(student, actor.id);
 
   return <ParentNoticesView notices={notices} student={student} />;
 }

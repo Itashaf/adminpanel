@@ -17,7 +17,7 @@ export default async function ParentLayout({ children }) {
   }
 
   const student = await getStudentById(actor.studentId, actor.schoolId);
-  const [school, notices] = await Promise.all([getSchoolSettings(), student ? getNoticesForStudent(student) : []]);
+  const [school, notices] = await Promise.all([getSchoolSettings(), student ? getNoticesForStudent(student, actor.id) : []]);
 
   return (
     <ParentShell

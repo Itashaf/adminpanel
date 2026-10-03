@@ -194,6 +194,20 @@ model School {
   // this yet; it's read here so one can be added later without another
   // migration.
   examRankTieMode            String @default("Skip")
+  // Per-school Razorpay account (Super Admin only — see
+  // components/superadmin/SchoolPaymentSettingsCard.jsx and
+  // lib/razorpay.js's getRazorpayCredentials). `razorpayKeyId` is Razorpay's
+  // own public key — safe to send to the browser (Checkout.js needs it),
+  // same thing the old NEXT_PUBLIC_RAZORPAY_KEY_ID env var exposed.
+  // `razorpayKeySecretCipher` is the key SECRET, AES-256-GCM encrypted
+  // (lib/auth/encryption.js) — never stored in plaintext, never decrypted
+  // anywhere except server-side at the moment of calling the Razorpay SDK
+  // or verifying a webhook signature. Empty string on both = this school
+  // falls back to the platform-wide RAZORPAY_KEY_ID/SECRET env vars, so
+  // every existing school keeps working unchanged until a Super Admin
+  // explicitly sets its own keys.
+  razorpayKeyId              String @default("")
+  razorpayKeySecretCipher    String @default("")
   // Platform-operator-controlled module toggles (Super Admin only — see
   // lib/featureFlags.js for the key list and lib/schools.js's
   // updateSchoolFeatures). Empty array = every optional module enabled,
@@ -235,7 +249,6 @@ model School {
   timeTables         TimeTable[]
   teacherLeaves      TeacherLeave[]
   teacherAttendances TeacherAttendance[]
-  studentAssessments StudentAssessment[]
   users              User[]
   subjectTests       SubjectTest[]
   monthlyReports     MonthlyReport[]
@@ -386,7 +399,6 @@ model Student {
   createdAt           DateTime      @default(now())
   studentFees         StudentFee[]
   payments            Payment[]
-  monthlyAssessments  StudentAssessment[]
   subjectTestMarks    SubjectTestMark[]
   monthlyReports      MonthlyReport[]
   yearlyReports       YearlyReport[]
@@ -693,6 +705,12 @@ model Class {
   academicSession String
   status          ClassStatus @default(Active)
   subjects        String[]
+  // Manual drag-to-reorder position in the Classes & Sections list (see
+  // ClassesGrid.jsx) — lower sorts first. Backfilled to match the previous
+  // fixed grade-level order (Nursery..Class 12) the first time this was
+  // added, so existing schools see no visual change until an admin
+  // actually drags a row.
+  displayOrder    Int         @default(0)
   createdAt       DateTime    @default(now())
   sections        Section[]
 
@@ -853,10 +871,22 @@ model Notice {
   school            School   @relation(fields: [schoolId], references: [id])
   title             String
   message           String
+  // 'All Staff' | 'All Parents' | 'Role' | 'Class' | 'Individual' — see
+  // lib/noticeConstants.js's NOTICE_AUDIENCES. 'Whole School' retired (see
+  // the decision log) in favor of these more specific targets.
   audience          String
   academicSession   String   @default("")
   className         String   @default("")
   sectionName       String   @default("")
+  // audience = 'Role' only — a RoleKey value (Principal/Admin/Accountant),
+  // never Teacher/Parent/SuperAdmin (those have their own audience kinds,
+  // or are platform-level, not a school-circular target).
+  targetRoleKey     String   @default("")
+  // audience = 'Individual' only — who this one notice is for.
+  // recipientType is 'Teacher' | 'Parent'; recipientId is that Teacher's id
+  // or that ParentAccount's id.
+  recipientType     String   @default("")
+  recipientId       String   @default("")
   priority          String   @default("Normal")
   expiryDate        String   @default("")
   postedByName      String
@@ -1293,51 +1323,6 @@ model Payment {
   paidAt             DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
-}
-
-enum AssessmentStatus {
-  DRAFT
-  COMPLETED
-}
-
-// One row per student per calendar month — a Class Teacher's quick monthly
-// rating (behaviour/academics/activities/parent-communication), distinct
-// from ExamMark/ExamResult (a formal exam's actual scores). `behaviour`/
-// `academics`/`activities`/`parentCommunication` are Json (per-category
-// ratings, not scalar columns) since their shape is UI-defined and doesn't
-// need querying into — same "snapshot blob" convention as Student's own
-// guardian/address/feeDetails fields. `attendancePercentage` is a plain Int
-// snapshot of what lib/attendance.js's getStudentAttendanceStats computed at
-// save time, not a live-joined value — an assessment should read the same a
-// year later even if attendance records for that month are later corrected.
-model StudentAssessment {
-  id                   String            @id @default(cuid())
-  schoolId             String
-  school               School            @relation(fields: [schoolId], references: [id])
-  studentId            String
-  student              Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  className            String
-  sectionName           String
-  month                Int
-  year                 Int
-  attendancePercentage Float?
-  attendanceDetail     Json?
-  overallPerformance   String            @default("")
-  overallTags          String[]          @default([])
-  overallRemark        String            @default("")
-  conciseReport        Json?
-  behaviour            Json?
-  academics            Json?
-  activities           Json?
-  parentCommunication  Json?
-  status               AssessmentStatus  @default(DRAFT)
-  submittedByName      String            @default("")
-  submittedAt          DateTime?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-
-  @@unique([studentId, month, year])
-  @@index([schoolId, className, sectionName, month, year])
 }
 
 // ============================================================

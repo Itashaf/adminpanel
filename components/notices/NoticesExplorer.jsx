@@ -1,25 +1,37 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FiPlus, FiUserCheck } from 'react-icons/fi';
 import Toast from '@/components/Toast';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import NoticesFiltersBar from './NoticesFiltersBar';
 import NoticesTable from './NoticesTable';
 import NoticeFormModal from './NoticeFormModal';
 import NoticesEmptyState from './NoticesEmptyState';
 import { useClassSections } from '@/lib/hooks/useClassSections';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 
 const EMPTY_FILTERS = { search: '', audience: '', className: '', priority: '' };
 const PAGE_SIZE = 10;
 
-export default function NoticesExplorer({ notices, sessionOptions, defaultSession, currentUser }) {
+export default function NoticesExplorer({ notices, sessionOptions, defaultSession, currentUser, teacherOptions = [], parentOptions = [] }) {
   const router = useRouter();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const searchParams = useSearchParams();
+  // Dashboard's "Send Notice" quick action links here with ?compose=1 so
+  // the Post Notice modal opens immediately instead of landing on a bare
+  // list the admin then has to click into.
+  const [showAddModal, setShowAddModal] = useState(searchParams.get('compose') === '1');
   const [toastMessage, setToastMessage] = useState('');
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState(() => ({
+    search: searchParams.get('search') || '',
+    audience: searchParams.get('audience') || '',
+    className: searchParams.get('className') || '',
+    priority: searchParams.get('priority') || '',
+  }));
+  const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
+
+  useUrlSync({ ...filters, page }, { ...EMPTY_FILTERS, page: 1 });
   const isTeacher = currentUser.role === 'Teacher';
   // A Teacher can post a notice only for a section they're the Class Teacher
   // of (see lib/notices.js's assertScopeAllowed) — a Teacher with no
@@ -67,7 +79,7 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
   const canManageFor = (notice) => !isTeacher || notice.postedByTeacherId === currentUser.teacherId;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Notices</h1>
@@ -115,8 +127,17 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
             sessionOptions={sessionOptions}
             defaultSession={defaultSession}
             currentUser={currentUser}
+            teacherOptions={teacherOptions}
+            parentOptions={parentOptions}
           />
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={filteredNotices.length} pageSize={PAGE_SIZE} />
+          <FixedPaginationBar
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalCount={filteredNotices.length}
+            pageSize={PAGE_SIZE}
+            itemLabel="notices"
+          />
         </>
       )}
 
@@ -127,6 +148,8 @@ export default function NoticesExplorer({ notices, sessionOptions, defaultSessio
         sessionOptions={sessionOptions}
         defaultSession={defaultSession}
         currentUser={currentUser}
+        teacherOptions={teacherOptions}
+        parentOptions={parentOptions}
         onSuccess={(message) => {
           setShowAddModal(false);
           setToastMessage(message);

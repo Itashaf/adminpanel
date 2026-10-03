@@ -43,6 +43,11 @@ export async function POST(request) {
     return NextResponse.json({ error: 'You can only mark attendance for your own assigned class and section.' }, { status: 403 });
   }
 
+  // Sunday is a school holiday — no attendance for anyone, Teacher or Admin.
+  if (new Date(`${data.date}T00:00:00`).getDay() === 0) {
+    return NextResponse.json({ error: 'Sunday is a holiday — attendance cannot be marked.' }, { status: 400 });
+  }
+
   // Authoritative enforcement — the client also disables Save for a locked
   // Teacher view, but that's UX only; this is what actually stops the write.
   const access = computeAttendanceAccess({ record: existingRecord, role: currentUser.role, date: data.date, schoolSettings });

@@ -1,16 +1,17 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FiPlus, FiUserCheck } from 'react-icons/fi';
 import Toast from '@/components/Toast';
 import Dropdown from '@/components/Dropdown';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import HomeworkFiltersBar from './HomeworkFiltersBar';
 import HomeworkCard, { HOMEWORK_GRID_COLS } from './HomeworkCard';
 import HomeworkFormModal from './HomeworkFormModal';
 import HomeworkEmptyState from './HomeworkEmptyState';
 import { useClassSections } from '@/lib/hooks/useClassSections';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 
 const PAGE_SIZE = 10;
 
@@ -21,16 +22,22 @@ const SORT_OPTIONS = [
 
 export default function HomeworkExplorer({ homework, sessionOptions, defaultSession, currentUser }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showAddModal, setShowAddModal] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedSection, setSelectedSection] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('latest');
-  const [page, setPage] = useState(1);
+  const [selectedClass, setSelectedClass] = useState(() => searchParams.get('class') || '');
+  const [selectedSection, setSelectedSection] = useState(() => searchParams.get('section') || '');
+  const [selectedSubject, setSelectedSubject] = useState(() => searchParams.get('subject') || '');
+  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+  const [sortBy, setSortBy] = useState(() => searchParams.get('sort') || 'latest');
+  const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
   const isTeacher = currentUser.role === 'Teacher';
   const classSections = useClassSections();
+
+  useUrlSync(
+    { class: selectedClass, section: selectedSection, subject: selectedSubject, q: search, sort: sortBy, page },
+    { class: '', section: '', subject: '', q: '', sort: 'latest', page: 1 }
+  );
 
   const classOptions = useMemo(() => {
     if (isTeacher) {
@@ -62,7 +69,7 @@ export default function HomeworkExplorer({ homework, sessionOptions, defaultSess
   const pagedHomework = filteredHomework.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Homework</h1>
@@ -141,7 +148,14 @@ export default function HomeworkExplorer({ homework, sessionOptions, defaultSess
         </div>
       )}
 
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={filteredHomework.length} pageSize={PAGE_SIZE} />
+      <FixedPaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={filteredHomework.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="homework items"
+      />
 
       <HomeworkFormModal
         isOpen={showAddModal}

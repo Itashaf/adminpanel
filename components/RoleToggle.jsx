@@ -4,7 +4,10 @@
 export default function RoleToggle({ role, onChange, options = ['Admin', 'Teacher'], icons }) {
   if (icons) {
     return (
-      <div className="flex gap-3">
+      // Mobile: one row, icon-above-label tiles, compact enough that all 5
+      // options fit side by side on a narrow phone. sm: and up revert to
+      // the original icon-beside-label single-row pill exactly as before.
+      <div className="flex gap-1 sm:gap-3">
         {options.map((option) => {
           const isActive = role === option;
           return (
@@ -12,7 +15,7 @@ export default function RoleToggle({ role, onChange, options = ['Admin', 'Teache
               key={option}
               type="button"
               onClick={() => onChange(option)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium border transition cursor-pointer ${
+              className={`flex-1 min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2.5 sm:py-3 rounded-2xl sm:rounded-lg text-[9px] sm:text-xs font-medium border transition cursor-pointer ${
                 isActive
                   ? 'bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 text-white border-transparent shadow-md shadow-indigo-200'
                   : 'text-gray-600 border-gray-200 hover:border-gray-300'

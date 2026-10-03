@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { addStudent, getAllStudents } from '@/lib/students';
+import { generateFeesForNewStudent } from '@/lib/fees';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
 import { isClassInTeacherScope, getTeacherClassScope } from '@/lib/roleGuard';
@@ -65,7 +66,11 @@ export async function POST(request) {
   }
 
   try {
-    const student = await addStudent(data, await resolveSchoolId());
+    const schoolId = await resolveSchoolId();
+    const student = await addStudent(data, schoolId);
+    // Best-effort — see generateFeesForNewStudent's own doc comment; never
+    // allowed to turn a successful student creation into a failed response.
+    await generateFeesForNewStudent(schoolId, student);
     return NextResponse.json({ id: student.id, admissionId: student.admissionId });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 400 });

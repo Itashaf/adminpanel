@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,15 +51,23 @@ export default function SuperAdminLoginForm() {
   };
 
   return (
-    <div className="w-full lg:flex-1 min-w-0 h-full overflow-y-auto flex items-center justify-center px-8 py-6 sm:px-20 sm:py-8 bg-white relative z-10 lg:-ml-12 lg:rounded-tl-[48px] lg:rounded-bl-[48px] lg:shadow-2xl">
-      <div className="w-full max-w-2xl">
+    <div className="w-full lg:flex-1 min-w-0 h-full overflow-y-auto bg-white sm:flex sm:items-center sm:justify-center sm:px-20 sm:py-8 relative z-10 lg:-ml-12 lg:rounded-tl-[48px] lg:rounded-bl-[48px] lg:shadow-2xl">
+      {/* Mobile-only light-purple header band — same "stacked" pattern as
+          LoginForm.jsx. Hidden at sm: and up, where the split-screen
+          layout (LoginLeftPanel) already carries the brand. */}
+      <div className="sm:hidden bg-violet-100 rounded-b-[32px] pt-12 pb-9 px-6 text-center">
+        <Image src="/images/logo_schoolapp360.png" alt="SchoolApp 360" width={220} height={76} priority className="mx-auto h-auto w-[220px]" />
+        <p className="text-xs text-indigo-700/70 mt-1">Smart School Management</p>
+      </div>
+
+      <div className="w-full px-6 py-6 sm:max-w-2xl sm:px-0 sm:py-0">
         <div className="mb-6">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 rounded-full px-3 py-1 mb-4">
             <FiShield className="w-3.5 h-3.5" />
             Super Admin
           </span>
-          <h1 className="text-4xl font-bold text-gray-900">Platform sign in</h1>
-          <p className="text-base text-gray-500 mt-2">Manage every school on the platform from one place.</p>
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900">Platform sign in</h1>
+          <p className="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">Manage every school on the platform from one place.</p>
         </div>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
@@ -113,9 +122,11 @@ export default function SuperAdminLoginForm() {
           />
         </Form>
 
-        <div className="flex items-center gap-2 mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600">
-          <FiUser className="w-4 h-4 text-indigo-500 shrink-0" />
-          Signing in as a school admin?{' '}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-6 pt-4 border-t border-gray-100 text-sm text-gray-600">
+          <span className="flex items-center gap-2">
+            <FiUser className="w-4 h-4 text-indigo-500 shrink-0" />
+            Signing in as a school admin?
+          </span>
           <Link href="/login" className="inline-flex items-center gap-1 text-indigo-600 font-medium hover:underline cursor-pointer">
             Go to School Sign In
             <FiArrowRight className="w-3.5 h-3.5" />

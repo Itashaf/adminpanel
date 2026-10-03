@@ -21,15 +21,16 @@ import DropdownMenu from '@/components/DropdownMenu';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Toast from '@/components/Toast';
 import ExamFormModal from './ExamFormModal';
+import KPICard from '@/components/dashboard/KPICard';
 import { deleteExam } from '@/lib/api';
 
 const STATUS_VARIANTS = { Draft: 'gray', Published: 'green', Completed: 'blue' };
 
 const STAT_CARDS = [
-  { key: 'totalExams', label: 'Total Exams', icon: FiFileText, color: 'text-blue-600 bg-blue-50', linkLabel: 'View all exams' },
-  { key: 'upcomingExams', label: 'Upcoming Exams', icon: FiCalendar, color: 'text-emerald-600 bg-emerald-50', linkLabel: 'View schedule' },
-  { key: 'completedExams', label: 'Completed Exams', icon: FiCheckCircle, color: 'text-violet-600 bg-violet-50', linkLabel: 'View results' },
-  { key: 'resultsPending', label: 'Results Pending', icon: FiClock, color: 'text-amber-600 bg-amber-50', linkLabel: 'Generate results' },
+  { key: 'totalExams', label: 'Total Exams', icon: FiFileText, linkLabel: 'View all exams' },
+  { key: 'upcomingExams', label: 'Upcoming Exams', icon: FiCalendar, linkLabel: 'View schedule' },
+  { key: 'completedExams', label: 'Completed Exams', icon: FiCheckCircle, linkLabel: 'View results' },
+  { key: 'resultsPending', label: 'Results Pending', icon: FiClock, linkLabel: 'Generate results' },
 ];
 
 const SUBJECT_BUCKETS = [
@@ -190,14 +191,8 @@ export default function ExamDashboardClient({ stats, sessionOptions, defaultSess
         {STAT_CARDS.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <div className="flex items-center gap-3">
-                <span className={`flex items-center justify-center w-10 h-10 rounded-xl shrink-0 ${card.color}`}>
-                  <Icon className="w-5 h-5" />
-                </span>
-                <p className="text-sm text-gray-500">{card.label}</p>
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-3">{stats[card.key]}</p>
+            <div key={card.key}>
+              <KPICard label={card.label} icon={<Icon className="w-4 h-4" />} value={stats[card.key]} />
               <Link
                 href="/dashboard/exams/list"
                 className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2"

@@ -21,6 +21,7 @@ import {
 import Modal from '@/components/Modal';
 import Button from '@/components/Button';
 import Toast from '@/components/Toast';
+import KPICard from '@/components/dashboard/KPICard';
 import LeaveStatusBadge from './LeaveStatusBadge';
 import { reviewLeave } from '@/lib/api';
 import { LEAVE_TYPES, LEAVE_TYPE_STYLES } from '@/lib/leaveConstants';
@@ -200,6 +201,8 @@ export default function AdminLeaveView({ leaves, balanceByTeacher = {} }) {
 
   const pendingLeaves = useMemo(() => leaves.filter((l) => l.status === 'Pending'), [leaves]);
   const historyLeaves = useMemo(() => leaves.filter((l) => l.status !== 'Pending'), [leaves]);
+  const approvedCount = useMemo(() => leaves.filter((l) => l.status === 'Approved').length, [leaves]);
+  const rejectedCount = useMemo(() => leaves.filter((l) => l.status === 'Rejected').length, [leaves]);
 
   const typeCounts = useMemo(() => {
     const counts = { All: pendingLeaves.length };
@@ -281,16 +284,14 @@ export default function AdminLeaveView({ leaves, balanceByTeacher = {} }) {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-2.5">
-            <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-amber-100 text-amber-600 shrink-0">
-              <FiClock className="w-4 h-4" />
-            </span>
-            <div>
-              <p className="text-lg font-bold text-gray-900 leading-tight">{pendingLeaves.length}</p>
-              <p className="text-[11px] text-amber-700 font-medium">Pending Requests</p>
-            </div>
-          </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard label="Total Requests" icon={<FiFileText className="w-4 h-4" />} value={leaves.length} />
+        <KPICard label="Pending" icon={<FiClock className="w-4 h-4" />} value={pendingLeaves.length} />
+        <KPICard label="Approved" icon={<FiCheck className="w-4 h-4" />} value={approvedCount} />
+        <KPICard label="Rejected" icon={<FiX className="w-4 h-4" />} value={rejectedCount} />
       </div>
 
       {viewMode === 'history' ? (

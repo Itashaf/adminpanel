@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getEligibleStudentsForSchedule, setEnrollmentsForSchedule } from '@/lib/examOptionalEnrollment';
+import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
 
 // GET/PUT /api/exams/schedules/[scheduleId]/enrollments — which students are
@@ -18,8 +19,16 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const { error: authError, user: actor } = await requirePermission('exams.manage');
+  const { error: authError } = await requirePermission('exams.manage');
   if (authError) return authError;
+
+  // See app/api/exams/route.js's same comment — lib/examOptionalEnrollment.js's
+  // own assertIsAdmin checks the legacy `.role` shape, not requirePermission's
+  // RBAC actor.
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
 
   const { scheduleId } = await params;
   const { studentIds } = await request.json();
@@ -28,7 +37,7 @@ export async function PUT(request, { params }) {
   }
 
   try {
-    const result = await setEnrollmentsForSchedule(scheduleId, studentIds, actor);
+    const result = await setEnrollmentsForSchedule(scheduleId, studentIds, currentUser);
     return NextResponse.json({ studentIds: result });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 400 });

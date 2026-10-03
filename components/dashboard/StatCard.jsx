@@ -1,3 +1,5 @@
+import { FiArrowUpRight, FiArrowDownRight } from 'react-icons/fi';
+
 // Decorative-only sparkline (no historical series exists to chart
 // honestly) — a fixed ascending bar shape purely to match the reference
 // design's visual rhythm, never labeled with a value.
@@ -47,6 +49,10 @@ export default function StatCard({
   // it has an actual figure to show.
   context,
   contextTone, // 'up' | 'down' | undefined
+  // variant="rail" only — the real absolute delta (e.g. "+12") and its
+  // label (e.g. "this month"), shown under the trend % pill.
+  deltaValue,
+  deltaLabel,
 }) {
   if (variant === 'minimal') {
     const palette = ACCENTS[accent] || ACCENTS.blue;
@@ -85,6 +91,54 @@ export default function StatCard({
             {context}
           </p>
         )}
+      </div>
+    );
+  }
+
+  // "Rail Stat Card" — saved design, reuse via variant="rail". A thick
+  // gradient rail down the left edge, big number + caption on the left,
+  // a vertical divider, and a trend pill + real delta figure on the
+  // right. `trendPercent`/`deltaValue` must be real computed figures
+  // (e.g. lib/dashboard.js's pctChange) — never fabricated, same rule as
+  // Sparkline above; omit them (leave null) rather than invent a number.
+  if (variant === 'rail') {
+    const isDown = contextTone === 'down';
+    return (
+      <div className="relative bg-white rounded-[24px] border border-gray-100 shadow-sm pl-7 pr-5 py-5 overflow-hidden">
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-600 to-violet-700" />
+        <div className="flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-gray-500">{label}</p>
+            <p className="text-4xl font-extrabold text-gray-900 tracking-tight mt-1">{value}</p>
+            {context && <p className="text-sm text-gray-400 mt-1">{context}</p>}
+          </div>
+
+          {(trend != null || deltaValue != null) && (
+            <>
+              <div className="self-stretch w-px bg-gray-100 shrink-0" />
+              <div className="shrink-0 flex flex-col items-start gap-2">
+                {trend != null && (
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1 ${
+                      isDown ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                    }`}
+                  >
+                    {isDown ? <FiArrowDownRight className="w-3 h-3" /> : <FiArrowUpRight className="w-3 h-3" />}
+                    {trend}%
+                  </span>
+                )}
+                {deltaValue != null && (
+                  <div>
+                    <p className={`text-lg font-bold ${deltaValue === '0+' ? 'text-gray-400' : isDown ? 'text-red-600' : 'text-green-600'}`}>
+                      {deltaValue}
+                    </p>
+                    {deltaLabel && <p className="text-xs text-gray-400">{deltaLabel}</p>}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     );
   }

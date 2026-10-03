@@ -101,9 +101,9 @@ export default async function AttendanceReportsPage({ searchParams }) {
         <p className="text-sm text-gray-500 mt-1">View attendance performance across students, classes and dates.</p>
       </div>
 
-      <ReportsFiltersBar classOptions={classOptions} initialFilters={filters} />
-
       <ReportSummaryCards summary={summary} totalStudents={studentReport.length} />
+
+      <ReportsFiltersBar classOptions={classOptions} initialFilters={filters} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <OverallAttendanceDonut summary={summary} from={filters.from} to={filters.to} />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -14,11 +15,11 @@ import { loginSchema } from '@/lib/schemas';
 import { schoolAdminLoginAction, teacherLoginAction, parentLoginAction } from '@/app/actions/auth';
 
 const ROLE_ICONS = {
-  Admin: <FiShield className="w-4 h-4" />,
-  Principal: <FiBookOpen className="w-4 h-4" />,
-  Accountant: <FiDollarSign className="w-4 h-4" />,
-  Teacher: <FiUser className="w-4 h-4" />,
-  Parent: <FiUsers className="w-4 h-4" />,
+  Admin: <FiShield className="w-5 h-5 sm:w-4 sm:h-4" />,
+  Principal: <FiBookOpen className="w-5 h-5 sm:w-4 sm:h-4" />,
+  Accountant: <FiDollarSign className="w-5 h-5 sm:w-4 sm:h-4" />,
+  Teacher: <FiUser className="w-5 h-5 sm:w-4 sm:h-4" />,
+  Parent: <FiUsers className="w-5 h-5 sm:w-4 sm:h-4" />,
 };
 
 // Admin/Principal/Accountant all sign in through the same
@@ -106,12 +107,26 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="w-full lg:flex-1 min-w-0 h-full overflow-y-auto flex items-center justify-center px-8 py-6 sm:px-20 sm:py-8 bg-white relative z-10 lg:-ml-12 lg:rounded-tl-[48px] lg:rounded-bl-[48px] lg:shadow-2xl">
-      <div className="w-full max-w-2xl">
+    <div className="w-full lg:flex-1 min-w-0 h-full overflow-y-auto bg-white sm:flex sm:items-center sm:justify-center sm:px-20 sm:py-8 relative z-10 lg:-ml-12 lg:rounded-tl-[48px] lg:rounded-bl-[48px] lg:shadow-2xl">
+      {/* Mobile-only gradient header band — "Design 7, Split Style (Stacked
+          for Mobile)" reference. Hidden at sm: and up, where the original
+          split-screen layout (LoginLeftPanel) already carries the brand. */}
+      <div className="sm:hidden bg-violet-100 rounded-b-[32px] pt-12 pb-9 px-6 text-center">
+        <Image src="/images/logo_schoolapp360.png" alt="SchoolApp 360" width={220} height={76} priority className="mx-auto h-auto w-[220px]" />
+        <p className="text-xs text-indigo-700/70 mt-1">Smart School Management</p>
+      </div>
+
+      <div className="w-full px-6 py-6 sm:max-w-2xl sm:px-0 sm:py-0">
       <div className="mb-6">
-        <h1 className="text-4xl font-bold text-gray-900">Welcome back</h1>
-        <p className="text-base text-gray-500 mt-2">
-          Please sign in to continue to <span className="font-semibold text-indigo-600">SchoolApp 360</span>.
+        <h1 className="text-2xl sm:text-4xl font-bold text-gray-900">
+          <span className="sm:hidden">Welcome back 👋</span>
+          <span className="hidden sm:inline">Welcome back</span>
+        </h1>
+        <p className="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">
+          <span className="sm:hidden">Sign in to continue</span>
+          <span className="hidden sm:inline">
+            Please sign in to continue to <span className="font-semibold text-indigo-600">SchoolApp 360</span>.
+          </span>
         </p>
       </div>
 
@@ -199,9 +214,11 @@ export default function LoginForm() {
         />
       </Form>
 
-      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-600">
-        <FiShield className="w-4 h-4 text-indigo-500 shrink-0" />
-        Platform super admin?{' '}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-600">
+        <span className="flex items-center gap-2">
+          <FiShield className="w-4 h-4 text-indigo-500 shrink-0" />
+          Platform super admin?
+        </span>
         <Link href="/" className="inline-flex items-center gap-1 text-indigo-600 font-medium hover:underline cursor-pointer">
           Go to Super Admin Sign In
           <FiArrowRight className="w-3.5 h-3.5" />

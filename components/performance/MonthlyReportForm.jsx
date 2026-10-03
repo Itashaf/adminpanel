@@ -14,11 +14,7 @@ import {
   FiClipboard,
   FiPrinter,
   FiInfo,
-  FiStar,
-  FiBookOpen,
-  FiMessageCircle,
   FiClock,
-  FiShield,
   FiSave,
   FiUserCheck,
   FiXCircle,
@@ -48,17 +44,17 @@ const ACHIEVEMENT_OPTIONS = [
 ];
 
 const HOLISTIC_CATEGORIES = [
-  { key: 'discipline', label: 'Discipline', icon: FiStar, iconBg: 'bg-blue-100 text-blue-600' },
-  { key: 'homeworkCompletion', label: 'Homework Completion', icon: FiBookOpen, iconBg: 'bg-violet-100 text-violet-600' },
-  { key: 'englishCommunication', label: 'English Communication', icon: FiMessageCircle, iconBg: 'bg-orange-100 text-orange-600' },
-  { key: 'punctuality', label: 'Punctuality', icon: FiClock, iconBg: 'bg-emerald-100 text-emerald-600' },
-  { key: 'hygiene', label: 'Hygiene', icon: FiShield, iconBg: 'bg-pink-100 text-pink-600' },
+  { key: 'discipline', label: 'Discipline' },
+  { key: 'homeworkCompletion', label: 'Homework Completion' },
+  { key: 'englishCommunication', label: 'English Communication' },
+  { key: 'punctuality', label: 'Punctuality' },
+  { key: 'hygiene', label: 'Hygiene' },
 ];
 
 const HOLISTIC_OPTIONS = [
-  { value: 'EXCELLENT', label: 'Excellent', dot: 'bg-emerald-500', active: 'bg-emerald-50 text-emerald-700' },
-  { value: 'GOOD', label: 'Good', dot: 'bg-amber-400', active: 'bg-amber-50 text-amber-700' },
-  { value: 'SUPPORT', label: 'Support', dot: 'bg-red-500', active: 'bg-red-50 text-red-700' },
+  { value: 'EXCELLENT', label: 'Excellent', dot: 'bg-emerald-500', ring: 'border-emerald-500', active: 'bg-emerald-50 text-emerald-700' },
+  { value: 'GOOD', label: 'Good', dot: 'bg-amber-400', ring: 'border-amber-400', active: 'bg-amber-50 text-amber-700' },
+  { value: 'SUPPORT', label: 'Support', dot: 'bg-red-500', ring: 'border-red-500', active: 'bg-red-50 text-red-700' },
 ];
 
 
@@ -350,9 +346,6 @@ export default function MonthlyReportForm({
                 className={`flex items-center justify-between gap-3 flex-wrap py-3.5 ${i < HOLISTIC_CATEGORIES.length - 1 ? 'border-b border-gray-50' : ''}`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${cat.iconBg}`}>
-                    <cat.icon className="w-4 h-4" />
-                  </span>
                   <p className="text-sm font-medium text-gray-800">{cat.label}</p>
                 </div>
                 <div className="flex gap-2">
@@ -364,11 +357,17 @@ export default function MonthlyReportForm({
                         type="button"
                         disabled={readOnly}
                         onClick={() => handleHolisticPick(cat.key, opt.value)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium border transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[11px] font-medium border transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                           isSelected ? `${opt.active} border-transparent` : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                         }`}
                       >
-                        <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
+                        <span
+                          className={`flex items-center justify-center w-3.5 h-3.5 rounded-full border-2 shrink-0 ${
+                            isSelected ? opt.ring : 'border-gray-300'
+                          }`}
+                        >
+                          {isSelected && <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />}
+                        </span>
                         {opt.label}
                       </button>
                     );

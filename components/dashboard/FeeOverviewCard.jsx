@@ -34,7 +34,7 @@ export default function FeeOverviewCard({ totalFees, collected, pending, overdue
       </div>
 
       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden my-5">
-        <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${collectedPercent}%` }} />
+        <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${collectedPercent}%` }} />
       </div>
 
       <div className="flex gap-3">

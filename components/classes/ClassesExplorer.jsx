@@ -15,19 +15,26 @@ export default function ClassesExplorer({ classes, selectedSession }) {
   return (
     <div className="space-y-6">
       <ClassesHeader onAddClass={() => setShowAddModal(true)} />
-      <ClassesGrid classes={classes} onAddClass={() => setShowAddModal(true)} />
+      <ClassesGrid classes={classes} academicSession={selectedSession} onAddClass={() => setShowAddModal(true)} />
 
-      <ClassFormModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        cls={null}
-        defaultSession={selectedSession}
-        onSuccess={(message) => {
-          setShowAddModal(false);
-          setToastMessage(message);
-          router.refresh();
-        }}
-      />
+      {/* Mounted only while actually open — ClassFormModal calls
+          useSubjects() unconditionally on mount (not gated on `isOpen`),
+          so rendering it unconditionally here fired a getSubjects()
+          request on every visit to this page, before "Add Class" was
+          ever clicked. */}
+      {showAddModal && (
+        <ClassFormModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          cls={null}
+          defaultSession={selectedSession}
+          onSuccess={(message) => {
+            setShowAddModal(false);
+            setToastMessage(message);
+            router.refresh();
+          }}
+        />
+      )}
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
     </div>

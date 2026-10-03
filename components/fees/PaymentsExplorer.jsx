@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiSearch } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import PaymentsTable from './PaymentsTable';
 import { getPayments } from '@/lib/api';
 
@@ -53,7 +53,7 @@ export default function PaymentsExplorer({ initialResult, students }) {
   const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Payment History</h1>
         <p className="text-sm text-gray-500 mt-1">Every fee payment collected, manual or online.</p>
@@ -101,13 +101,16 @@ export default function PaymentsExplorer({ initialResult, students }) {
         ) : (
           <p className="text-sm text-gray-500 text-center py-16">No payments match these filters.</p>
         )}
-
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100">
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={result.total} pageSize={PAGE_SIZE} />
-          </div>
-        )}
       </div>
+
+      <FixedPaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={result.total}
+        pageSize={PAGE_SIZE}
+        itemLabel="payments"
+      />
     </div>
   );
 }

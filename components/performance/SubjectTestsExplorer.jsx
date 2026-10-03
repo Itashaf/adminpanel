@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiPlus, FiSearch, FiFileText, FiCheckCircle, FiClock, FiBookOpen } from 'react-icons/fi';
 import Button from '@/components/Button';
+import KPICard from '@/components/dashboard/KPICard';
 import Modal from '@/components/Modal';
 import Dropdown from '@/components/Dropdown';
 import DatePicker from '@/components/DatePicker';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import { getSubjectTests, createSubjectTest } from '@/lib/api';
 import { useClassSections, getSectionOptions, classHasSections } from '@/lib/hooks/useClassSections';
 import PerformanceListSkeleton from './PerformanceListSkeleton';
@@ -71,7 +72,7 @@ export default function SubjectTestsExplorer({ classOptions, sessionOptions, def
   const pendingCount = (tests?.length ?? 0) - completedCount;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Subject Tests</h1>
@@ -79,6 +80,25 @@ export default function SubjectTestsExplorer({ classOptions, sessionOptions, def
         </div>
         {canManage && <Button label="Create Test" icon={<FiPlus className="w-4 h-4" />} onClick={() => setShowCreate(true)} />}
       </div>
+
+      {academicSession && tests && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPICard label="Total Tests" icon={<FiFileText className="w-4 h-4" />} value={tests.length} context="This session" />
+          <KPICard
+            label="Completed"
+            icon={<FiCheckCircle className="w-4 h-4" />}
+            value={completedCount}
+            context={`${tests.length > 0 ? Math.round((completedCount / tests.length) * 100) : 0}% of total`}
+          />
+          <KPICard
+            label="Pending"
+            icon={<FiClock className="w-4 h-4" />}
+            value={pendingCount}
+            context={`${tests.length > 0 ? Math.round((pendingCount / tests.length) * 100) : 0}% of total`}
+          />
+          <KPICard label="Subjects" icon={<FiBookOpen className="w-4 h-4" />} value={subjects.length} context="Across all classes" />
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3 items-end">
         <div className="w-40">
@@ -134,40 +154,9 @@ export default function SubjectTestsExplorer({ classOptions, sessionOptions, def
           <span className="font-medium text-gray-600">Manage This School</span> for the school you want to view first.
         </p>
       ) : !tests ? (
-        <PerformanceListSkeleton statCount={4} />
+        <PerformanceListSkeleton statCount={0} />
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-2xl p-5 bg-indigo-50">
-              <div className="flex items-center gap-2 text-indigo-500 text-xs font-medium uppercase tracking-wide">
-                <FiFileText className="w-4 h-4" /> Total Tests
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{tests.length}</p>
-              <p className="text-xs text-gray-400 mt-0.5">This session</p>
-            </div>
-            <div className="rounded-2xl p-5 bg-emerald-50">
-              <div className="flex items-center gap-2 text-emerald-600 text-xs font-medium uppercase tracking-wide">
-                <FiCheckCircle className="w-4 h-4" /> Completed
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{completedCount}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{tests.length > 0 ? Math.round((completedCount / tests.length) * 100) : 0}% of total</p>
-            </div>
-            <div className="rounded-2xl p-5 bg-amber-50">
-              <div className="flex items-center gap-2 text-amber-600 text-xs font-medium uppercase tracking-wide">
-                <FiClock className="w-4 h-4" /> Pending
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{pendingCount}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{tests.length > 0 ? Math.round((pendingCount / tests.length) * 100) : 0}% of total</p>
-            </div>
-            <div className="rounded-2xl p-5 bg-indigo-50">
-              <div className="flex items-center gap-2 text-indigo-500 text-xs font-medium uppercase tracking-wide">
-                <FiBookOpen className="w-4 h-4" /> Subjects
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{subjects.length}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Across all classes</p>
-            </div>
-          </div>
-
           <div>
             <h3 className="text-base font-bold text-gray-900">Tests ({filteredTests.length})</h3>
           </div>
@@ -236,14 +225,11 @@ export default function SubjectTestsExplorer({ classOptions, sessionOptions, def
               </div>
             )}
 
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-100">
-                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={filteredTests.length} pageSize={PAGE_SIZE} itemLabel="tests" />
-              </div>
-            )}
           </div>
         </>
       )}
+
+      <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={filteredTests.length} pageSize={PAGE_SIZE} itemLabel="tests" />
 
       {showCreate && (
         <CreateTestModal

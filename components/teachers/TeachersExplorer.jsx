@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { FiLoader } from 'react-icons/fi';
 import TeachersToolbar from './TeachersToolbar';
 import TeacherBulkActionsBar from './TeacherBulkActionsBar';
 import TeachersTable from './TeachersTable';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 import { getTeachersPage as fetchTeachersPage } from '@/lib/api';
 
 const EMPTY_FILTERS = { search: '', status: '', class: '' };
@@ -16,12 +18,20 @@ const EMPTY_FILTERS = { search: '', status: '', class: '' };
 // reach the browser, and every filter/page change re-fetches instead of
 // re-slicing a full in-memory roster.
 export default function TeachersExplorer({ initialTeachers, initialTotal, classOptions, pageSize = 10 }) {
+  const searchParams = useSearchParams();
   const [teachersList, setTeachersList] = useState(initialTeachers);
   const [total, setTotal] = useState(initialTotal);
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState(() => ({
+    ...EMPTY_FILTERS,
+    search: searchParams.get('search') || '',
+    status: searchParams.get('status') || '',
+    class: searchParams.get('class') || '',
+  }));
+  const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+
+  useUrlSync({ ...filters, page }, { ...EMPTY_FILTERS, page: 1 });
 
   // Keeps this component's local copy in sync whenever the server component
   // re-fetches (e.g. a router.refresh() elsewhere after adding/editing a
@@ -35,12 +45,22 @@ export default function TeachersExplorer({ initialTeachers, initialTotal, classO
     setTotal(initialTotal);
   }
 
-  const isFirstRun = useRef(true);
+  // React 18 Strict Mode double-invokes this effect once in dev (mount →
+  // cleanup → mount again), reusing the SAME ref instance — a plain "skip
+  // the first run" boolean flag gets flipped by the first invocation and
+  // no longer skips the second, firing a spurious re-fetch of the exact
+  // same first page a moment after load (the table briefly dims under the
+  // loading overlay even though nothing actually changed). Comparing
+  // against an immutable baseline captured once at mount, instead of a
+  // flag that mutates, stays correct under the double-invoke: both
+  // invocations re-evaluate the same (page, filters) vs baseline
+  // comparison and both skip, while a real user-driven change (which does
+  // change page/filters) still fetches exactly as before.
+  const baselineRef = useRef({ page, filters });
   useEffect(() => {
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      return;
-    }
+    const isUnchanged =
+      page === baselineRef.current.page && JSON.stringify(filters) === JSON.stringify(baselineRef.current.filters);
+    if (isUnchanged) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       setIsLoading(true);
@@ -85,7 +105,7 @@ export default function TeachersExplorer({ initialTeachers, initialTotal, classO
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12">
       <TeachersToolbar filters={filters} onFilterChange={handleFilterChange} onReset={handleReset} classOptions={classOptions} />
 
       <TeacherBulkActionsBar
@@ -113,13 +133,9 @@ export default function TeachersExplorer({ initialTeachers, initialTotal, classO
         ) : (
           <p className="text-sm text-gray-500 text-center py-10">No teachers match your filters.</p>
         )}
-
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100">
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} />
-          </div>
-        )}
       </div>
+
+      <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} itemLabel="teachers" />
     </div>
   );
 }
