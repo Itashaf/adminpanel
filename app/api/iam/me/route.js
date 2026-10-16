@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { getCurrentRBACUser } from '@/lib/rbac';
 
 // GET /api/iam/me — the one "who am I" endpoint for the whole app. Reads the
 // httpOnly `schoolapp360_session` cookie server-side (or the Teacher dashboard
@@ -12,5 +13,11 @@ export async function GET() {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
 
-  return NextResponse.json({ user });
+  // roleKey + permission keys (live from the DB, same source as the web
+  // Sidebar's filterByPermissions) so the mobile app can gate its own menu
+  // the same way instead of hardcoding a per-role list.
+  const rbacUser = await getCurrentRBACUser();
+  return NextResponse.json({
+    user: { ...user, roleKey: rbacUser?.roleKey ?? null, permissions: rbacUser ? [...rbacUser.permissions] : [] },
+  });
 }
