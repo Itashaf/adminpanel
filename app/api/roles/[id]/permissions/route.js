@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, clearRolePermissionCache } from '@/lib/rbac';
 import { readJson } from '@/lib/http';
 
 // Task 19 — full-replace: sets a role's permission set to exactly the
@@ -42,6 +42,8 @@ export async function POST(request, { params }) {
     prisma.rolePermission.deleteMany({ where: { roleId: id } }),
     prisma.rolePermission.createMany({ data: permissions.map((p) => ({ roleId: id, permissionId: p.id })) }),
   ]);
+
+  clearRolePermissionCache();
 
   return NextResponse.json({ roleId: id, permissionKeys });
 }
