@@ -4,7 +4,7 @@ import StudentActionsMenu from './StudentActionsMenu';
 
 const AVATAR_COLORS = ['bg-blue-500', 'bg-violet-700', 'bg-purple-500', 'bg-indigo-600', 'bg-pink-500', 'bg-cyan-600'];
 
-function StatusPill({ status }) {
+export function StatusPill({ status }) {
   const isActive = status === 'Active';
   return (
     <span
@@ -18,7 +18,7 @@ function StatusPill({ status }) {
   );
 }
 
-function Avatar({ initials, photoUrl, index }) {
+export function Avatar({ initials, photoUrl, index }) {
   if (photoUrl) {
     return <img src={photoUrl} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />;
   }

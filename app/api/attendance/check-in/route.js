@@ -3,6 +3,7 @@ import { requireTeacher } from '@/lib/iam';
 import { getTeacherCheckInStatus, checkInTeacher } from '@/lib/teacherAttendance';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { toLocalDateStr } from '@/lib/attendance';
+import { todayInSchoolTz } from '@/lib/schoolToday';
 
 // GET/POST /api/attendance/check-in — a Teacher marking their OWN
 // attendance. Deliberately requireTeacher() (a real signed-in session, web
@@ -14,7 +15,7 @@ export async function GET() {
   if (error) return error;
 
   const schoolId = await resolveSchoolId();
-  const status = await getTeacherCheckInStatus(actor.teacherId, schoolId, toLocalDateStr(new Date()));
+  const status = await getTeacherCheckInStatus(actor.teacherId, schoolId, todayInSchoolTz());
   return NextResponse.json(status);
 }
 

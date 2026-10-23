@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { updateSchoolRazorpayKeys } from '@/lib/schools';
 import { requireSuperAdmin } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 // PATCH /api/schools/[id]/razorpay — Super Admin only. Body: either
 // { keyId, keySecret } to set/update this school's own Razorpay account
@@ -11,7 +12,7 @@ export async function PATCH(request, { params }) {
   if (error) return error;
 
   const { id } = await params;
-  const { keyId, keySecret, clear } = await request.json();
+  const { keyId, keySecret, clear } = await readJson(request);
 
   if (!clear && !keyId) {
     return NextResponse.json({ error: 'Key ID is required.' }, { status: 400 });

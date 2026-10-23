@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { FiCalendar } from 'react-icons/fi';
 import Toast from '@/components/Toast';
-import StudentFeeTermCard from '@/components/fees/StudentFeeTermCard';
+import ParentFeeTermCard from '@/components/parent/ParentFeeTermCard';
 import { FEE_TERMS } from '@/lib/feeConstants';
 import { getStudentFees } from '@/lib/api';
 
@@ -44,19 +45,28 @@ export default function ParentFeesView({ student }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {student.firstName} {student.lastName}'s Fees
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {student.class}{student.section ? ` - ${student.section}` : ''} · Session {student.academicSession}
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {student.firstName} {student.lastName}&apos;s Fees
+          </h1>
+          <p className="text-base text-gray-500 mt-1.5">
+            {student.class}
+            {student.section ? ` - ${student.section}` : ''} · Session {student.academicSession}
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-2.5 bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 text-sm font-semibold text-gray-900">
+          <FiCalendar className="w-[18px] h-[18px] text-indigo-600" />
+          Academic Year {student.academicSession}
+        </span>
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-pulse">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-pulse">
           {FEE_TERMS.map((t) => (
-            <div key={t} className="h-52 bg-gray-50 rounded-2xl" />
+            <div key={t} className="h-60 bg-white border border-gray-100 shadow-sm rounded-[24px] overflow-hidden">
+              <div className="h-[68px] bg-gray-200" />
+            </div>
           ))}
         </div>
       )}
@@ -64,17 +74,15 @@ export default function ParentFeesView({ student }) {
       {!isLoading && error && <p className="text-sm text-red-500 text-center py-10">{error}</p>}
 
       {!isLoading && !error && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           {FEE_TERMS.map((term) => (
-            <StudentFeeTermCard
+            <ParentFeeTermCard
               key={term}
               term={term}
               fee={feeByTerm.get(term) || null}
               studentName={`${student.firstName} ${student.lastName}`}
               contact={student.guardian?.phone || student.whatsappNumber}
               email={student.guardian?.email}
-              canCollect={false}
-              canPayOnline
               onPaid={handlePaid}
             />
           ))}

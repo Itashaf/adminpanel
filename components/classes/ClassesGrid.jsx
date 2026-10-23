@@ -3,7 +3,11 @@
 import { useRef, useState } from 'react';
 import { FiLayers, FiPlus, FiMenu } from 'react-icons/fi';
 import ClassTableRow from './ClassTableRow';
+import ClassesMobileList from './ClassesMobileList';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import { reorderClasses } from '@/lib/api';
+
+const PAGE_SIZE = 10;
 
 // List/table view — same wrapper/spacing/colors/fonts convention as
 // StudentsTable.jsx / SubjectTestsExplorer.jsx's table, not this module's
@@ -16,7 +20,10 @@ import { reorderClasses } from '@/lib/api';
 // fine. `items` is a local optimistic copy of `classes`; a prop change
 // (add/delete elsewhere triggering router.refresh()) resyncs it via the
 // same "adjust state during render" pattern StudentsExplorer.jsx uses,
-// not a useEffect (which would cost an extra render pass).
+// not a useEffect (which would cost an extra render pass). Drag indices
+// are always positions in the full `items` array (not the current page's
+// slice) — dragging only reorders within whichever page is visible, same
+// trade-off every other paginated table in this app already makes.
 export default function ClassesGrid({ classes, academicSession, onAddClass }) {
   const [items, setItems] = useState(classes);
   const [prevClasses, setPrevClasses] = useState(classes);
@@ -24,6 +31,12 @@ export default function ClassesGrid({ classes, academicSession, onAddClass }) {
     setPrevClasses(classes);
     setItems(classes);
   }
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedItems = items.slice(pageStart, pageStart + PAGE_SIZE);
 
   const dragIndex = useRef(null);
 
@@ -81,45 +94,63 @@ export default function ClassesGrid({ classes, academicSession, onAddClass }) {
   }
 
   return (
-    <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              <th className="py-4 pl-6 pr-2 w-8" />
-              <th className="py-4 pr-4 w-10">#</th>
-              <th className="py-4 pr-4">Class</th>
-              <th className="py-4 pr-4">Sections</th>
-              <th className="py-4 pr-4 text-center">Total Students</th>
-              <th className="py-4 pr-4 text-center">Boys / Girls</th>
-              <th className="py-4 pr-4 text-center">Status</th>
-              <th className="py-4 pr-6 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {items.map((cls, index) => (
-              <ClassTableRow
-                key={cls.id}
-                cls={cls}
-                serialNumber={index + 1}
-                dragHandle={
-                  <span
-                    draggable
-                    onDragStart={handleDragStart(index)}
-                    onDragOver={handleDragOver(index)}
-                    onDrop={handleDrop}
-                    onDragEnd={handleDrop}
-                    className="flex items-center justify-center w-6 h-6 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing"
-                    title="Drag to reorder"
-                  >
-                    <FiMenu className="w-4 h-4" />
-                  </span>
-                }
-              />
-            ))}
-          </tbody>
-        </table>
+    <>
+      <ClassesMobileList classes={items} />
+
+      <div className="relative hidden sm:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <th className="py-4 pl-6 pr-2 w-8" />
+                <th className="py-4 pr-4 w-10">#</th>
+                <th className="py-4 pr-4">Class</th>
+                <th className="py-4 pr-4">Sections</th>
+                <th className="py-4 pr-4 text-center">Total Students</th>
+                <th className="py-4 pr-4 text-center">Boys / Girls</th>
+                <th className="py-4 pr-4 text-center">Status</th>
+                <th className="py-4 pr-6 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pagedItems.map((cls, localIndex) => {
+                const index = pageStart + localIndex;
+                return (
+                  <ClassTableRow
+                    key={cls.id}
+                    cls={cls}
+                    serialNumber={index + 1}
+                    dragHandle={
+                      <span
+                        draggable
+                        onDragStart={handleDragStart(index)}
+                        onDragOver={handleDragOver(index)}
+                        onDrop={handleDrop}
+                        onDragEnd={handleDrop}
+                        className="flex items-center justify-center w-6 h-6 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing"
+                        title="Drag to reorder"
+                      >
+                        <FiMenu className="w-4 h-4" />
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+
+      <div className="hidden sm:block">
+        <FixedPaginationBar
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          totalCount={items.length}
+          pageSize={PAGE_SIZE}
+          itemLabel="classes"
+        />
+      </div>
+    </>
   );
 }

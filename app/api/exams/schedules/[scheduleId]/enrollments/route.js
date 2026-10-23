@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getEligibleStudentsForSchedule, setEnrollmentsForSchedule } from '@/lib/examOptionalEnrollment';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // GET/PUT /api/exams/schedules/[scheduleId]/enrollments — which students are
 // enrolled in one optional/elective ExamSchedule (Class 11/12-style).
@@ -31,7 +32,7 @@ export async function PUT(request, { params }) {
   }
 
   const { scheduleId } = await params;
-  const { studentIds } = await request.json();
+  const { studentIds } = await readJson(request);
   if (!Array.isArray(studentIds)) {
     return NextResponse.json({ error: 'studentIds must be an array' }, { status: 400 });
   }

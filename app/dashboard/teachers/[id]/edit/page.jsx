@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import EditTeacherForm from '@/components/teachers/EditTeacherForm';
 import { getTeacherById } from '@/lib/teachers';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { blockIfNotAdminTier } from '@/lib/roleGuard';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -10,6 +11,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function EditTeacherPage({ params }) {
+  await blockIfNotAdminTier();
   const { id } = await params;
   const teacher = await getTeacherById(id, await resolveSchoolId());
 

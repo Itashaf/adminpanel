@@ -40,7 +40,7 @@ export default function StudentFeeTermCard({
   const [payError, setPayError] = useState('');
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-8">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-lg font-bold text-gray-900">{TERM_DISPLAY_NAMES[term]}</h3>

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { updateCalendarEvent, deleteCalendarEvent } from '@/lib/calendarEvents';
 import { requireSchoolAdmin } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 export async function PUT(request, { params }) {
   const { error } = await requireSchoolAdmin();
   if (error) return error;
 
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
   if (!data.title || !data.category || !data.startDate) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }

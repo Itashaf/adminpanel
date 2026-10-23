@@ -4,18 +4,20 @@ import { getClassSectionsMap } from '@/lib/classes';
 import { getActiveSession } from '@/lib/academicSessions';
 import { ACADEMIC_SESSIONS } from '@/lib/students';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { blockIfAccountant } from '@/lib/roleGuard';
 
 export const metadata = {
   title: 'Time Table | SchoolApp 360',
 };
 
 export default async function TimeTablePage() {
+  await blockIfAccountant();
   // Real session only, never lib/currentUser.js's dashboard role-preview
   // toggle — that toggle doesn't know which real Teacher is actually
   // signed in, so a real Class Teacher's own timetable page could load
   // scoped to whichever teacher the toggle happened to point to instead of
   // their own (same class of bug already found and fixed on this app's
-  // Leave/Assessments pages). The API route underneath already only
+  // Leave page). The API route underneath already only
   // accepts a real session either way.
   const [classSections, activeSession, currentUser] = await Promise.all([
     getClassSectionsMap(),

@@ -3,6 +3,7 @@ import { getCurrentUserInfo } from '@/lib/iam';
 import { applyForLeave, getAllLeaveRequests, getLeavesForTeacher } from '@/lib/teacherLeaves';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // GET /api/leaves — a Teacher (real session, mobile JWT or web Teacher
 // login) sees only their own requests. A SchoolAdmin/SuperAdmin sees every
@@ -41,7 +42,7 @@ export async function POST(request) {
   const { error: permError } = await requirePermission('leave.apply');
   if (permError) return permError;
 
-  const data = await request.json();
+  const data = await readJson(request);
 
   const currentUser = await getCurrentUserInfo();
   if (!currentUser) {

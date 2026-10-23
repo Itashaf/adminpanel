@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { hashPassword } from '@/lib/auth/password';
 import { requirePermission, getRoleByKey, assertCanAssignRole } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Teacher/Parent have rich legacy profiles (Teacher's HR fields, class/
 // subject assignments; ParentAccount's linked children) with their own
@@ -27,6 +28,8 @@ export async function GET() {
     where,
     include: { role: { select: { key: true, name: true } } },
     orderBy: { createdAt: 'desc' },
+    // Never more than this many in one response (a school's staff list is far smaller).
+    take: 500,
   });
   return NextResponse.json(
     rows.map((r) => ({
@@ -48,7 +51,7 @@ export async function POST(request) {
   const { user, error } = await requirePermission('users.create');
   if (error) return error;
 
-  const { name, email, phone, roleKey, schoolId: bodySchoolId } = await request.json();
+  const { name, email, phone, roleKey, schoolId: bodySchoolId } = await readJson(request);
   if (!name || !email || !roleKey) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }

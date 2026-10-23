@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { generateStudentFees } from '@/lib/fees';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function POST(request, { params }) {
   const { error } = await requirePermission('fees.create');
   if (error) return error;
 
   const { id } = await params;
-  const { term } = await request.json();
+  const { term } = await readJson(request);
 
   if (!term) {
     return NextResponse.json({ error: 'Missing term' }, { status: 400 });

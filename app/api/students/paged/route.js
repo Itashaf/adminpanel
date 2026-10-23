@@ -3,10 +3,10 @@ import { getStudentsPage } from '@/lib/students';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 
-// Real query-level pagination for the Students dashboard table — separate
-// from GET /api/students (which stays untouched: the mobile app relies on
-// that route returning the whole roster as a plain array, and changing its
-// response shape would break it). A Teacher's class scope is resolved here
+// Real query-level pagination for the Students dashboard table and the mobile
+// app — with search and class / section / status filters and a { students, total }
+// response (GET /api/students is also paged now, as a plain array with the
+// paging facts in headers). A Teacher's class scope is resolved here
 // from their own session, never trusted from the client, and enforced in
 // the query itself (see lib/students.js's getStudentsPage `scopePairs`) —
 // same security boundary the old full-fetch-then-filter-in-JS version had,

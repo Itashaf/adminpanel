@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentRBACUser } from '@/lib/rbac';
+import { getSchoolSettings } from '@/lib/schoolSettings';
 
 // GET /api/iam/me — the one "who am I" endpoint for the whole app. Reads the
 // httpOnly `schoolapp360_session` cookie server-side (or the Teacher dashboard
@@ -14,10 +15,16 @@ export async function GET() {
   }
 
   // roleKey + permission keys (live from the DB, same source as the web
-  // Sidebar's filterByPermissions) so the mobile app can gate its own menu
-  // the same way instead of hardcoding a per-role list.
-  const rbacUser = await getCurrentRBACUser();
+  // Sidebar's filterByPermissions) and the school's disabledFeatures (same
+  // getSchoolSettings() the web dashboard layout feeds filterByFeatures) so
+  // the mobile app can gate its own menu the same way.
+  const [rbacUser, school] = await Promise.all([getCurrentRBACUser(), getSchoolSettings().catch(() => null)]);
   return NextResponse.json({
-    user: { ...user, roleKey: rbacUser?.roleKey ?? null, permissions: rbacUser ? [...rbacUser.permissions] : [] },
+    user: {
+      ...user,
+      roleKey: rbacUser?.roleKey ?? null,
+      permissions: rbacUser ? [...rbacUser.permissions] : [],
+      disabledFeatures: school?.disabledFeatures || [],
+    },
   });
 }

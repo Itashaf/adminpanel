@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import ClassDetailsClient from '@/components/classes/ClassDetailsClient';
 import { getClassById, getActiveTeacherOptions } from '@/lib/classes';
+import { blockIfAccountant } from '@/lib/roleGuard';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -9,6 +10,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function ClassDetailsPage({ params }) {
+  await blockIfAccountant();
   const { id } = await params;
   const [cls, teacherOptions] = await Promise.all([getClassById(id), getActiveTeacherOptions()]);
 

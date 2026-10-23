@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getSchoolSettings } from '@/lib/schoolSettings';
-import { getStudentById } from '@/lib/students';
-import { getNoticesForStudent } from '@/lib/notices';
 import ParentShell from '@/components/parent/ParentShell';
+import SessionWatcher from '@/components/SessionWatcher';
 
 // Every /parent page is guarded here, once — unlike /dashboard and
 // /super-admin (see SKILL.md: "nothing checks schoolapp360_session" there),
@@ -13,19 +12,16 @@ import ParentShell from '@/components/parent/ParentShell';
 export default async function ParentLayout({ children }) {
   const actor = await getCurrentUserInfo();
   if (!actor || actor.role !== 'Parent') {
-    redirect('/login');
+    // Not signed in as a parent, or the account/school was deactivated: clear the
+    // cookie on the way to the login page (see app/api/auth/session-ended).
+    redirect('/api/auth/session-ended');
   }
 
-  const student = await getStudentById(actor.studentId, actor.schoolId);
-  const [school, notices] = await Promise.all([getSchoolSettings(), student ? getNoticesForStudent(student, actor.id) : []]);
+  const school = await getSchoolSettings();
 
   return (
-    <ParentShell
-      school={school}
-      students={actor.students || []}
-      activeStudentId={actor.studentId}
-      noticesCount={notices.length}
-    >
+    <ParentShell school={school} students={actor.students || []} activeStudentId={actor.studentId}>
+      <SessionWatcher />
       {children}
     </ParentShell>
   );

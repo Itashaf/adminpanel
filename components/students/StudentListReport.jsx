@@ -18,6 +18,15 @@ function formatAddress(address) {
   return parts.length ? parts.join(', ') : '—';
 }
 
+// The All-Classes print's "Class" column — class names are stored as
+// "Class 4" (see CLASS_LEVELS/classNameForLevel), but a dedicated column
+// already says "Class" in its own header, so the row value itself drops the
+// redundant word: "4 - A" instead of "Class 4 - A".
+function formatClassSection(student) {
+  const className = student.class?.replace(/^Class\s+/i, '') || student.class;
+  return `${className}${student.section ? ` - ${student.section}` : ''}`;
+}
+
 // A student only ever has one `guardian` + optional `secondaryGuardian` (see
 // lib/students.js's buildStudentFields) — either one could be recorded as
 // Father or Mother, so both are checked rather than assuming guardian is
@@ -32,7 +41,15 @@ function findParentName(student, relationship) {
 // (not the StudentsTable used on the main directory) since a print-out
 // needs every detail on one row per student, not progressive-disclosure
 // affordances like row actions or avatars.
+// "All Classes" lets an Admin/Principal print the whole school's roster in
+// one go — a Teacher's own `classOptions` is already scoped server-side
+// (see app/dashboard/students/list/page.jsx) to just their Class Teacher
+// classes, so this is never a way to see beyond what they could already
+// print one class at a time.
+const ALL_CLASSES_OPTION = { value: '', label: 'All Classes' };
+
 export default function StudentListReport({ students, classOptions }) {
+  const classDropdownOptions = useMemo(() => [ALL_CLASSES_OPTION, ...classOptions], [classOptions]);
   const [selectedClass, setSelectedClass] = useState(classOptions[0]?.value || '');
   const [selectedSection, setSelectedSection] = useState('');
   // A second, much simpler print layout — just names with a blank ruled
@@ -84,7 +101,7 @@ export default function StudentListReport({ students, classOptions }) {
             icon={<FiLayers className="w-4 h-4" />}
             value={selectedClass}
             onChange={handleClassChange}
-            options={classOptions}
+            options={classDropdownOptions}
           />
         </div>
         <div className="w-full sm:w-auto sm:min-w-[180px]">
@@ -131,23 +148,31 @@ export default function StudentListReport({ students, classOptions }) {
 
         {filteredStudents.length === 0 ? (
           <p className="text-[12px] text-gray-500 text-center py-10">
-            {selectedClass ? 'No students found for this class.' : 'Select a class to generate the list.'}
+            {selectedClass ? 'No students found for this class.' : 'No students found.'}
           </p>
         ) : blankMode ? (
           <div className="overflow-x-auto rounded-xl border border-gray-100 print:border print:border-gray-400 print:rounded-none">
             <table className="w-full text-[12px] print:text-[12px] print:leading-[1.15] border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-left text-[10px] print:text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 print:border-b-2 print:border-gray-400">
-                  <th className="py-3 px-4 print:py-0.5 print:px-1.5 w-12 print:border-r print:border-gray-400">#</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1.5 w-1/3 print:border-r print:border-gray-400">Student Name</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1.5">Remarks</th>
+                  <th className="py-3 px-4 print:py-0.5 print:px-1.5 w-12 border-r border-gray-200 print:border-r print:border-gray-400">#</th>
+                  {!selectedClass && (
+                    <th className="py-3 px-4 print:py-0.5 print:px-1.5 w-20 text-center border-r border-gray-200 print:border-r print:border-gray-400">Class</th>
+                  )}
+                  <th className="py-3 px-4 print:py-0.5 print:px-1.5 w-48 text-center border-r border-gray-200 print:border-r print:border-gray-400">Student Name</th>
+                  <th className="py-3 px-4 print:py-0.5 print:px-1.5 text-center">Remarks</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStudents.map((student, index) => (
                   <tr key={student.id} className="border-b border-gray-200 print:border-gray-400 last:border-0">
-                    <td className="py-5 px-4 print:py-[2px] print:px-1.5 text-gray-500 align-bottom print:border-r print:border-gray-400">{index + 1}</td>
-                    <td className="py-5 px-4 print:py-[2px] print:px-1.5 text-gray-900 font-medium whitespace-nowrap align-bottom print:border-r print:border-gray-400">
+                    <td className="py-5 px-4 print:py-[2px] print:px-1.5 text-gray-500 align-bottom border-r border-gray-200 print:border-r print:border-gray-400">{index + 1}</td>
+                    {!selectedClass && (
+                      <td className="py-5 px-4 print:py-[2px] print:px-1.5 w-20 text-center text-gray-600 whitespace-nowrap align-bottom border-r border-gray-200 print:border-r print:border-gray-400">
+                        {formatClassSection(student)}
+                      </td>
+                    )}
+                    <td className="py-5 px-4 print:py-[2px] print:px-1.5 text-center text-gray-900 font-medium whitespace-nowrap align-bottom border-r border-gray-200 print:border-r print:border-gray-400">
                       {student.firstName} {student.lastName}
                     </td>
                     <td className="py-5 px-4 print:py-[2px] print:px-1.5" />
@@ -158,51 +183,63 @@ export default function StudentListReport({ students, classOptions }) {
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-100 print:border print:border-gray-400 print:rounded-none print:overflow-visible">
-            {/* print:table-fixed + explicit % widths so this stays within the
-                page's own width (no horizontal scroll on paper) — a portrait
-                page is much narrower than landscape, so columns wrap onto a
-                second line instead of running off the right edge. Column
-                widths are tuned for landscape's extra room — Address gets
-                the biggest share since it's the one field that otherwise
-                wraps to 2-3 lines and inflates every row's height. */}
-            <table className="w-full text-[12px] print:text-[10px] print:leading-[1.15] print:table-fixed border-collapse">
+            {/* table-layout: auto (not fixed) — this table only ever prints
+                landscape (blankMode governs portrait, and this is its else
+                branch), so there's no narrow-page overflow risk to guard
+                against. table-fixed forced every column to its full % width
+                regardless of actual content (e.g. "DOB" at a 9%-wide column
+                it never needed), leaving a visible empty gap between short
+                content and its border-r before the next column starts —
+                auto layout sizes each column to what its content actually
+                needs instead. The print:w-[X%] hints still bias the
+                remaining extra space toward Address, the one field that
+                otherwise wraps to 2-3 lines and inflates every row's height. */}
+            <table className="w-full text-[11px] print:text-[10px] print:leading-[1.15] border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-left text-[10px] print:text-[9px] font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 print:border-b-2 print:border-gray-400">
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[3%] print:border-r print:border-gray-400">#</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[12%] print:border-r print:border-gray-400">Admission ID</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[12%] print:border-r print:border-gray-400">Name</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[9%] print:border-r print:border-gray-400">DOB</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[6%] print:border-r print:border-gray-400">Gender</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[12%] print:border-r print:border-gray-400">Father Name</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[12%] print:border-r print:border-gray-400">Mother Name</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[12%] print:border-r print:border-gray-400">Guardian Phone</th>
-                  <th className="py-3 px-4 print:py-0.5 print:px-1 print:w-[22%]">Address</th>
+                <tr className="bg-slate-50 text-center text-[10px] print:text-[9px] font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 print:border-b-2 print:border-gray-400">
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[3%] border-r border-gray-200 print:border-r print:border-gray-400">#</th>
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[12%] border-r border-gray-200 print:border-r print:border-gray-400">Name</th>
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[12%] border-r border-gray-200 print:border-r print:border-gray-400">Admission ID</th>
+                  {!selectedClass && (
+                    <th className="p-2 print:py-0.5 print:px-1 print:w-[8%] border-r border-gray-200 print:border-r print:border-gray-400">Class</th>
+                  )}
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[9%] border-r border-gray-200 print:border-r print:border-gray-400">DOB</th>
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[6%] border-r border-gray-200 print:border-r print:border-gray-400">Gender</th>
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[12%] border-r border-gray-200 print:border-r print:border-gray-400">Father Name</th>
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[12%] border-r border-gray-200 print:border-r print:border-gray-400">Mother Name</th>
+                  <th className="p-2 print:py-0.5 print:px-1 print:w-[12%] border-r border-gray-200 print:border-r print:border-gray-400">Guardian Phone</th>
+                  <th className={`p-2 print:py-0.5 print:px-1 ${selectedClass ? 'print:w-[22%]' : 'print:w-[14%]'}`}>Address</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStudents.map((student, index) => (
                   <tr key={student.id} className="border-b border-gray-100 print:border-gray-300 align-top last:border-0">
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 print:border-r print:border-gray-300">{index + 1}</td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 font-medium text-gray-900 whitespace-nowrap print:whitespace-normal print:break-words print:border-r print:border-gray-300">
-                      {student.admissionId}
-                    </td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 text-gray-900 whitespace-nowrap print:whitespace-normal print:break-words print:border-r print:border-gray-300">
+                    <td className="p-2 print:py-[2px] print:px-1 border-r border-gray-100 print:border-r print:border-gray-300">{index + 1}</td>
+                    <td className="p-2 print:py-[2px] print:px-1 text-gray-900 whitespace-nowrap print:whitespace-normal print:break-words border-r border-gray-100 print:border-r print:border-gray-300">
                       {student.firstName} {student.lastName}
                     </td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 text-gray-600 whitespace-nowrap print:whitespace-normal print:break-words print:border-r print:border-gray-300">
+                    <td className="p-2 print:py-[2px] print:px-1 font-medium text-gray-900 text-center whitespace-nowrap print:whitespace-normal print:break-words border-r border-gray-100 print:border-r print:border-gray-300">
+                      {student.admissionId}
+                    </td>
+                    {!selectedClass && (
+                      <td className="p-2 print:py-[2px] print:px-1 text-gray-600 whitespace-nowrap print:whitespace-normal print:break-words border-r border-gray-100 print:border-r print:border-gray-300">
+                        {formatClassSection(student)}
+                      </td>
+                    )}
+                    <td className="p-2 print:py-[2px] print:px-1 text-gray-600 text-center whitespace-nowrap print:whitespace-normal print:break-words border-r border-gray-100 print:border-r print:border-gray-300">
                       {formatDate(student.dob)}
                     </td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 text-gray-600 print:border-r print:border-gray-300">{student.gender || '—'}</td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 text-gray-600 print:break-words print:border-r print:border-gray-300">
+                    <td className="p-2 print:py-[2px] print:px-1 text-gray-600 border-r border-gray-100 print:border-r print:border-gray-300">{student.gender || '—'}</td>
+                    <td className="p-2 print:py-[2px] print:px-1 text-gray-600 print:break-words border-r border-gray-100 print:border-r print:border-gray-300">
                       {findParentName(student, 'Father') || '—'}
                     </td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 text-gray-600 print:break-words print:border-r print:border-gray-300">
+                    <td className="p-2 print:py-[2px] print:px-1 text-gray-600 print:break-words border-r border-gray-100 print:border-r print:border-gray-300">
                       {findParentName(student, 'Mother') || '—'}
                     </td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 text-gray-600 whitespace-nowrap print:whitespace-normal print:break-words print:border-r print:border-gray-300">
+                    <td className="p-2 print:py-[2px] print:px-1 text-gray-600 text-center whitespace-nowrap print:whitespace-normal print:break-words border-r border-gray-100 print:border-r print:border-gray-300">
                       {student.guardian?.phone || '—'}
                     </td>
-                    <td className="py-3 px-4 print:py-[2px] print:px-1 text-gray-600 max-w-[220px] print:max-w-none print:break-words">
+                    <td className="p-2 print:py-[2px] print:px-1 text-gray-600 max-w-[220px] print:max-w-none print:break-words">
                       {formatAddress(student.address)}
                     </td>
                   </tr>

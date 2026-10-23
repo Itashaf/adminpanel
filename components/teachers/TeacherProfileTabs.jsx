@@ -68,14 +68,14 @@ export default function TeacherProfileTabs({ teacher, classOptions }) {
 
   return (
     <div>
-      <div className="flex items-center gap-1 border-b border-gray-100 overflow-x-auto mb-5">
+      <div className="flex items-center gap-1 border-b border-gray-100 overflow-x-auto overflow-y-hidden mb-4 sm:mb-5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[linear-gradient(90deg,#6d28d9,#2563eb)]">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
             disabled={tab.comingSoon}
             onClick={() => setActiveTab(tab.key)}
-            className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+            className={`relative px-3 sm:px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
               tab.comingSoon
                 ? 'text-gray-300 cursor-not-allowed'
                 : activeTab === tab.key
@@ -90,7 +90,7 @@ export default function TeacherProfileTabs({ teacher, classOptions }) {
               </span>
             )}
             {activeTab === tab.key && !tab.comingSoon && (
-              <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 rounded-full" />
+              <span className="absolute left-0 right-0 bottom-0 h-0.5 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 rounded-full" />
             )}
           </button>
         ))}
@@ -166,14 +166,14 @@ export default function TeacherProfileTabs({ teacher, classOptions }) {
       )}
 
       {activeTab === 'assignments' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-            <div className="flex items-center gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
               <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-violet-100 text-violet-600 shrink-0">
                 <FiLayers className="w-5 h-5" />
               </span>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Current Assignments</h3>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">Current Assignments</h3>
                 <p className="text-sm text-gray-500 mt-0.5">
                   Academic Session {teacher.assignments[0]?.academicSession || '—'}
                 </p>
@@ -202,13 +202,13 @@ export default function TeacherProfileTabs({ teacher, classOptions }) {
       )}
 
       {activeTab === 'documents' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-          <div className="flex items-center gap-4 mb-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-8">
+          <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-violet-100 text-violet-600 shrink-0">
               <FiFile className="w-5 h-5" />
             </span>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Documents</h3>
+              <h3 className="text-base sm:text-lg font-bold text-gray-900">Documents</h3>
               <p className="text-sm text-gray-500 mt-0.5">Identity and qualification documents on file.</p>
             </div>
           </div>

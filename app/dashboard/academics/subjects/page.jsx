@@ -1,6 +1,6 @@
 import SubjectsExplorer from '@/components/academics/SubjectsExplorer';
 import { getSubjects } from '@/lib/subjects';
-import { blockIfTeacher } from '@/lib/roleGuard';
+import { blockIfTeacher, blockIfAccountant } from '@/lib/roleGuard';
 
 export const metadata = {
   title: 'Subjects | SchoolApp 360',
@@ -12,6 +12,7 @@ export default async function SubjectsPage() {
   // Calendar, which a Teacher now has real access to) — Subjects itself
   // stays Admin-only.
   await blockIfTeacher();
+  await blockIfAccountant();
   const subjects = await getSubjects();
   return <SubjectsExplorer initialSubjects={subjects} />;
 }

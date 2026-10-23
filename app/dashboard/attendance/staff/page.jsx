@@ -3,6 +3,7 @@ import { getTeacherAttendanceForDate } from '@/lib/teacherAttendance';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { toLocalDateStr } from '@/lib/attendance';
 import StaffAttendanceBoard from '@/components/staffAttendance/StaffAttendanceBoard';
+import { todayInSchoolTz } from '@/lib/schoolToday';
 
 export const metadata = {
   title: 'Staff Attendance | SchoolApp 360',
@@ -15,7 +16,7 @@ export default async function StaffAttendancePage() {
   await blockIfTeacher();
 
   const schoolId = await resolveSchoolId();
-  const today = toLocalDateStr(new Date());
+  const today = todayInSchoolTz();
   const initialData = await getTeacherAttendanceForDate(schoolId, today);
 
   return <StaffAttendanceBoard initialDate={today} initialData={initialData} />;

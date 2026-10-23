@@ -2,12 +2,14 @@ import ClassesExplorer from '@/components/classes/ClassesExplorer';
 import { getClassesForSession } from '@/lib/classes';
 import { ACADEMIC_SESSIONS } from '@/lib/students';
 import { getActiveSession } from '@/lib/academicSessions';
+import { blockIfAccountant } from '@/lib/roleGuard';
 
 export const metadata = {
   title: 'Classes & Sections | SchoolApp 360',
 };
 
 export default async function ClassesPage() {
+  await blockIfAccountant();
   // No longer a page-level filter — the school-wide active academic session
   // (switched via the Topbar dropdown) is the single source of truth, same
   // as Attendance/Reports.

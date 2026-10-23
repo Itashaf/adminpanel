@@ -17,7 +17,7 @@ const PERIODS = [
   { key: 'yearly', label: 'Yearly' },
 ];
 
-// Real Collected vs Due series — see lib/fees.js's getFeeCollectionTrend for
+// Real Collected vs Due series — see lib/fees.js's getFeeCollectionTrends for
 // exactly what each figure means. `dailyData`/`monthlyData`/`yearlyData` are
 // all server-computed and passed in already built; this just toggles which
 // one is charted, no client-side fetch. Built with Chart.js/react-chartjs-2
@@ -49,36 +49,36 @@ export default function FeeCollectionChart({ dailyData, monthlyData, yearlyData 
   };
 
   return (
-    <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-        <h3 className="text-lg font-semibold text-gray-900">Fee Collection</h3>
+    <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-4 sm:p-6">
+      {/* Phone: title + period pills on one row, legend underneath. sm and up:
+          title on the left, legend then pills on the right. */}
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-x-3 gap-y-2">
+        <h3 className="order-1 text-lg font-semibold text-gray-900">Fee Collection</h3>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              Collected
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              Due
-            </span>
-          </div>
+        <div className="order-2 sm:order-3 flex items-center gap-1 bg-gray-100 rounded-full p-1">
+          {PERIODS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setPeriod(key)}
+              className={`px-3 py-1 text-xs font-semibold rounded-full transition ${
+                period === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-          <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
-            {PERIODS.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setPeriod(key)}
-                className={`px-3 py-1 text-xs font-semibold rounded-full transition ${
-                  period === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        <div className="order-3 sm:order-2 w-full sm:w-auto sm:ml-auto sm:mr-4 flex items-center gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            Collected
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            Due
+          </span>
         </div>
       </div>
       <div className="h-56">

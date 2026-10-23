@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FiPlus, FiCalendar } from 'react-icons/fi';
 import Modal from '@/components/Modal';
 import Button from '@/components/Button';
+import ParentKPICard from '@/components/parent/ParentKPICard';
 import Dropdown from '@/components/Dropdown';
 import DatePicker from '@/components/DatePicker';
 import Toast from '@/components/Toast';
@@ -104,53 +105,35 @@ function ApplyLeaveModal({ isOpen, onClose, onSuccess, balance }) {
   );
 }
 
-function LeaveRow({ leave }) {
-  const dateLabel =
-    leave.endDate !== leave.startDate ? `${formatDate(leave.startDate)} – ${formatDate(leave.endDate)}` : formatDate(leave.startDate);
-
-  return (
-    <div className="px-4 sm:px-5 py-4 border-b border-gray-100 last:border-b-0">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-gray-900">{leave.leaveType} Leave</p>
-            <LeaveStatusBadge status={leave.status} />
-          </div>
-          <p className="text-xs text-gray-500 mt-1">{dateLabel}</p>
-          <p className="text-sm text-gray-600 mt-2">{leave.reason}</p>
-          {leave.status !== 'Pending' && (
-            <p className="text-xs text-gray-400 mt-2">
-              {leave.status} by {leave.reviewedByName || 'Admin'}
-              {leave.reviewNote ? ` — ${leave.reviewNote}` : ''}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+function dayCount(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  return Math.round((end - start) / 86400000) + 1;
 }
 
-function BalanceCard({ balance }) {
-  const isUnlimited = balance.quota === null;
-  const usedTotal = balance.usedApproved + balance.usedPending;
-  const pct = isUnlimited || balance.quota === 0 ? 0 : Math.min(100, Math.round((usedTotal / balance.quota) * 100));
+function dateLabelFor(leave) {
+  return leave.endDate !== leave.startDate ? `${formatDate(leave.startDate)} – ${formatDate(leave.endDate)}` : formatDate(leave.startDate);
+}
 
+function reviewLabelFor(leave) {
+  if (leave.status === 'Pending') return 'Awaiting review';
+  return `${leave.status} by ${leave.reviewedByName || 'Admin'}${leave.reviewNote ? ` — ${leave.reviewNote}` : ''}`;
+}
+
+// Mobile-only list row — the table below takes over from md up.
+function LeaveRow({ leave }) {
+  const days = dayCount(leave.startDate, leave.endDate);
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      <p className="text-xs font-medium text-gray-500">{balance.leaveType} Leave</p>
-      <p className="text-lg font-bold text-gray-900 mt-1">
-        {isUnlimited ? 'Unlimited' : `${balance.remaining} / ${balance.quota}`}
+    <div className="px-5 py-4 border-b border-gray-100 last:border-b-0">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-gray-900">{leave.leaveType} Leave</p>
+        <LeaveStatusBadge status={leave.status} />
+      </div>
+      <p className="text-sm text-gray-500 mt-1">
+        {dateLabelFor(leave)} · {days} day{days > 1 ? 's' : ''}
       </p>
-      {!isUnlimited && (
-        <>
-          <div className="h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-            <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="text-xs text-gray-400 mt-1.5">
-            {balance.usedApproved} used{balance.usedPending > 0 ? `, ${balance.usedPending} pending` : ''}
-          </p>
-        </>
-      )}
+      <p className="text-sm text-gray-600 mt-2">{leave.reason}</p>
+      <p className="text-xs text-gray-400 mt-2">{reviewLabelFor(leave)}</p>
     </div>
   );
 }
@@ -168,19 +151,36 @@ export default function TeacherLeaveView({ leaves, balance = [] }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Leave</h1>
-          <p className="text-sm text-gray-500 mt-1">Apply for leave and track your requests.</p>
+          <h1 className="text-3xl font-bold text-gray-900">My Leave</h1>
+          <p className="text-base text-gray-500 mt-1.5">Apply for leave and track your requests.</p>
         </div>
-        <Button label="Apply for Leave" icon={<FiPlus className="w-4 h-4" />} onClick={() => setShowModal(true)} />
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer shrink-0"
+        >
+          <FiPlus className="w-4 h-4" />
+          Apply for Leave
+        </button>
       </div>
 
       {balance.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {balance.map((b) => (
-            <BalanceCard key={b.leaveType} balance={b} />
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {balance.map((b) => {
+            const isUnlimited = b.quota === null;
+            return (
+              <ParentKPICard
+                key={b.leaveType}
+                label={`${b.leaveType} Leave`}
+                icon={<FiCalendar className="w-5 h-5" />}
+                value={isUnlimited ? 'Unlimited' : `${b.remaining} / ${b.quota}`}
+                context={`${b.usedApproved} used${b.usedPending > 0 ? `, ${b.usedPending} pending` : ''}`}
+                dotClassName={b.usedPending > 0 ? 'bg-amber-400' : 'bg-green-400'}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -193,7 +193,43 @@ export default function TeacherLeaveView({ leaves, balance = [] }) {
             <p className="text-sm text-gray-500">No leave requests yet.</p>
           </div>
         ) : (
-          leaves.map((leave) => <LeaveRow key={leave.id} leave={leave} />)
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <th className="py-4 pl-6 pr-4 w-16">S.No.</th>
+                    <th className="py-4 pr-4">Leave Type</th>
+                    <th className="py-4 pr-4">Date</th>
+                    <th className="py-4 pr-4">Days</th>
+                    <th className="py-4 pr-4">Reason</th>
+                    <th className="py-4 pr-4">Status</th>
+                    <th className="py-4 pr-6">Review</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {leaves.map((leave, index) => (
+                    <tr key={leave.id} className="align-top hover:bg-gray-50/60 transition">
+                      <td className="py-4 pl-6 pr-4 text-gray-500">{index + 1}</td>
+                      <td className="py-4 pr-4 font-medium text-gray-900 whitespace-nowrap">{leave.leaveType} Leave</td>
+                      <td className="py-4 pr-4 text-gray-700 whitespace-nowrap">{dateLabelFor(leave)}</td>
+                      <td className="py-4 pr-4 text-gray-700">{dayCount(leave.startDate, leave.endDate)}</td>
+                      <td className="py-4 pr-4 text-gray-700 whitespace-pre-wrap min-w-[200px]">{leave.reason}</td>
+                      <td className="py-4 pr-4">
+                        <LeaveStatusBadge status={leave.status} />
+                      </td>
+                      <td className="py-4 pr-6 text-gray-500 min-w-[160px]">{reviewLabelFor(leave)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="md:hidden">
+              {leaves.map((leave) => (
+                <LeaveRow key={leave.id} leave={leave} />
+              ))}
+            </div>
+          </>
         )}
       </div>
 

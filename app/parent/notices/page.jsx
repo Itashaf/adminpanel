@@ -1,21 +1,29 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getStudentById } from '@/lib/students';
-import { getNoticesForStudent } from '@/lib/notices';
+import { getNoticesPageForStudent } from '@/lib/notices';
 import ParentNoticesView from '@/components/parent/ParentNoticesView';
 
 export const metadata = {
   title: 'Notices | SchoolApp 360 Parent Portal',
 };
 
-export default async function ParentNoticesPage() {
+const PAGE_SIZE = 10;
+
+export default async function ParentNoticesPage({ searchParams }) {
+  const params = await searchParams;
   const actor = await getCurrentUserInfo();
   if (!actor || actor.role !== 'Parent') redirect('/login');
 
   const student = await getStudentById(actor.studentId, actor.schoolId);
   if (!student) redirect('/login');
 
-  const notices = await getNoticesForStudent(student, actor.id);
+  // The first page is fetched here (so there's no loading flash); later pages
+  // come from /api/parent/notices (see ParentNoticesView).
+  const initialResult = await getNoticesPageForStudent(student, actor.id, {
+    page: Math.max(Number(params?.page) || 1, 1),
+    pageSize: PAGE_SIZE,
+  });
 
-  return <ParentNoticesView notices={notices} student={student} />;
+  return <ParentNoticesView initialResult={initialResult} pageSize={PAGE_SIZE} student={student} />;
 }

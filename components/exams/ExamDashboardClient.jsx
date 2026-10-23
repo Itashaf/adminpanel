@@ -73,12 +73,6 @@ function formatDate(iso) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function formatClasses(classes) {
-  if (!classes || classes.length === 0) return '—';
-  if (classes.length <= 3) return classes.join(', ');
-  return `${classes.length} classes`;
-}
-
 function StatusDonut({ breakdown, total }) {
   let cumulative = 0;
   const stops = STATUS_BREAKDOWN.filter((b) => breakdown[b.key] > 0).map((b) => {
@@ -123,26 +117,27 @@ function ExamRow({ exam, onChanged }) {
 
   return (
     <>
-      <tr className="hover:bg-gray-50/60 transition">
-        <td className="py-3 pl-5 pr-4 text-sm font-semibold text-gray-900 whitespace-nowrap">{exam.name}</td>
-        <td className="py-3 pr-4 text-sm text-gray-600 whitespace-nowrap">{exam.examType}</td>
-        <td className="py-3 pr-4 text-sm text-gray-600 whitespace-nowrap">{formatClasses(exam.classes)}</td>
-        <td className="py-3 pr-4 text-sm text-gray-600 whitespace-nowrap">{formatDate(exam.startDate)}</td>
-        <td className="py-3 pr-4">
+      <div className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50/60 transition">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-900 truncate">{exam.name}</p>
+          <span className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
+            {exam.examType}
+            <span className="text-gray-300">·</span>
+            <FiCalendar className="w-3.5 h-3.5" />
+            {formatDate(exam.startDate)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <Badge label={exam.status} variant={STATUS_VARIANTS[exam.status]} />
-        </td>
-        <td className="py-3 pr-5">
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/dashboard/exams/${exam.id}`}
-              className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
-            >
-              View
-            </Link>
-            <DropdownMenu trigger={<FiMoreVertical className="w-4 h-4" />} items={menuItems} />
-          </div>
-        </td>
-      </tr>
+          <Link
+            href={`/dashboard/exams/${exam.id}`}
+            className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
+          >
+            View
+          </Link>
+          <DropdownMenu trigger={<FiMoreVertical className="w-4 h-4" />} items={menuItems} />
+        </div>
+      </div>
 
       <ConfirmDialog
         isOpen={showConfirm}
@@ -191,16 +186,21 @@ export default function ExamDashboardClient({ stats, sessionOptions, defaultSess
         {STAT_CARDS.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.key}>
-              <KPICard label={card.label} icon={<Icon className="w-4 h-4" />} value={stats[card.key]} />
-              <Link
-                href="/dashboard/exams/list"
-                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 mt-2"
-              >
-                {card.linkLabel}
-                <FiArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
+            <KPICard
+              key={card.key}
+              label={card.label}
+              icon={<Icon className="w-4 h-4" />}
+              value={stats[card.key]}
+              footer={
+                <Link
+                  href="/dashboard/exams/list"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-white/90 hover:text-white"
+                >
+                  {card.linkLabel}
+                  <FiArrowRight className="w-3 h-3" />
+                </Link>
+              }
+            />
           );
         })}
       </div>
@@ -270,24 +270,10 @@ export default function ExamDashboardClient({ stats, sessionOptions, defaultSess
           {stats.upcomingExamsList.length === 0 ? (
             <p className="text-sm text-gray-500 text-center py-10">No upcoming exams scheduled.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100">
-                    <th className="py-2.5 pl-5 pr-4">Exam Name</th>
-                    <th className="py-2.5 pr-4">Type</th>
-                    <th className="py-2.5 pr-4">Classes</th>
-                    <th className="py-2.5 pr-4">Start Date</th>
-                    <th className="py-2.5 pr-4">Status</th>
-                    <th className="py-2.5 pr-5">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {stats.upcomingExamsList.map((exam) => (
-                    <ExamRow key={exam.id} exam={exam} onChanged={handleChanged} />
-                  ))}
-                </tbody>
-              </table>
+            <div className="divide-y divide-gray-50">
+              {stats.upcomingExamsList.map((exam) => (
+                <ExamRow key={exam.id} exam={exam} onChanged={handleChanged} />
+              ))}
             </div>
           )}
         </div>
@@ -304,7 +290,7 @@ export default function ExamDashboardClient({ stats, sessionOptions, defaultSess
             <p className="text-sm text-gray-500 text-center py-10">No activity yet.</p>
           ) : (
             <div className="divide-y divide-gray-50">
-              {stats.recentActivity.map((item) => {
+              {stats.recentActivity.slice(0, 5).map((item) => {
                 const meta = ACTIVITY_ICON[item.type] || ACTIVITY_ICON.MarksEntered;
                 const Icon = meta.icon;
                 return (

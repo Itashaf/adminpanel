@@ -86,9 +86,9 @@ export default function EventsTable({ events, onEdit, sortKey, sortDir, onSortCh
         <p className="text-sm text-gray-500 text-center py-16">No events match your filters.</p>
       ) : (
         <>
-          <div className="hidden md:block overflow-x-auto max-h-[520px] overflow-y-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10">
+              <thead>
                 <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   {COLUMNS.map((col) => (
                     <th key={col.key} className="py-4 pl-6 pr-4 first:pl-6">

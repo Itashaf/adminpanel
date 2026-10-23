@@ -3,6 +3,7 @@ import { validateParentCredentials } from '@/lib/parentAccounts';
 import { signSessionToken } from '@/lib/auth/jwt';
 import { checkLoginRateLimit } from '@/lib/auth/loginRateLimit';
 import { getUserFieldsForLegacyId } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Token-returning counterpart to app/actions/auth.js's parentLoginAction —
 // same payload shape as the cookie that action sets (role: 'Parent',
@@ -13,12 +14,12 @@ import { getUserFieldsForLegacyId } from '@/lib/rbac';
 // see /api/auth/parent/switch for how it then gets a new token after
 // switching.
 export async function POST(request) {
-  const { email, password } = await request.json();
+  const { email, password } = await readJson(request);
   if (!email || !password) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  const rateLimit = checkLoginRateLimit(request.headers, email);
+  const rateLimit = await checkLoginRateLimit(request.headers, email);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many login attempts. Please try again later.' },

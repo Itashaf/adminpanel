@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requirePermission, getRoleByKey, assertCanAssignRole } from '@/lib/rbac';
+import { requirePermission, getRoleByKey, assertCanChangeRole } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Task 22 — role reassignment, the actual hierarchy enforcement point.
 // Every "user cannot..." bullet from the spec's Security Requirements that
@@ -10,7 +11,7 @@ export async function PATCH(request, { params }) {
   if (error) return error;
 
   const { id } = await params;
-  const { roleKey } = await request.json();
+  const { roleKey } = await readJson(request);
   if (!roleKey) return NextResponse.json({ error: 'Missing roleKey' }, { status: 400 });
 
   // 1. Cannot change their own role.
@@ -29,10 +30,12 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // 3. Cannot assign a role above their own authority — the actual
-  // hierarchy check, never inferred from a hidden frontend option.
+  // 3. Changing an EXISTING user's role is SuperAdmin-only — never inferred
+  // from a hidden frontend option. (Creating a brand-new user with an
+  // initial role is a separate, less restrictive check — see
+  // assertCanAssignRole in POST /api/users.)
   try {
-    assertCanAssignRole(user.roleKey, roleKey);
+    assertCanChangeRole(user.roleKey, roleKey);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 403 });
   }

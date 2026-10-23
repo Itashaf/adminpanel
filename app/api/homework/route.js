@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createHomework, getVisibleHomework } from '@/lib/homework';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 // GET /api/homework — mirrors app/api/notices/route.js's GET: real signed-in
 // session only (mobile Teacher/Parent JWT or web SchoolAdmin cookie), scoped
@@ -17,7 +18,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.academicSession || !data.className || !data.subject || !data.title) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

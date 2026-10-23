@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getStudentAttendanceStats, getStudentAttendanceSessionStats } from '@/lib/attendance';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { requireAnyPermission } from '@/lib/rbac';
 
 export async function GET(request, { params }) {
   const { id } = await params;
@@ -18,8 +19,12 @@ export async function GET(request, { params }) {
   // here is unguarded like the rest of this app (see lib/iam.js's own note
   // on that gap), so this only narrows the Parent case.
   const actor = await getCurrentUserInfo();
-  if (actor?.role === 'Parent' && actor.studentId !== id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!actor) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  if (actor.role === 'Parent') {
+    if (actor.studentId !== id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } else {
+    const { error: authError } = await requireAnyPermission(['attendance.student.view', 'attendance.student.report', 'attendance.student.mark']);
+    if (authError) return authError;
   }
 
   const stats =

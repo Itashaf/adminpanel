@@ -3,6 +3,7 @@ import { createSubjectTest, getSubjectTests } from '@/lib/performance/subjectTes
 import { requirePermission } from '@/lib/rbac';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentUser } from '@/lib/currentUser';
+import { readJson } from '@/lib/http';
 
 export async function GET(request) {
   const { error } = await requirePermission('performanceReports.view');
@@ -24,7 +25,7 @@ export async function POST(request) {
   if (error) return error;
 
   const currentUser = (await getCurrentUserInfo()) || (await getCurrentUser());
-  const body = await request.json();
+  const body = await readJson(request);
 
   try {
     const test = await createSubjectTest(currentUser, body);

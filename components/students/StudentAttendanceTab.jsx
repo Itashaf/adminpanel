@@ -147,7 +147,7 @@ export default function StudentAttendanceTab({ studentId, admissionDate }) {
   const weeks = stats ? buildCalendarWeeks(month, stats.days) : [];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-8">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-violet-100 text-violet-600 shrink-0">
@@ -160,7 +160,7 @@ export default function StudentAttendanceTab({ studentId, admissionDate }) {
         </div>
 
         {stats && (
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-2.5 [&>:last-child]:col-span-2 sm:[&>:last-child]:col-span-1">
             {STATUS_ORDER.map((status) => (
               <SummaryChip key={status} status={status} count={stats[status] || 0} />
             ))}

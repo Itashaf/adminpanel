@@ -4,6 +4,7 @@ import TeachersExplorer from '@/components/teachers/TeachersExplorer';
 import { getTeachersPage, getTeacherStats } from '@/lib/teachers';
 import { getClassOptions } from '@/lib/students';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { blockIfNotAdminTier } from '@/lib/roleGuard';
 
 export const metadata = {
   title: 'Teachers | SchoolApp 360',
@@ -12,6 +13,7 @@ export const metadata = {
 const PAGE_SIZE = 10;
 
 export default async function TeachersPage() {
+  await blockIfNotAdminTier();
   const schoolId = await resolveSchoolId();
   const [page1, stats, classOptions] = await Promise.all([
     getTeachersPage({ schoolId, page: 1, pageSize: PAGE_SIZE }),

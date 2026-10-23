@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireTeacher } from '@/lib/iam';
 import { updateTeacherSelfProfile } from '@/lib/teachers';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request) {
   const { actor, error } = await requireTeacher();
   if (error) return error;
 
-  const { name, photoUrl } = await request.json();
+  const { name, photoUrl } = await readJson(request);
   try {
     const teacher = await updateTeacherSelfProfile(actor.teacherId, actor.schoolId, { name, photoUrl });
     return NextResponse.json({ name: `${teacher.firstName} ${teacher.lastName}`, photoUrl: teacher.photoUrl });

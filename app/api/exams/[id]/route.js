@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { deleteExam, getExamById, updateExam } from '@/lib/exams';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function GET(request, { params }) {
   const { id } = await params;
@@ -33,7 +34,7 @@ export async function PUT(request, { params }) {
   }
 
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.name || !data.academicSession || !data.examType || !data.startDate || !data.endDate || !data.classes?.length) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

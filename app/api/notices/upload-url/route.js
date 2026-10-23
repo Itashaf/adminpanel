@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { getPresignedUploadUrl, buildPublicUrl, MAX_ATTACHMENT_BYTES } from '@/lib/storage';
+import { readJson } from '@/lib/http';
 
 // Step 1 of the Notices PDF attachment upload: the browser asks for a
 // presigned R2 PUT url here, then uploads the file bytes directly to R2 (see
@@ -13,7 +14,7 @@ export async function POST(request) {
   const { error } = await requirePermission('notices.create');
   if (error) return error;
 
-  const { fileName, fileType, fileSize } = await request.json();
+  const { fileName, fileType, fileSize } = await readJson(request);
 
   if (fileType !== 'application/pdf') {
     return NextResponse.json({ error: 'Only PDF files are allowed.' }, { status: 400 });

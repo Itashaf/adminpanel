@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { FiUploadCloud, FiPlus, FiLoader } from 'react-icons/fi';
+import { FiUploadCloud, FiPlus, FiLoader, FiUsers } from 'react-icons/fi';
+import EmptyState from '@/components/EmptyState';
 import StudentsHeader from './StudentsHeader';
 import StudentsStats from './StudentsStats';
 import StudentsToolbar from './StudentsToolbar';
 import BulkActionsBar from './BulkActionsBar';
 import StudentsTable from './StudentsTable';
+import StudentsMobileList from './StudentsMobileList';
 import BulkImportModal from './BulkImportModal';
 import FixedPaginationBar from '@/components/FixedPaginationBar';
 import { useClassSections, getSectionOptions } from '@/lib/hooks/useClassSections';
@@ -160,23 +162,23 @@ export default function StudentsExplorer({
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="flex flex-col h-full sm:pb-12">
+      <div className="shrink-0 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <StudentsHeader canManage={canManage} />
 
         {canCreate && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:shrink-0">
             <button
               type="button"
               onClick={() => setShowBulkImport(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 transition cursor-pointer"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 transition cursor-pointer"
             >
               <FiUploadCloud className="w-4 h-4" />
               Bulk Import
             </button>
             <Link
               href="/dashboard/students/add"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer"
             >
               <FiPlus className="w-4 h-4" />
               Add Student
@@ -185,9 +187,11 @@ export default function StudentsExplorer({
         )}
       </div>
 
-      <StudentsStats stats={stats} />
+      <div className="shrink-0 mb-6">
+        <StudentsStats stats={stats} />
+      </div>
 
-      <div className="space-y-4">
+      <div className="shrink-0 mb-4">
         <StudentsToolbar
           filters={filters}
           onFilterChange={handleFilterChange}
@@ -195,40 +199,62 @@ export default function StudentsExplorer({
           classOptions={classOptions}
           sectionOptions={getSectionOptions(classSections, filters.class)}
         />
+      </div>
 
-        {canManage && (
+      {canManage && (
+        <div className="hidden sm:block shrink-0 mb-4">
           <BulkActionsBar
             selectedCount={selectedIds.length}
             onExport={() => {}}
             onChangeStatus={() => {}}
             onDeactivate={() => {}}
           />
+        </div>
+      )}
+
+      <div
+        className={`relative hidden sm:flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${
+          studentsList.length > 0 ? 'shrink-0' : 'flex-1 min-h-0'
+        }`}
+      >
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10">
+            <FiLoader className="w-5 h-5 text-indigo-600 animate-spin" />
+          </div>
         )}
 
-        <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10">
-              <FiLoader className="w-5 h-5 text-indigo-600 animate-spin" />
-            </div>
-          )}
-
-          {studentsList.length > 0 ? (
-            <StudentsTable
-              students={studentsList}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              onStudentDeleted={handleStudentDeleted}
-              canManage={canManage}
-              canEdit={canEdit}
-            />
-          ) : (
-            <p className="text-sm text-gray-500 text-center py-10">No students match your filters.</p>
-          )}
-        </div>
+        {studentsList.length > 0 ? (
+          <StudentsTable
+            students={studentsList}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
+            onStudentDeleted={handleStudentDeleted}
+            canManage={canManage}
+            canEdit={canEdit}
+          />
+        ) : (
+          <EmptyState icon={FiUsers} description="No students match your filters." />
+        )}
       </div>
 
-      <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} itemLabel="students" />
+      <StudentsMobileList
+        students={studentsList}
+        total={total}
+        isLoading={isLoading}
+        filters={filters}
+        page={page}
+        pageSize={pageSize}
+        canManage={canManage}
+        canEdit={canEdit}
+        onStudentDeleted={handleStudentDeleted}
+      />
+
+      {studentsList.length > 0 && <div className="hidden sm:block shrink-0 h-[100px]" />}
+
+      <div className="hidden sm:block">
+        <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} itemLabel="students" />
+      </div>
 
       {canManage && (
         <BulkImportModal isOpen={showBulkImport} onClose={() => setShowBulkImport(false)} onImported={handleImported} />

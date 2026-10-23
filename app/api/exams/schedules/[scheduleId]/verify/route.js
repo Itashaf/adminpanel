@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { approveMarks, rejectMarks, unlockMarks } from '@/lib/examMarks';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // POST /api/exams/schedules/[scheduleId]/verify — { action: 'approve' | 'reject' | 'unlock', reason?, studentId? }
 // `studentId` narrows the action to just that one student's row instead of
@@ -27,7 +28,7 @@ export async function POST(request, { params }) {
   const actor = await getCurrentUserInfo();
 
   const { scheduleId } = await params;
-  const { action, reason, studentId } = await request.json();
+  const { action, reason, studentId } = await readJson(request);
 
   try {
     let result;

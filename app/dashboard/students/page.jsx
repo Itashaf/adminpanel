@@ -55,15 +55,26 @@ export default async function StudentsPage({ searchParams }) {
     status: '',
   };
 
+  // Must match whatever page is in the URL, not always 1 — useUrlSync
+  // (components/students/StudentsExplorer.jsx) calls router.replace on
+  // every page/filter change, which re-renders this Server Component. If it
+  // kept re-fetching page 1 here, that fresh page1 prop would overwrite the
+  // client's already-fetched page 2+ rows (see its initialStudents-changed
+  // sync effect) a moment after the user paginated — making every page look
+  // like page 1.
+  const page = Math.max(1, Number(params?.page) || 1);
+
   const [allClassOptions, stats, page1] = await Promise.all([
     getClassOptions(),
     getStudentStats(schoolId, scopePairs),
     getStudentsPage({
       schoolId,
-      page: 1,
+      page,
       pageSize: PAGE_SIZE,
+      search: params?.search || '',
       classFilter: initialFilters.class,
       sectionFilter: initialFilters.section,
+      statusFilter: params?.status || '',
       scopePairs,
     }),
   ]);

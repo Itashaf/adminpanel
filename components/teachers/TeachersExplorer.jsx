@@ -6,6 +6,7 @@ import { FiLoader } from 'react-icons/fi';
 import TeachersToolbar from './TeachersToolbar';
 import TeacherBulkActionsBar from './TeacherBulkActionsBar';
 import TeachersTable from './TeachersTable';
+import TeachersMobileList from './TeachersMobileList';
 import FixedPaginationBar from '@/components/FixedPaginationBar';
 import { useUrlSync } from '@/lib/hooks/useUrlSync';
 import { getTeachersPage as fetchTeachersPage } from '@/lib/api';
@@ -105,17 +106,19 @@ export default function TeachersExplorer({ initialTeachers, initialTotal, classO
   };
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-4 sm:pb-12">
       <TeachersToolbar filters={filters} onFilterChange={handleFilterChange} onReset={handleReset} classOptions={classOptions} />
 
-      <TeacherBulkActionsBar
-        selectedCount={selectedIds.length}
-        onExport={() => {}}
-        onChangeStatus={() => {}}
-        onDeactivate={() => {}}
-      />
+      <div className="hidden sm:block">
+        <TeacherBulkActionsBar
+          selectedCount={selectedIds.length}
+          onExport={() => {}}
+          onChangeStatus={() => {}}
+          onDeactivate={() => {}}
+        />
+      </div>
 
-      <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="relative hidden sm:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10">
             <FiLoader className="w-5 h-5 text-indigo-600 animate-spin" />
@@ -135,7 +138,19 @@ export default function TeachersExplorer({ initialTeachers, initialTotal, classO
         )}
       </div>
 
-      <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} itemLabel="teachers" />
+      <TeachersMobileList
+        teachers={teachersList}
+        total={total}
+        isLoading={isLoading}
+        filters={filters}
+        page={page}
+        pageSize={pageSize}
+        classOptions={classOptions}
+      />
+
+      <div className="hidden sm:block">
+        <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={total} pageSize={pageSize} itemLabel="teachers" />
+      </div>
     </div>
   );
 }

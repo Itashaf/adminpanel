@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createFeeStructure, getFeeStructures } from '@/lib/fees';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, requireStaffPermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // fees.view is also held by Parent (for their own child's fee view, GET
 // /api/fees/student/[studentId]) — this route lists every fee structure
 // school-wide, so Parent needs an explicit block on top, same
 // shared-permission-key pattern as every prior module.
 export async function GET(request) {
-  const { user, error } = await requirePermission('fees.view');
+  const { user, error } = await requireStaffPermission('fees.view');
   if (error) return error;
   if (user.roleKey === 'Parent') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -25,7 +26,7 @@ export async function POST(request) {
   const { error } = await requirePermission('fees.create');
   if (error) return error;
 
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.academicSession || !data.className) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

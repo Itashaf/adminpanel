@@ -3,12 +3,13 @@ import { commitMonthlyImport } from '@/lib/performance/bulkImport';
 import { requirePermission } from '@/lib/rbac';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentUser } from '@/lib/currentUser';
+import { readJson } from '@/lib/http';
 
 export async function POST(request) {
   const { error } = await requirePermission('performanceReports.monthly.manage');
   if (error) return error;
 
-  const { className, sectionName, academicSession, month, activities, holistic, remarks } = await request.json();
+  const { className, sectionName, academicSession, month, activities, holistic, remarks } = await readJson(request);
   if (!className || !sectionName || !academicSession || !month) {
     return NextResponse.json({ error: 'className, sectionName, academicSession and month are required.' }, { status: 400 });
   }

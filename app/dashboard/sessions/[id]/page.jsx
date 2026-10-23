@@ -4,6 +4,7 @@ import SessionStatsCards from '@/components/sessions/SessionStatsCards';
 import SessionOverviewCard from '@/components/sessions/SessionOverviewCard';
 import SessionClassStructure from '@/components/sessions/SessionClassStructure';
 import { getSessionById, getActiveSession } from '@/lib/academicSessions';
+import { blockIfAccountant } from '@/lib/roleGuard';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -12,6 +13,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function SessionDetailsPage({ params }) {
+  await blockIfAccountant();
   const { id } = await params;
   const [session, activeSession] = await Promise.all([getSessionById(id), getActiveSession()]);
 

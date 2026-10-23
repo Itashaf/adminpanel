@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { FaGraduationCap } from 'react-icons/fa';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import SupportModal from '@/components/support/SupportModal';
+import { getSupportUnreadCount } from '@/lib/api';
+import { getPusherClient } from '@/lib/pusherClient';
 import {
   FiGrid,
   FiUsers,
@@ -28,13 +31,14 @@ import {
   FiSend,
   FiTrendingUp,
   FiFileText,
+  FiHeadphones,
 } from 'react-icons/fi';
 
 // `permKey` (RBAC permission key, see prisma/rbacPermissions.js) gates an
 // item for Principal/Admin/Accountant/SuperAdmin, on top of the existing
 // `featureKey` (per-school module toggle) — both must pass. Only added
 // where the permission catalog actually has a matching key; a module the
-// catalog doesn't cover (Homework, Assessments, Calendar) is left ungated
+// catalog doesn't cover (Homework, Calendar) is left ungated
 // here, same "don't build for a key that doesn't exist" call as the rest
 // of this RBAC project.
 const ADMIN_NAV_ITEMS = [
@@ -59,6 +63,7 @@ const ADMIN_NAV_ITEMS = [
       { label: 'All Students', href: '/dashboard/students', icon: FiUsers, permKey: 'students.view' },
       { label: 'Add Student', href: '/dashboard/students/add', icon: FiUserPlus, permKey: 'students.create' },
       { label: 'Student List', href: '/dashboard/students/list', icon: FiPrinter, permKey: 'students.view' },
+      { label: 'Promote Students', href: '/dashboard/students/promote', icon: FiTrendingUp, permKey: 'students.update' },
     ],
   },
   {
@@ -131,6 +136,11 @@ const ADMIN_NAV_ITEMS = [
 // no "Add Student" child. This list is the UI half of the restriction; the
 // authoritative half is lib/roleGuard.js's server-side redirects, since a
 // hidden link alone doesn't stop someone typing the URL directly.
+// Valid values for the Support popup's ?support= deep link — matches
+// SupportModal.jsx's own screen names (minus 'thread', which is reached via
+// ?supportTicket instead, never directly by name).
+const SUPPORT_SCREENS = ['tickets', 'form', 'help'];
+
 const TEACHER_NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: FiGrid },
   {
@@ -258,17 +268,28 @@ function filterByClassTeacher(navItems, isClassTeacher) {
     .filter(Boolean);
 }
 
-function NavLink({ label, href, icon: Icon, isActive, badge }) {
+// On phones (below lg) sub-items (`isChild`) show a radio dot instead of an
+// icon; from lg up they keep the icon + gradient active pill.
+function NavLink({ label, href, icon: Icon, isActive, badge, onNavigate, isChild = false }) {
+  const activeClass = isChild
+    ? 'text-white font-semibold lg:font-medium lg:bg-gradient-to-r lg:from-[#2563EB] lg:to-[#7C3AED] lg:shadow'
+    : 'bg-gradient-to-r from-[#2563EB] to-[#7C3AED] text-white shadow';
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer ${
-        isActive
-          ? 'bg-gradient-to-r from-[#2563EB] to-[#7C3AED] text-white shadow'
-          : 'text-purple-200 hover:bg-white/5 hover:text-white'
+        isActive ? activeClass : 'text-purple-200 hover:bg-white/5 hover:text-white'
       }`}
     >
-      <Icon className="w-[18px] h-[18px]" />
+      {isChild && (
+        <span
+          className={`lg:hidden w-3.5 h-3.5 rounded-full shrink-0 border-2 ${
+            isActive ? 'border-white bg-white' : 'border-purple-300/60'
+          }`}
+        />
+      )}
+      <Icon className={`w-[18px] h-[18px] ${isChild ? 'hidden lg:block' : ''}`} />
       <span className="flex-1">{label}</span>
       {badge > 0 && (
         <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
@@ -279,7 +300,7 @@ function NavLink({ label, href, icon: Icon, isActive, badge }) {
   );
 }
 
-function NavGroup({ item, pathname, isExpanded, onToggle }) {
+function NavGroup({ item, pathname, isExpanded, onToggle, onNavigate }) {
   const isChildActive = item.children.some((child) => pathname === child.href);
 
   return (
@@ -289,11 +310,11 @@ function NavGroup({ item, pathname, isExpanded, onToggle }) {
         onClick={onToggle}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer ${
           isChildActive ? 'text-white' : 'text-purple-200 hover:bg-white/5 hover:text-white'
-        }`}
+        } ${isExpanded ? 'bg-white/10 lg:bg-transparent' : ''}`}
       >
         <item.icon className="w-[18px] h-[18px]" />
         <span className="flex-1 text-left">{item.label}</span>
-        <FiChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <FiChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : '-rotate-90 lg:rotate-0'}`} />
       </button>
 
       <div
@@ -303,7 +324,7 @@ function NavGroup({ item, pathname, isExpanded, onToggle }) {
         <div className="overflow-hidden">
           <div className="mt-1 ml-4 pl-4 border-l border-white/10 space-y-1 pb-1">
             {item.children.map((child) => (
-              <NavLink key={child.href} {...child} isActive={pathname === child.href} />
+              <NavLink key={child.href} {...child} isChild isActive={pathname === child.href} onNavigate={onNavigate} />
             ))}
           </div>
         </div>
@@ -312,15 +333,27 @@ function NavGroup({ item, pathname, isExpanded, onToggle }) {
   );
 }
 
-export default function Sidebar({ isOpen = false, onClose, school, role, permissions = null, pendingLeaveCount = 0, isClassTeacher = false }) {
+export default function Sidebar({ isOpen = false, onClose, school, role, permissions = null, roleKey = null, pendingLeaveCount = 0, isClassTeacher = false }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const displayName = school?.displayName || 'SchoolApp 360';
+  // Accountant keeps notices.view (can still reach a notice directly), but
+  // the Communication GROUP (with Homework alongside it) is noise in their
+  // sidebar — financial staff never touch Homework and never browse
+  // notices as a group workflow, unlike every other role that holds
+  // notices.view and genuinely wants the full group. Swapped for one flat
+  // "Notices" link instead of dropping access entirely.
   const navItems = filterByClassTeacher(
     filterByPermissions(
       filterByFeatures(role === 'Teacher' ? TEACHER_NAV_ITEMS : ADMIN_NAV_ITEMS, school?.disabledFeatures),
       permissions
     ),
     isClassTeacher
+  ).map((item) =>
+    roleKey === 'Accountant' && item.label === 'Communication'
+      ? { label: 'Notices', href: '/dashboard/notices', icon: FiBell }
+      : item
   );
   // Accordion: only one group's children are expanded at a time. Starts
   // open on whichever group contains the current page (same default the
@@ -329,6 +362,62 @@ export default function Sidebar({ isOpen = false, onClose, school, role, permiss
   const [expandedLabel, setExpandedLabel] = useState(
     () => navItems.find((item) => item.children?.some((child) => pathname === child.href))?.label ?? null
   );
+  // Notification Bell's support deep links:
+  // - ?supportTicket=xyz (see lib/support.js's addReply/updateTicketStatus)
+  //   opens the popup straight to that ticket's thread.
+  // - ?support=tickets|form|help opens the popup on that section directly.
+  // Derived straight from the URL on every render (not mirrored into state)
+  // so a later Notification Bell click — router.push while Sidebar is
+  // already mounted on /dashboard, which never remounts it — is picked up
+  // immediately, same as the very first load.
+  const supportTicketParam = searchParams.get('supportTicket');
+  const supportScreenParam = SUPPORT_SCREENS.includes(searchParams.get('support')) ? searchParams.get('support') : null;
+  const [manualSupportOpen, setManualSupportOpen] = useState(false);
+  const supportOpen = manualSupportOpen || Boolean(supportTicketParam) || Boolean(supportScreenParam);
+  const initialSupportTicketId = supportTicketParam;
+  const initialSupportScreen = supportScreenParam || 'tickets';
+  const [supportUnreadCount, setSupportUnreadCount] = useState(0);
+
+  const refreshSupportUnreadCount = () => {
+    getSupportUnreadCount()
+      .then((data) => setSupportUnreadCount(data.count))
+      .catch(() => {});
+  };
+
+  // The deep-link params stay in the URL for as long as the popup is open
+  // (that's what keeps it open across re-renders) and are stripped only on
+  // close, here — not in an effect, so there's no race between "just
+  // opened" and "already stripped before the user saw it".
+  const closeSupport = () => {
+    setManualSupportOpen(false);
+    if (supportTicketParam || supportScreenParam) {
+      const params = new URLSearchParams(searchParams);
+      params.delete('supportTicket');
+      params.delete('support');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+    refreshSupportUnreadCount();
+  };
+
+  useEffect(() => {
+    refreshSupportUnreadCount();
+  }, []);
+
+  // Live badge update — a SuperAdmin reply or status change elsewhere
+  // pushes here instead of the badge staying stale until the next page
+  // load. Falls back fine without it (the mount-time fetch above still
+  // reflects whatever happened on page load) if Pusher is ever unreachable.
+  useEffect(() => {
+    if (!school?.id) return;
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`support-school-${school.id}`);
+    channel.bind('ticket-updated', refreshSupportUnreadCount);
+    return () => {
+      channel.unbind('ticket-updated', refreshSupportUnreadCount);
+      pusher.unsubscribe(`support-school-${school.id}`);
+    };
+  }, [school?.id]);
 
   return (
     <>
@@ -340,7 +429,7 @@ export default function Sidebar({ isOpen = false, onClose, school, role, permiss
       )}
 
       <aside
-        className={`print:hidden fixed lg:static inset-y-0 left-0 z-40 w-64 shrink-0 bg-gradient-to-b from-purple-950 to-indigo-950 text-white flex flex-col h-full transition-transform duration-200 ${
+        className={`print:hidden fixed lg:static inset-y-0 left-0 z-40 w-[80vw] lg:w-64 shrink-0 bg-gradient-to-b from-purple-950 to-indigo-950 text-white flex flex-col h-full transition-transform duration-200 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -369,7 +458,7 @@ export default function Sidebar({ isOpen = false, onClose, school, role, permiss
           </button>
         </div>
 
-        <nav className="sidebar-nav-scroll flex-1 px-3 mt-2 space-y-1 overflow-y-auto">
+        <nav className="sidebar-nav-scroll flex-1 px-3 mt-2 pb-3 space-y-1 overflow-y-auto">
           {navItems.map((item) =>
             item.children ? (
               <NavGroup
@@ -378,6 +467,7 @@ export default function Sidebar({ isOpen = false, onClose, school, role, permiss
                 pathname={pathname}
                 isExpanded={expandedLabel === item.label}
                 onToggle={() => setExpandedLabel((prev) => (prev === item.label ? null : item.label))}
+                onNavigate={onClose}
               />
             ) : (
               <NavLink
@@ -385,20 +475,40 @@ export default function Sidebar({ isOpen = false, onClose, school, role, permiss
                 {...item}
                 isActive={pathname === item.href.split('?')[0]}
                 badge={item.href === '/dashboard/leave' ? pendingLeaveCount : undefined}
+                onNavigate={onClose}
               />
             )
           )}
         </nav>
 
-        <div className="px-3 pb-5">
+        <div className="px-3 pb-5 pt-2 border-t border-white/10 lg:border-0 lg:pt-0">
           <button
             type="button"
-            className="w-full text-center py-2.5 rounded-lg border border-purple-400/30 text-sm font-medium text-white hover:bg-white/5 transition cursor-pointer"
+            onClick={() => {
+              setManualSupportOpen(true);
+              onClose?.();
+            }}
+            className="relative w-full flex items-center justify-start gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm font-medium text-white hover:bg-white/5 lg:justify-center lg:gap-2 lg:px-0 lg:border-purple-400/30 transition cursor-pointer"
           >
+            <FiHeadphones className="lg:hidden w-[18px] h-[18px]" />
             Support
+            {supportUnreadCount > 0 && (
+              <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
+                {supportUnreadCount}
+              </span>
+            )}
           </button>
         </div>
       </aside>
+
+      {supportOpen && (
+        <SupportModal
+          key={initialSupportTicketId || initialSupportScreen}
+          initialTicketId={initialSupportTicketId}
+          initialScreen={initialSupportScreen}
+          onClose={closeSupport}
+        />
+      )}
     </>
   );
 }

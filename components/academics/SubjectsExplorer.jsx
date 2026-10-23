@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { FiBook, FiPlus, FiEdit2, FiTrash2, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiBook, FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import Button from '@/components/Button';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Toast from '@/components/Toast';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import SubjectFormModal from './SubjectFormModal';
 import { deleteSubject } from '@/lib/api';
 
@@ -65,7 +66,7 @@ export default function SubjectsExplorer({ initialSubjects }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Subjects</h1>
@@ -151,46 +152,16 @@ export default function SubjectsExplorer({ initialSubjects }) {
           </table>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-t border-gray-100">
-          <p className="text-xs text-gray-500">
-            Showing {subjects.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + ROWS_PER_PAGE, subjects.length)} of{' '}
-            {subjects.length} subjects
-          </p>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <FiChevronLeft className="w-4 h-4" />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPage(p)}
-                  className={`w-8 h-8 rounded-lg text-xs font-medium transition cursor-pointer ${
-                    p === currentPage ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <FiChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
+
+      <FixedPaginationBar
+        page={currentPage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={subjects.length}
+        pageSize={ROWS_PER_PAGE}
+        itemLabel="subjects"
+      />
 
       <SubjectFormModal
         isOpen={showFormModal}

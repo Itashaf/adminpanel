@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { setExamStatus } from '@/lib/exams';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 // PUT /api/exams/[id]/status — { status: 'Draft' | 'Published' | 'Completed' }
 // Publishing an exam only reveals its date sheet to Teachers/Parents; it
@@ -13,7 +14,7 @@ export async function PUT(request, { params }) {
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const { status } = await request.json();
+  const { status } = await readJson(request);
 
   if (!status) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

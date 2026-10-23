@@ -5,6 +5,7 @@ import TeacherProfileTabs from '@/components/teachers/TeacherProfileTabs';
 import { getTeacherById } from '@/lib/teachers';
 import { getClassOptions } from '@/lib/students';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { blockIfNotAdminTier } from '@/lib/roleGuard';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -13,6 +14,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function TeacherProfilePage({ params }) {
+  await blockIfNotAdminTier();
   const { id } = await params;
   const schoolId = await resolveSchoolId();
   const [teacher, classOptions] = await Promise.all([getTeacherById(id, schoolId), getClassOptions()]);
@@ -20,7 +22,7 @@ export default async function TeacherProfilePage({ params }) {
   if (!teacher) notFound();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <TeacherProfileHeader teacher={teacher} />
       <TeacherOverviewCards teacher={teacher} />
       <TeacherProfileTabs teacher={teacher} classOptions={classOptions} />

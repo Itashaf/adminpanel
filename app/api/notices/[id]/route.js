@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { updateNotice, deleteNotice, getNoticeById } from '@/lib/notices';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // GET /api/notices/:id — see app/api/notices/route.js's GET for why this
 // uses getCurrentUserInfo() rather than getCurrentActor(). A Teacher asking
@@ -24,7 +25,7 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.title || !data.message || !data.audience) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { requireParent } from '@/lib/iam';
 import { getPresignedUploadUrl, buildPublicUrl } from '@/lib/storage';
 import { MAX_STUDENT_PHOTO_BYTES, STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
+import { readJson } from '@/lib/http';
 
 export async function POST(request) {
   const { actor, error } = await requireParent();
   if (error) return error;
 
-  const { fileName, fileType, fileSize } = await request.json();
+  const { fileName, fileType, fileSize } = await readJson(request);
 
   if (!STUDENT_PHOTO_ACCEPT_TYPES.includes(fileType)) {
     return NextResponse.json({ error: 'Only JPG, PNG, or WEBP images are allowed.' }, { status: 400 });

@@ -5,14 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import { FiCheckSquare, FiUser, FiSave, FiSearch, FiUsers } from 'react-icons/fi';
 import DatePicker from '@/components/DatePicker';
 import Dropdown from '@/components/Dropdown';
-import FixedPaginationBar from '@/components/FixedPaginationBar';
+import Pagination from '@/components/Pagination';
 import Toast from '@/components/Toast';
 import { STATUS_META, STATUS_ORDER } from '@/components/attendance/statusStyles';
 import KPICard from '@/components/dashboard/KPICard';
 import { useUrlSync } from '@/lib/hooks/useUrlSync';
 import { getStaffAttendance, saveStaffAttendance } from '@/lib/api';
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 // Not a real selectable attendance status (STATUS_ORDER/STATUS_META only
 // ever hold Present/Absent/Leave, shared with Student attendance) — purely a
@@ -386,33 +384,33 @@ export default function StaffAttendanceBoard({ initialDate, initialData }) {
         )}
       </div>
 
-      {filteredRoster.length > 0 && (
-        <FixedPaginationBar
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          totalCount={filteredRoster.length}
-          pageSize={pageSize}
-          itemLabel="teachers"
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPage(1);
-          }}
-        />
-      )}
-
-      {data.roster.length > 0 && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer disabled:opacity-60"
-          >
-            <FiSave className="w-4 h-4" />
-            {isSaving ? 'Saving...' : data.isMarked ? 'Update Attendance' : 'Save Attendance'}
-          </button>
+      {(filteredRoster.length > 0 || data.roster.length > 0) && (
+        <div className="fixed bottom-0 left-0 right-0 lg:left-64 z-30 bg-gray-50 border-t border-gray-100 px-4 sm:px-6 py-3 print:hidden">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {filteredRoster.length > 0 && (
+              <div className="flex-1 min-w-0">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  totalCount={filteredRoster.length}
+                  pageSize={pageSize}
+                  itemLabel="teachers"
+                />
+              </div>
+            )}
+            {data.roster.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer disabled:opacity-60"
+              >
+                <FiSave className="w-4 h-4" />
+                {isSaving ? 'Saving...' : data.isMarked ? 'Update Attendance' : 'Save Attendance'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

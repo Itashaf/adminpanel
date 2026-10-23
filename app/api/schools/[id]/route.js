@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSchoolDirectoryEntry, updateSchoolDirectory } from '@/lib/schools';
 import { requireSuperAdmin } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 export async function GET(request, { params }) {
   const { error } = await requireSuperAdmin();
@@ -16,7 +17,7 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.name || !data.code || !data.email || !data.phone) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

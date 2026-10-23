@@ -47,7 +47,10 @@ export default function ExamResultsClient({ exam, initialResults, parentExam, sc
       const outcome = await generateExamResults(exam.id);
       setToastMessage(
         `${outcome.generated.length} result${outcome.generated.length === 1 ? '' : 's'} generated.` +
-          (outcome.skippedStudentIds.length > 0 ? ` ${outcome.skippedStudentIds.length} skipped — not all subjects approved yet.` : '')
+          (outcome.skippedStudentIds.length > 0 ? ` ${outcome.skippedStudentIds.length} skipped — not all subjects approved yet.` : '') +
+          (outcome.skippedPublishedStudentIds?.length > 0
+            ? ` ${outcome.skippedPublishedStudentIds.length} already published and left as they are (unpublish first to regenerate).`
+            : '')
       );
       router.refresh();
     } catch (err) {

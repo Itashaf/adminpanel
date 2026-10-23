@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { updateAdminPermissions } from '@/lib/admins';
 import { requireSuperAdmin } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request, { params }) {
   const { error: authError } = await requireSuperAdmin();
   if (authError) return authError;
 
   const { id } = await params;
-  const { permissions } = await request.json();
+  const { permissions } = await readJson(request);
 
   if (!permissions) {
     return NextResponse.json({ error: 'Missing permissions' }, { status: 400 });

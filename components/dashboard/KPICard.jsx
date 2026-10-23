@@ -11,7 +11,9 @@ const CARD_BG = 'bg-gradient-to-br from-purple-800 via-indigo-800 to-[#2563EB]';
 // card exactly as before. Since any onClick handler needs client state, the
 // caller passing `footer` is itself a Client Component; KPICard stays a
 // plain, dumb presentational component either way.
-export default function KPICard({ label, icon, value, pillLabel, context, footer }) {
+// `valueClassName` — size of the main value; defaults to the big number style,
+// pass a smaller one when the value is text (e.g. an email) rather than a count.
+export default function KPICard({ label, icon, value, pillLabel, context, footer, valueClassName = 'text-3xl' }) {
   return (
     <div className={`rounded-xl shadow-sm p-5 transition-shadow duration-200 hover:shadow-md ${CARD_BG}`}>
       <div className="flex items-center justify-between">
@@ -20,13 +22,23 @@ export default function KPICard({ label, icon, value, pillLabel, context, footer
       </div>
 
       <div className="flex items-center gap-2 mt-3">
-        <p className="text-3xl font-bold text-white tabular-nums tracking-tight leading-tight">{value}</p>
+        <div className={`min-w-0 font-bold text-white tabular-nums tracking-tight leading-tight ${valueClassName}`}>{value}</div>
         {pillLabel && (
           <span className="text-xs font-semibold rounded-full px-2 py-0.5 bg-white/20 text-white">{pillLabel}</span>
         )}
       </div>
-      {context && <p className="text-xs font-semibold text-white/90 mt-1">{context}</p>}
-      {footer && <div className="mt-2">{footer}</div>}
+      {/* Context + footer share one row when both exist (e.g. Pending Fees'
+          student count + "View Classwise") instead of stacking on separate
+          lines — each still renders alone exactly as before when only one
+          of them is passed. */}
+      {context && !footer && <p className="text-xs font-semibold text-white/90 mt-1">{context}</p>}
+      {footer && !context && <div className="mt-2">{footer}</div>}
+      {context && footer && (
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-xs font-semibold text-white/90">{context}</p>
+          {footer}
+        </div>
+      )}
     </div>
   );
 }

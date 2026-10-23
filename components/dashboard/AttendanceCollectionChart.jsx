@@ -13,7 +13,7 @@ const PERIODS = [
 ];
 
 // Real attendance % series — see lib/attendance.js's
-// getAttendanceCollectionTrend for exactly what each figure means. Charts
+// getAttendanceCollectionTrends for exactly what each figure means. Charts
 // `percent` (not raw present/absent counts) since those counts are sums
 // across every student × every day in a bucket and read as much bigger than
 // the school's actual headcount — percent is the only figure that's

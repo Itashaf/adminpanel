@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createExam, getVisibleExams } from '@/lib/exams';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function GET() {
   const currentUser = await getCurrentUserInfo();
@@ -28,7 +29,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
 
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.name || !data.academicSession || !data.examType || !data.startDate || !data.endDate || !data.classes?.length) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

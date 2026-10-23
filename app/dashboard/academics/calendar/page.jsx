@@ -3,12 +3,14 @@ import TeacherCalendarView from '@/components/calendar/TeacherCalendarView';
 import { getAllCalendarEvents } from '@/lib/calendarEvents';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { blockIfAccountant } from '@/lib/roleGuard';
 
 export const metadata = {
   title: 'Academic Calendar | SchoolApp 360',
 };
 
 export default async function AcademicCalendarPage() {
+  await blockIfAccountant();
   const currentUser = await getCurrentUserInfo();
 
   // A Teacher gets a read-only view of the same whole-school events (only

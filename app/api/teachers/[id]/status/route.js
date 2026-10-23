@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { updateTeacherStatus } from '@/lib/teachers';
 import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request, { params }) {
   const { error } = await requirePermission('teachers.update');
   if (error) return error;
 
   const { id } = await params;
-  const { status } = await request.json();
+  const { status } = await readJson(request);
 
   if (!status) {
     return NextResponse.json({ error: 'Missing status' }, { status: 400 });

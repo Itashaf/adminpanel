@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { setAttendanceLock, getAttendanceRecordById } from '@/lib/attendance';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request, { params }) {
   const { id } = await params;
-  const { unlocked } = await request.json();
+  const { unlocked } = await readJson(request);
 
   // attendance.student.update — Teacher's default permission set has
   // .view/.mark/.report but not .update, so this is a straight 1:1

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { assignSectionTeacher } from '@/lib/classes';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request, { params }) {
   const { error: authError } = await requirePermission('classes.manage');
   if (authError) return authError;
 
   const { id, sectionId } = await params;
-  const { classTeacherId } = await request.json();
+  const { classTeacherId } = await readJson(request);
 
   try {
     const section = await assignSectionTeacher(id, sectionId, classTeacherId);

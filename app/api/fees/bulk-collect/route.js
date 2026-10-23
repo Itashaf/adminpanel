@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server';
 import { bulkCollectFullDue } from '@/lib/fees';
 import { requirePermission } from '@/lib/rbac';
+import { isIdList, isNonEmptyString } from '@/lib/http';
+import { readJson } from '@/lib/http';
 
 export async function POST(request) {
-  const { error } = await requirePermission('fees.collect');
+  const { user, error } = await requirePermission('fees.collect');
   if (error) return error;
 
-  const { studentIds, method } = await request.json();
+  const { studentIds, method } = await readJson(request);
 
-  if (!Array.isArray(studentIds) || studentIds.length === 0 || !method) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  if (!isIdList(studentIds) || !isNonEmptyString(method)) {
+    return NextResponse.json({ error: 'Select between 1 and 500 students and a payment method.' }, { status: 400 });
   }
 
   try {
-    const result = await bulkCollectFullDue(studentIds, method);
+    const result = await bulkCollectFullDue(studentIds, method, user);
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 400 });

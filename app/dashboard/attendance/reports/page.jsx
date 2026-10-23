@@ -15,6 +15,7 @@ import { getAllSessions } from '@/lib/academicSessions';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getClassSectionsMap } from '@/lib/classes';
+import { todayInSchoolTz } from '@/lib/schoolToday';
 
 export const metadata = {
   title: 'Attendance Reports | SchoolApp 360',
@@ -49,7 +50,7 @@ export default async function AttendanceReportsPage({ searchParams }) {
     gender: params?.gender || 'All',
     search: params?.search || '',
     from: params?.from || firstOfMonth(),
-    to: params?.to || toLocalDateStr(new Date()),
+    to: params?.to || todayInSchoolTz(),
   };
 
   // A teacher's report is always scoped to their own assigned classes,

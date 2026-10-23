@@ -27,9 +27,10 @@ export default async function RolesPermissionsPage() {
 
   const can = {
     viewRoles: user.permissions.has('roles.view'),
-    manageRoles: user.permissions.has('roles.manage'),
+    // Roles are shared by every school, so only the Super Admin may edit them.
+    manageRoles: user.permissions.has('roles.manage') && user.roleKey === 'SuperAdmin',
     viewPermissions: user.permissions.has('permissions.view'),
-    managePermissions: user.permissions.has('permissions.manage'),
+    managePermissions: user.permissions.has('permissions.manage') && user.roleKey === 'SuperAdmin',
     viewUsers: user.permissions.has('users.view'),
     createUsers: user.permissions.has('users.create'),
     updateUsers: user.permissions.has('users.update'),

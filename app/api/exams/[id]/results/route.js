@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateExamResults, getExamResultForStudent, getExamResults } from '@/lib/examResults';
 import { getCurrentUserInfo } from '@/lib/iam';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, requireStaffPermission } from '@/lib/rbac';
 
 // GET /api/exams/[id]/results — Admin sees every student's result (any
 // status); a Parent gets only their active child's, and only once published.
@@ -14,7 +14,7 @@ export async function GET(request, { params }) {
   const { searchParams } = new URL(request.url);
   const studentId = searchParams.get('studentId');
 
-  const { error: permError } = await requirePermission('results.view');
+  const { error: permError } = await requireStaffPermission('results.view');
   if (permError) return permError;
 
   const currentUser = await getCurrentUserInfo();

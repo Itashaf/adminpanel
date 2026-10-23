@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getStudentById, updateStudent, deleteStudent } from '@/lib/students';
 import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { readJson } from '@/lib/http';
 
 export async function GET(request, { params }) {
   const { user, error } = await requirePermission('students.view');
@@ -14,7 +15,10 @@ export async function GET(request, { params }) {
   // deliberately never send a Teacher. A flat permission check alone would
   // reopen that leak; this route stays admin-tier only regardless of who
   // else holds students.view.
-  if (user.roleKey === 'Teacher') {
+  // Allow-list rather than "anyone but a Teacher": Parent and Accountant also hold
+  // students.view, and this record carries Aadhaar numbers, guardian contacts and
+  // addresses (PRV-001).
+  if (!['Admin', 'Principal', 'SuperAdmin'].includes(user.roleKey)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -27,18 +31,18 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const { error: authError } = await requirePermission('students.update');
+  const { user, error: authError } = await requirePermission('students.update');
   if (authError) return authError;
 
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.firstName || !data.lastName || !data.admissionNumber) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
   try {
-    const student = await updateStudent(id, data, await resolveSchoolId());
+    const student = await updateStudent(id, data, await resolveSchoolId(), user);
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }

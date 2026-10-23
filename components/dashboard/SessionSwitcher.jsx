@@ -13,7 +13,9 @@ import SetActiveDialog from '@/components/sessions/SetActiveDialog';
 // components/sessions/SessionCard.jsx) rather than switching instantly on
 // selection, since "which session is active" affects the whole school
 // system, not just this one dropdown.
-export default function SessionSwitcher({ sessions, activeSession, canSwitch = true }) {
+// `compact` is the phone header's plain "2026-27 ⌄" text under the school name
+// (see Topbar.jsx) — always visible, no pill. The default pill stays desktop-only.
+export default function SessionSwitcher({ sessions, activeSession, canSwitch = true, compact = false }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [pendingSession, setPendingSession] = useState(null);
@@ -37,27 +39,37 @@ export default function SessionSwitcher({ sessions, activeSession, canSwitch = t
   // restriction applied everywhere else in the app for this role.
   if (!canSwitch) {
     return (
-      <span className="hidden lg:flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 rounded-full px-3 py-1.5 shrink-0">
-        <FiCalendar className="w-3.5 h-3.5 text-gray-400" />
+      <span
+        className={
+          compact
+            ? 'flex items-center text-xs text-gray-500'
+            : 'hidden lg:flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 rounded-full px-3 py-1.5 shrink-0'
+        }
+      >
+        {!compact && <FiCalendar className="w-3.5 h-3.5 text-gray-400" />}
         {activeSession.name}
       </span>
     );
   }
 
   return (
-    <div className="relative hidden lg:block" ref={containerRef}>
+    <div className={compact ? 'relative' : 'relative hidden lg:block'} ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-full px-3 py-1.5 shrink-0 cursor-pointer transition"
+        className={
+          compact
+            ? 'flex items-center gap-1 text-xs text-gray-500 cursor-pointer'
+            : 'flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-full px-3 py-1.5 shrink-0 cursor-pointer transition'
+        }
       >
-        <FiCalendar className="w-3.5 h-3.5 text-gray-400" />
+        {!compact && <FiCalendar className="w-3.5 h-3.5 text-gray-400" />}
         {activeSession.name}
         <FiChevronDown className="w-3.5 h-3.5 text-gray-400" />
       </button>
 
       {isOpen && sessions.length > 0 && (
-        <div className="absolute right-0 z-20 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className={`absolute z-20 mt-2 w-56 ${compact ? 'left-0' : 'right-0'} bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden`}>
           <div className="max-h-64 overflow-y-auto py-2">
             {sessions.map((session) => {
               const isSelected = session.id === activeSession.id;

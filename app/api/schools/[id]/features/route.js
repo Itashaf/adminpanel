@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { updateSchoolFeatures } from '@/lib/schools';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { requireSuperAdmin } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 const VALID_KEYS = new Set(FEATURE_FLAGS.map((f) => f.key));
 
@@ -10,7 +11,7 @@ export async function PATCH(request, { params }) {
   if (error) return error;
 
   const { id } = await params;
-  const { disabledFeatures } = await request.json();
+  const { disabledFeatures } = await readJson(request);
 
   if (!Array.isArray(disabledFeatures) || disabledFeatures.some((key) => !VALID_KEYS.has(key))) {
     return NextResponse.json({ error: 'Invalid feature keys' }, { status: 400 });

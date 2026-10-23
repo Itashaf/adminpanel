@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { addTeacher } from '@/lib/teachers';
 import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { readJson } from '@/lib/http';
 
 export async function POST(request) {
   const { error } = await requirePermission('teachers.create');
   if (error) return error;
 
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.firstName || !data.lastName || !data.employeeId || !data.email || !data.dob || !data.gender || !data.joiningDate) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

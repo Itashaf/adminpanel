@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { updateClassStatus } from '@/lib/classes';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request, { params }) {
   const { error: authError } = await requirePermission('classes.manage');
   if (authError) return authError;
 
   const { id } = await params;
-  const { status } = await request.json();
+  const { status } = await readJson(request);
 
   if (!status) {
     return NextResponse.json({ error: 'Missing status' }, { status: 400 });

@@ -4,7 +4,7 @@ export default function AssignmentCard({ assignment, onRemove }) {
   const isActive = assignment.status === 'Active';
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between gap-3">
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-violet-100 text-violet-600 shrink-0">
           <FiLayers className="w-5 h-5" />

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createNotice, getVisibleNotices } from '@/lib/notices';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // GET /api/notices — same visibility rule as the web dashboard's notice
 // board: see lib/notices.js's getVisibleNotices for the full per-audience
@@ -21,7 +22,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.title || !data.message || !data.audience) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

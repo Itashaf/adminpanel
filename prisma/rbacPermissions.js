@@ -184,15 +184,18 @@ const TEACHER = [
   'performanceReports.tests.manage', 'performanceReports.monthly.manage', 'performanceReports.yearly.manage', 'performanceReports.view',
 ];
 
-// Financial functionality only.
+// Financial functionality only. No `timetable.view` — Academics must not
+// show in the sidebar for Accountant at all (that was the one Academics
+// permKey this role held). `notices.view` stays — Accountant can still
+// read notices (API access, e.g. a direct link) — the Communication
+// sidebar GROUP is hidden for this role specifically in Sidebar.jsx
+// instead, since every other role that holds notices.view legitimately
+// wants that whole group visible.
 const ACCOUNTANT = [
   'students.view',
   'fees.view', 'fees.create', 'fees.update', 'fees.collect', 'fees.refund', 'fees.receipt', 'fees.report',
   'reports.view', 'reports.export',
   'notices.view',
-  // View-only — timetable should be visible to everyone in the school, per
-  // the same "any signed-in user" bar as /api/classes/sections-map.
-  'timetable.view',
 ];
 
 // Read-only, own linked children — same scope note as Teacher: "own linked

@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getClassSectionsMap } from '@/lib/classes';
 import { toLocalDateStr } from '@/lib/attendance';
+import { todayInSchoolTz } from '@/lib/schoolToday';
 
 export const metadata = {
   title: 'Daily Attendance | SchoolApp 360',
@@ -20,7 +21,7 @@ export default async function DailyAttendancePage() {
     getClassSectionsMap(),
   ]);
   const activeSession = sessions.find((s) => s.status === 'Active') || sessions[0];
-  const today = toLocalDateStr(new Date());
+  const today = todayInSchoolTz();
 
   // Class Teacher scope only (currentUser.classTeacherOf) — a Teacher only
   // marks attendance for a class they're actually the Class Teacher of, not

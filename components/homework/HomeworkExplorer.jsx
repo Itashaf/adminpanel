@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiPlus, FiUserCheck } from 'react-icons/fi';
 import Toast from '@/components/Toast';
@@ -12,15 +12,15 @@ import HomeworkFormModal from './HomeworkFormModal';
 import HomeworkEmptyState from './HomeworkEmptyState';
 import { useClassSections } from '@/lib/hooks/useClassSections';
 import { useUrlSync } from '@/lib/hooks/useUrlSync';
-
-const PAGE_SIZE = 10;
+import { usePagedResult } from '@/lib/hooks/usePagedResult';
+import { getHomeworkPage } from '@/lib/api';
 
 const SORT_OPTIONS = [
   { value: 'latest', label: 'Latest First' },
   { value: 'oldest', label: 'Oldest First' },
 ];
 
-export default function HomeworkExplorer({ homework, sessionOptions, defaultSession, currentUser }) {
+export default function HomeworkExplorer({ initialResult, initialParams, pageSize, sessionOptions, defaultSession, currentUser }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,6 +39,55 @@ export default function HomeworkExplorer({ homework, sessionOptions, defaultSess
     { class: '', section: '', subject: '', q: '', sort: 'latest', page: 1 }
   );
 
+  // Typing only triggers a request once the user pauses.
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // One server page at a time — filtering, sorting and paging all happen in
+  // the database (see lib/homework.js's getHomeworkPageForUser). The first
+  // page comes pre-fetched from app/dashboard/homework/page.jsx; a save/delete
+  // calls router.refresh(), which brings a fresh initialResult for the same
+  // filters (see usePagedResult).
+  const requestKey = JSON.stringify({
+    class: selectedClass,
+    section: selectedSection,
+    subject: selectedSubject,
+    q: debouncedSearch,
+    sort: sortBy,
+    page,
+  });
+  const { result, isLoading, error } = usePagedResult({
+    initialResult,
+    initialKey: JSON.stringify({
+      class: initialParams.class,
+      section: initialParams.section,
+      subject: initialParams.subject,
+      q: initialParams.q,
+      sort: initialParams.sort,
+      page: initialParams.page,
+    }),
+    key: requestKey,
+    page,
+    pageSize,
+    setPage,
+    fetchPage: () =>
+      getHomeworkPage({
+        className: selectedClass,
+        section: selectedSection,
+        subject: selectedSubject,
+        search: debouncedSearch,
+        sort: sortBy,
+        page,
+        pageSize,
+      }),
+  });
+  const pagedHomework = result.rows;
+  const totalCount = result.total;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
   const classOptions = useMemo(() => {
     if (isTeacher) {
       return [...new Set((currentUser.assignedClasses || []).map((a) => a.class))].map((c) => ({ value: c, label: c }));
@@ -50,23 +99,6 @@ export default function HomeworkExplorer({ homework, sessionOptions, defaultSess
     setter(value);
     setPage(1);
   };
-
-  const filteredHomework = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const filtered = homework.filter((hw) => {
-      const matchesClass = !selectedClass || hw.className === selectedClass;
-      const matchesSection = !selectedSection || hw.sectionName === selectedSection;
-      const matchesSubject = !selectedSubject || hw.subject === selectedSubject;
-      const matchesSearch = !query || hw.title.toLowerCase().includes(query) || hw.description?.toLowerCase().includes(query);
-      return matchesClass && matchesSection && matchesSubject && matchesSearch;
-    });
-    // homework already arrives newest-first from getVisibleHomework, so
-    // "oldest first" is just the reverse — no extra date parsing needed.
-    return sortBy === 'oldest' ? [...filtered].reverse() : filtered;
-  }, [homework, selectedClass, selectedSection, selectedSubject, search, sortBy]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredHomework.length / PAGE_SIZE));
-  const pagedHomework = filteredHomework.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-6 pb-12">
@@ -108,17 +140,19 @@ export default function HomeworkExplorer({ homework, sessionOptions, defaultSess
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-gray-500">
-          {filteredHomework.length} Homework item{filteredHomework.length === 1 ? '' : 's'}
+          {totalCount} Homework item{totalCount === 1 ? '' : 's'}
         </p>
         <div className="w-44 shrink-0">
           <Dropdown options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} />
         </div>
       </div>
 
-      {filteredHomework.length === 0 ? (
+      {error && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{error}</p>}
+
+      {totalCount === 0 ? (
         <HomeworkEmptyState onAssignHomework={() => setShowAddModal(true)} />
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${isLoading ? 'opacity-60' : ''}`}>
           <div
             style={{ gridTemplateColumns: HOMEWORK_GRID_COLS }}
             className="hidden md:grid gap-4 px-4 sm:px-5 py-3 border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wide"
@@ -137,7 +171,7 @@ export default function HomeworkExplorer({ homework, sessionOptions, defaultSess
               <HomeworkCard
                 key={hw.id}
                 homework={hw}
-                serialNumber={(page - 1) * PAGE_SIZE + index + 1}
+                serialNumber={(page - 1) * pageSize + index + 1}
                 canManage={currentUser.role !== 'Teacher' || hw.assignedByTeacherId === currentUser.teacherId}
                 sessionOptions={sessionOptions}
                 defaultSession={defaultSession}
@@ -152,8 +186,8 @@ export default function HomeworkExplorer({ homework, sessionOptions, defaultSess
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
-        totalCount={filteredHomework.length}
-        pageSize={PAGE_SIZE}
+        totalCount={totalCount}
+        pageSize={pageSize}
         itemLabel="homework items"
       />
 

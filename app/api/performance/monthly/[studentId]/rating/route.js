@@ -3,13 +3,14 @@ import { setOverallRating } from '@/lib/performance/monthlyReports';
 import { requirePermission } from '@/lib/rbac';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentUser } from '@/lib/currentUser';
+import { readJson } from '@/lib/http';
 
 export async function PUT(request, { params }) {
   const { error } = await requirePermission('performanceReports.monthly.manage');
   if (error) return error;
 
   const { studentId } = await params;
-  const { academicSession, month, overallRating } = await request.json();
+  const { academicSession, month, overallRating } = await readJson(request);
   if (!academicSession || !month) {
     return NextResponse.json({ error: 'academicSession and month are required.' }, { status: 400 });
   }

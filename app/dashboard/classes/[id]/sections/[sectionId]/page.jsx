@@ -3,6 +3,7 @@ import SectionDetailsHeader from '@/components/classes/SectionDetailsHeader';
 import SectionOverviewCard from '@/components/classes/SectionOverviewCard';
 import SectionStudentPreview from '@/components/classes/SectionStudentPreview';
 import { getSectionDetail } from '@/lib/classes';
+import { blockIfAccountant } from '@/lib/roleGuard';
 
 export async function generateMetadata({ params }) {
   const { id, sectionId } = await params;
@@ -13,6 +14,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function SectionDetailsPage({ params }) {
+  await blockIfAccountant();
   const { id, sectionId } = await params;
   const detail = await getSectionDetail(id, sectionId);
 

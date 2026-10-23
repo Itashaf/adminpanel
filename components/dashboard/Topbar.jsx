@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FiSearch, FiMenu, FiChevronDown, FiUser, FiLogOut, FiGrid, FiArrowLeft } from 'react-icons/fi';
+import { FaGraduationCap } from 'react-icons/fa';
 import DropdownMenu from '@/components/DropdownMenu';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import SessionSwitcher from './SessionSwitcher';
@@ -26,7 +27,7 @@ function initialsFor(name) {
 // filtered/paginated/sorted list instead of resetting to page 1.
 const EXAM_DETAIL_PATTERN = /^\/dashboard\/exams\/[^/]+$/;
 
-export default function Topbar({ onMenuClick, activeSession, sessions, role, userInfo }) {
+export default function Topbar({ onMenuClick, activeSession, sessions, role, userInfo, school }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -87,6 +88,22 @@ export default function Topbar({ onMenuClick, activeSession, sessions, role, use
         <FiMenu className="w-5 h-5" />
       </button>
 
+      {/* Phone only: logo + school name with the session under it (the desktop
+          session pill and search box take over from sm up). */}
+      <div className="sm:hidden flex items-center gap-2.5 min-w-0">
+        <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+          {school?.logoUrl ? (
+            <img src={school.logoUrl} alt={school.displayName || ''} className="w-full h-full object-contain p-1" />
+          ) : (
+            <FaGraduationCap className="w-5 h-5 text-purple-900" />
+          )}
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{school?.displayName || 'SchoolApp 360'}</p>
+          <SessionSwitcher compact sessions={sessions || []} activeSession={activeSession} canSwitch={!isTeacher} />
+        </div>
+      </div>
+
       {isExamDetailPage && (
         <Link
           href={backHref}
@@ -125,7 +142,7 @@ export default function Topbar({ onMenuClick, activeSession, sessions, role, use
                   {userInfo.email && <span className="text-xs text-gray-400">{userInfo.email}</span>}
                 </span>
               )}
-              <FiChevronDown className="w-4 h-4 text-gray-400" />
+              <FiChevronDown className="hidden sm:block w-4 h-4 text-gray-400" />
             </span>
           }
           items={accountItems}

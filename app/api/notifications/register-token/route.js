@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
-import { registerPushToken } from '@/lib/pushTokens';
+import { registerPushToken, unregisterPushToken } from '@/lib/pushTokens';
+import { readJson } from '@/lib/http';
 
 // POST /api/notifications/register-token — called by the mobile app on
 // launch/sign-in (see schoolapp360's pushTokenApi.js) to save this device's
@@ -15,7 +16,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
 
-  const { token, platform } = await request.json();
+  const { token, platform } = await readJson(request);
   if (!token || !platform) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
@@ -33,5 +34,23 @@ export async function POST(request) {
     platform,
   });
 
+  return NextResponse.json({ success: true });
+}
+
+// DELETE /api/notifications/register-token — { token }. Called by the mobile app when
+// the user logs out, so the next person to sign in on this phone does not receive the
+// previous user's notifications.
+export async function DELETE(request) {
+  const currentUser = await getCurrentUserInfo();
+  if (!currentUser) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+
+  const { token } = await readJson(request);
+  if (!token) {
+    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+
+  await unregisterPushToken({ ownerRole: currentUser.role, ownerId: currentUser.id, token });
   return NextResponse.json({ success: true });
 }

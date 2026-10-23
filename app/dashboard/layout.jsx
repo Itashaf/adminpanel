@@ -1,21 +1,28 @@
+import { redirect } from 'next/navigation';
 import DashboardShell from '@/components/dashboard/DashboardShell';
+import SessionWatcher from '@/components/SessionWatcher';
 import { getSchoolSettings } from '@/lib/schoolSettings';
 import { getActiveSession, getAllSessions } from '@/lib/academicSessions';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentRBACUser } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
-import { getAllLeaveRequests } from '@/lib/teacherLeaves';
+import { getPendingLeaveCount } from '@/lib/teacherLeaves';
 
 export default async function DashboardLayout({ children }) {
-  const [school, activeSession, sessions, currentUser, userInfo, rbacUser] = await Promise.all([
+  // Checked first: the signed-in account (or its school) may have been deactivated
+  // after the token was issued, and the lookups below all need a valid session.
+  const userInfo = await getCurrentUserInfo();
+  if (!userInfo) redirect('/api/auth/session-ended');
+
+  const [school, activeSession, sessions, currentUser, rbacUser] = await Promise.all([
     getSchoolSettings(),
     getActiveSession(),
     getAllSessions(),
     getCurrentUser(),
-    getCurrentUserInfo(),
     getCurrentRBACUser(),
   ]);
+
   // Sets don't serialize across the Server -> Client Component boundary —
   // spread into a plain array. `null` (no session at all — shouldn't happen
   // behind middleware's own auth check, but a stale token before the login
@@ -37,8 +44,7 @@ export default async function DashboardLayout({ children }) {
   let pendingLeaveCount = 0;
   if (currentUser.role !== 'Teacher') {
     const schoolId = await resolveSchoolId();
-    const pending = await getAllLeaveRequests(schoolId, 'Pending');
-    pendingLeaveCount = pending.length;
+    pendingLeaveCount = await getPendingLeaveCount(schoolId);
   }
 
   return (
@@ -49,9 +55,11 @@ export default async function DashboardLayout({ children }) {
       currentUser={currentUser}
       userInfo={userInfo}
       permissions={permissions}
+      roleKey={rbacUser?.roleKey}
       pendingLeaveCount={pendingLeaveCount}
       isClassTeacher={isClassTeacher}
     >
+      <SessionWatcher />
       {children}
     </DashboardShell>
   );

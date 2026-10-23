@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, canAssignRole } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Task 21 — identity fields only (name/email/phone/status). Role changes go
 // through PATCH /api/users/[id]/role instead — kept as a separate endpoint
@@ -12,18 +13,37 @@ export async function PUT(request, { params }) {
   if (error) return error;
 
   const { id } = await params;
-  const body = await request.json();
+  const body = await readJson(request);
   if ('roleKey' in body || 'roleId' in body || 'role' in body) {
     return NextResponse.json({ error: 'Use PATCH /api/users/[id]/role to change role.' }, { status: 400 });
   }
 
-  const target = await prisma.user.findUnique({ where: { id } });
+  const target = await prisma.user.findUnique({ where: { id }, include: { role: { select: { key: true } } } });
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   // Never trust a school-scoped caller to edit a user outside their own
   // school — Super Admin (no school of their own) is the only exception.
   if (user.roleKey !== 'SuperAdmin' && target.schoolId !== user.schoolId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Role hierarchy: you can edit someone only if you could have created them
+  // (an Admin cannot touch a Principal or another Admin). Your own account is
+  // always editable, except its status.
+  const isSelf = target.id === user.id;
+  if (user.roleKey !== 'SuperAdmin' && !isSelf && !canAssignRole(user.roleKey, target.role.key)) {
+    return NextResponse.json({ error: 'You cannot edit a user of this role.' }, { status: 403 });
+  }
+
+  // status is a real enum; reject anything else, and never let a user lock
+  // their own account out.
+  if (body.status !== undefined) {
+    if (!['Active', 'Inactive'].includes(body.status)) {
+      return NextResponse.json({ error: 'Invalid status.' }, { status: 400 });
+    }
+    if (isSelf && body.status !== target.status) {
+      return NextResponse.json({ error: 'You cannot change your own status.' }, { status: 403 });
+    }
   }
 
   try {

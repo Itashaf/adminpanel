@@ -49,16 +49,34 @@ function canAccessDashboard(session) {
 function handleApiRequest(request) {
   if (request.method === 'OPTIONS') {
     const response = new NextResponse(null, { status: 204 });
-    applyCorsHeaders(response);
+    applyCorsHeaders(response, request);
     return response;
   }
   const response = NextResponse.next();
-  applyCorsHeaders(response);
+  applyCorsHeaders(response, request);
   return response;
 }
 
-function applyCorsHeaders(response) {
-  response.headers.set('Access-Control-Allow-Origin', '*');
+// CORS_ALLOWED_ORIGINS (comma-separated, e.g. https://app.example.com) limits which
+// browser origins may call the API: only those get an Access-Control-Allow-Origin
+// header, every other site's browser is refused. Left unset it stays open (`*`) as
+// before, so an Expo Web / dev setup keeps working until the list is configured.
+function allowedOrigins() {
+  return (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
+function applyCorsHeaders(response, request) {
+  const allowed = allowedOrigins();
+  if (allowed.length === 0) {
+    response.headers.set('Access-Control-Allow-Origin', '*');
+  } else {
+    const origin = request.headers.get('origin');
+    if (origin && allowed.includes(origin)) response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.append('Vary', 'Origin');
+  }
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }

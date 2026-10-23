@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { reviewLeaveRequest } from '@/lib/teacherLeaves';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // PATCH /api/leaves/[id] — Approve or Reject. Admin-only; a Teacher can
 // never review their own (or anyone's) leave request — neither
 // leave.approve nor leave.reject is in Teacher's default permission set.
 export async function PATCH(request, { params }) {
   const { id } = await params;
-  const { status, reviewNote } = await request.json();
+  const { status, reviewNote } = await readJson(request);
 
   const permissionKey = status === 'Rejected' ? 'leave.reject' : 'leave.approve';
   const { user: actor, error } = await requirePermission(permissionKey);

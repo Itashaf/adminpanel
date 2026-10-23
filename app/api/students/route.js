@@ -1,65 +1,66 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
-import { addStudent, getAllStudents } from '@/lib/students';
+import { addStudent, getStudentsPage } from '@/lib/students';
 import { generateFeesForNewStudent } from '@/lib/fees';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
-import { isClassInTeacherScope, getTeacherClassScope } from '@/lib/roleGuard';
+import { getTeacherClassScope } from '@/lib/roleGuard';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { readJson } from '@/lib/http';
 
-// Teacher's roster-relevant fields only — guardian/fee/address/aadhaar/
-// documents/previousSchool (6 Json blobs on the full Student shape) stay
-// admin-only. Selected at the query itself, not fetched-then-discarded: a
-// Teacher's own request used to pay for every one of those blobs, for
-// every student in the WHOLE school, before this route ever stripped them
-// down to these 9 fields.
-const TEACHER_STUDENT_SELECT = {
-  id: true,
-  admissionId: true,
-  firstName: true,
-  lastName: true,
-  initials: true,
-  class: true,
-  section: true,
-  academicSession: true,
-  status: true,
-};
+// Teacher's roster-relevant fields only: guardian / fee / address / Aadhaar / documents /
+// previousSchool stay admin-only.
+const TEACHER_STUDENT_FIELDS = ['id', 'admissionId', 'firstName', 'lastName', 'initials', 'class', 'section', 'academicSession', 'status'];
 
-export async function GET() {
+// Pages of at most 100 students, never the whole school in one response (that grew past
+// what a single response can carry, and past what the server can build quickly, for a
+// large school). ?page=1 and ?pageSize=50 by default, 100 at most. The body is still a
+// plain array of students; the paging facts are in the response headers:
+//   X-Total-Count (all matching students), X-Page, X-Page-Size, X-Has-More (true/false)
+// Keep calling with page=2, 3, ... until X-Has-More is false to read everything.
+// Nothing in the web app or the mobile app uses this route (both call /students/paged).
+export async function GET(request) {
   const actor = await getCurrentUserInfo();
   if (!actor) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
-
-  if (actor.role === 'SchoolAdmin' || actor.role === 'SuperAdmin') {
-    const students = await getAllStudents(await resolveSchoolId());
-    return NextResponse.json(students);
+  if (actor.role !== 'SchoolAdmin' && actor.role !== 'SuperAdmin' && actor.role !== 'Teacher') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  if (actor.role === 'Teacher') {
-    // A Class Teacher with no subject assignment of their own (only
-    // Section.classTeacherId) still owns their homeroom's roster —
-    // assignedClasses alone wrongly showed them zero students. The scope
-    // check itself (isClassInTeacherScope) still runs in JS per row — it's
-    // not a single Prisma `where` shape — but the query no longer pays for
-    // the 6 Json blobs neither this filter nor a Teacher's own response
-    // ever reads.
-    const schoolId = await resolveSchoolId();
-    const rows = await prisma.student.findMany({ where: { schoolId }, select: TEACHER_STUDENT_SELECT });
-    const safe = rows.filter((s) =>
-      isClassInTeacherScope(getTeacherClassScope(actor), s.academicSession, s.class, s.section)
-    );
-    return NextResponse.json(safe);
-  }
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize')) || 50));
 
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // A Teacher sees students of the classes they teach or are Class Teacher of
+  // (assignments + homeroom), applied inside the query itself.
+  const { students, total } = await getStudentsPage({
+    schoolId: await resolveSchoolId(),
+    page,
+    pageSize,
+    scopePairs: actor.role === 'Teacher' ? getTeacherClassScope(actor) : null,
+  });
+
+  // A Teacher gets only the roster fields: guardian, fee, address and Aadhaar stay admin-only.
+  const rows =
+    actor.role === 'Teacher'
+      ? students.map((st) => Object.fromEntries(TEACHER_STUDENT_FIELDS.map((k) => [k, st[k]])))
+      : students;
+
+  return NextResponse.json(rows, {
+    headers: {
+      'X-Total-Count': String(total),
+      'X-Page': String(page),
+      'X-Page-Size': String(pageSize),
+      'X-Has-More': String(page * pageSize < total),
+    },
+  });
 }
 
 export async function POST(request) {
   const { error: authError } = await requirePermission('students.create');
   if (authError) return authError;
 
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.firstName || !data.lastName || !data.admissionNumber) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

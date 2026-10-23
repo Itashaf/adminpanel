@@ -20,12 +20,9 @@ import { validateSuperAdminCredentials } from '@/lib/auth';
 import { validateAdminCredentials } from '@/lib/admins';
 import { validateTeacherCredentials, requestTeacherPasswordReset, setTeacherPasswordViaToken } from '@/lib/teachers';
 import { validateParentCredentials, verifyParentOwnsStudent } from '@/lib/parentAccounts';
-import { getSchoolDirectoryEntry } from '@/lib/schools';
-import { setActiveSchoolContext } from '@/lib/school';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createSession, clearSession, getSession } from '@/lib/auth/session';
-import { setCurrentRole } from '@/lib/currentUser';
 import { checkLoginRateLimit, checkPasswordResetRateLimit, rateLimitMessage } from '@/lib/auth/loginRateLimit';
 import { getUserFieldsForLegacyId, validateUserCredentials, touchLastLogin } from '@/lib/rbac';
 
@@ -41,7 +38,7 @@ import { getUserFieldsForLegacyId, validateUserCredentials, touchLastLogin } fro
 export async function superAdminLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
-  const rateLimit = checkLoginRateLimit(await headers(), email);
+  const rateLimit = await checkLoginRateLimit(await headers(), email);
   if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { superAdmin, error } = await validateSuperAdminCredentials(email, password);
@@ -59,7 +56,7 @@ export async function superAdminLoginAction({ email, password }) {
 export async function schoolAdminLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
-  const rateLimit = checkLoginRateLimit(await headers(), email);
+  const rateLimit = await checkLoginRateLimit(await headers(), email);
   if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { admin, error } = await validateAdminCredentials(email, password);
@@ -73,8 +70,6 @@ export async function schoolAdminLoginAction({ email, password }) {
 
     const { user } = userResult;
     await touchLastLogin(user.id);
-    const school = await getSchoolDirectoryEntry(user.schoolId);
-    if (school) await setActiveSchoolContext(school);
 
     // `role: 'SchoolAdmin'` / `id: user.id` — see lib/iam.js's
     // getCurrentUserInfo() SchoolAdmin-branch fallback, which this session
@@ -89,33 +84,24 @@ export async function schoolAdminLoginAction({ email, password }) {
       roleId: user.roleId,
       roleKey: user.role.key,
     });
-    await setCurrentRole('SchoolAdmin');
     redirect('/dashboard');
   }
 
-  // Signing in as a school's admin "steps into" that school for /dashboard —
-  // same illusion of tenant-switching the super admin's "Manage This School"
-  // action uses (see setActiveSchoolContext), no real per-tenant data
-  // isolation behind it yet.
-  const school = await getSchoolDirectoryEntry(admin.schoolId);
-  if (school) await setActiveSchoolContext(school);
-
+  // The school comes from the session's own schoolId claim (set below). Login
+  // no longer changes any process-wide "active school" — that made every
+  // other signed-in user and session-less request act on whichever school
+  // logged in last.
   // RBAC (task 13) — every SchoolAdmin row today migrated to RoleKey
   // 'Admin' (prisma/migrate-rbac.js).
   const rbacFields = await getUserFieldsForLegacyId('schoolAdmin', admin.id);
   await createSession({ role: 'SchoolAdmin', id: admin.id, schoolId: admin.schoolId, email: admin.email, ...rbacFields });
-  // Previously a second action the client called separately after this one
-  // resolved (setCurrentRoleAction('SchoolAdmin')) — folded in here since
-  // this action now redirects instead of returning, so there's no longer a
-  // "resolve, then call the next thing" step for the client to chain.
-  await setCurrentRole('SchoolAdmin');
   redirect('/dashboard');
 }
 
 export async function teacherLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
-  const rateLimit = checkLoginRateLimit(await headers(), email);
+  const rateLimit = await checkLoginRateLimit(await headers(), email);
   if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { teacher, schoolId, error } = await validateTeacherCredentials(email, password);
@@ -133,16 +119,13 @@ export async function teacherLoginAction({ email, password }) {
   // RBAC (task 14) — see superAdminLoginAction's comment above.
   const rbacFields = await getUserFieldsForLegacyId('teacher', teacher.id);
   await createSession({ role: 'Teacher', id: teacher.id, schoolId, email: teacher.loginAccess.email, ...rbacFields });
-  // Resolves this specific teacher into the "current user" the rest of the
-  // app (Attendance's class/section scoping, reports, etc.) reads from.
-  await setCurrentRole('Teacher', teacher.id);
   redirect('/dashboard');
 }
 
 export async function parentLoginAction({ email, password }) {
   if (!email || !password) return { error: 'Missing fields' };
 
-  const rateLimit = checkLoginRateLimit(await headers(), email);
+  const rateLimit = await checkLoginRateLimit(await headers(), email);
   if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   const { parentAccount, schoolId, students, error } = await validateParentCredentials(email, password);
@@ -189,7 +172,7 @@ export async function requestPasswordResetAction({ email }) {
   // scripted sweep across many emails, without weakening the "never reveals
   // whether this email actually matches an account" property below: the
   // limit trips the same way whether or not the account exists.
-  const rateLimit = checkPasswordResetRateLimit(await headers(), email);
+  const rateLimit = await checkPasswordResetRateLimit(await headers(), email);
   if (!rateLimit.allowed) return { error: rateLimitMessage(rateLimit.retryAfterSeconds), retryAfterSeconds: rateLimit.retryAfterSeconds };
 
   // Never reveals whether this email actually matches a teacher account —

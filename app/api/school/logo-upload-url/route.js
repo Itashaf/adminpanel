@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/rbac';
 import { getPresignedUploadUrl, buildPublicUrl } from '@/lib/storage';
 import { STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
+import { readJson } from '@/lib/http';
 
 // Presign for the school's own branding logo (Settings → Branding) — same
 // presign-then-PUT-direct-to-R2 pattern as every other photo upload.
@@ -15,7 +16,7 @@ export async function POST(request) {
   const { user: actor, error } = await requirePermission('settings.update');
   if (error) return error;
 
-  const { fileName, fileType, fileSize } = await request.json();
+  const { fileName, fileType, fileSize } = await readJson(request);
 
   if (!STUDENT_PHOTO_ACCEPT_TYPES.includes(fileType)) {
     return NextResponse.json({ error: 'Only JPG, PNG, or WEBP images are allowed.' }, { status: 400 });

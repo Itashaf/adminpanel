@@ -30,7 +30,7 @@ import Dropdown from '@/components/Dropdown';
 import Input from '@/components/Input';
 import DropdownMenu from '@/components/DropdownMenu';
 import { getRoles, getPermissionsCatalog, updateRolePermissions, getUsers, createUser, updateUserRole } from '@/lib/api';
-import { assignableRoles, ROLE_KEYS } from '@/lib/rbacConstants';
+import { assignableRoles, changeableRoles, ROLE_KEYS } from '@/lib/rbacConstants';
 
 const PAGE_SIZE = 10;
 
@@ -355,7 +355,14 @@ export default function RolesPermissionsExplorer({ can, actorRoleKey, actorUserI
               </div>
 
               {can.createUsers && (
-                <Button label="Add User" icon={<FiUserPlus className="w-4 h-4" />} onClick={() => setShowAddUser(true)} />
+                <button
+                  type="button"
+                  onClick={() => setShowAddUser(true)}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer"
+                >
+                  <FiUserPlus className="w-4 h-4" />
+                  Add User
+                </button>
               )}
             </div>
           </div>
@@ -395,12 +402,17 @@ export default function RolesPermissionsExplorer({ can, actorRoleKey, actorUserI
                           <th className="py-2 pr-4">Email</th>
                           <th className="py-2 pr-4">Status</th>
                           <th className="py-2 pr-4">Last Login</th>
-                          <th className="py-2 pr-4 text-right">Actions</th>
+                          {/* Only SuperAdmin can act on a row here (see
+                              changeableRoles) — the column is dead weight
+                              (every row would just show "—") for everyone
+                              else, so it's hidden entirely rather than shown
+                              empty. */}
+                          {changeableRoles(actorRoleKey).length > 0 && <th className="py-2 pr-4 text-right">Actions</th>}
                         </tr>
                       </thead>
                       <tbody>
                         {pagedUsers.map((u, i) => {
-                          const canChangeRole = can.updateUsers && u.id !== actorUserId && assignableRoles(actorRoleKey).length > 0;
+                          const canChangeRole = can.updateUsers && u.id !== actorUserId && changeableRoles(actorRoleKey).length > 0;
                           return (
                             <tr key={u.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
                               <td className="py-3 pr-3">
@@ -433,18 +445,20 @@ export default function RolesPermissionsExplorer({ can, actorRoleKey, actorUserI
                                 </span>
                               </td>
                               <td className="py-3 pr-4 text-gray-500">{timeAgo(u.lastLoginAt)}</td>
-                              <td className="py-3 pr-4 text-right">
-                                {canChangeRole ? (
-                                  <DropdownMenu
-                                    trigger={<FiMoreVertical className="w-4 h-4" />}
-                                    items={[
-                                      { label: 'Change Role', icon: <FiRefreshCw className="w-4 h-4" />, onClick: () => setRoleChangeTarget(u) },
-                                    ]}
-                                  />
-                                ) : (
-                                  <span className="text-gray-300">—</span>
-                                )}
-                              </td>
+                              {changeableRoles(actorRoleKey).length > 0 && (
+                                <td className="py-3 pr-4 text-right">
+                                  {canChangeRole ? (
+                                    <DropdownMenu
+                                      trigger={<FiMoreVertical className="w-4 h-4" />}
+                                      items={[
+                                        { label: 'Change Role', icon: <FiRefreshCw className="w-4 h-4" />, onClick: () => setRoleChangeTarget(u) },
+                                      ]}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-300">—</span>
+                                  )}
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
@@ -691,7 +705,7 @@ function ChangeRoleModal({ user, actorRoleKey, onClose, onChanged }) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const options = assignableRoles(actorRoleKey).map((k) => ({ value: k, label: k }));
+  const options = changeableRoles(actorRoleKey).map((k) => ({ value: k, label: k }));
 
   const handleSubmit = async () => {
     setError('');

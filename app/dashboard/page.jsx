@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import { FiUsers, FiUser, FiFileText, FiCheckSquare, FiBook, FiCreditCard, FiArrowRight } from 'react-icons/fi';
-import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
+import { FiUsers, FiUser, FiCheckSquare, FiBook, FiCreditCard, FiArrowRight, FiTrendingUp } from 'react-icons/fi';
 import StatCard from '@/components/dashboard/StatCard';
 import KPICard from '@/components/dashboard/KPICard';
 import TotalStudentsKPICard from '@/components/dashboard/TotalStudentsKPICard';
 import QuickActions from '@/components/dashboard/QuickActions';
+import MobileKPITiles from '@/components/dashboard/MobileKPITiles';
 import AccountantQuickActions from '@/components/dashboard/AccountantQuickActions';
 import FeeOverviewCard from '@/components/dashboard/FeeOverviewCard';
 import FeeCollectionChart from '@/components/dashboard/FeeCollectionChart';
@@ -17,15 +17,21 @@ import UpcomingExamsCard from '@/components/dashboard/UpcomingExamsCard';
 import MyClassesCard from '@/components/dashboard/MyClassesCard';
 import TeacherQuickLists from '@/components/dashboard/TeacherQuickLists';
 import TeacherCheckInCard from '@/components/dashboard/TeacherCheckInCard';
+import ParentKPICard from '@/components/parent/ParentKPICard';
+import { HiOutlineAcademicCap } from 'react-icons/hi2';
 import { getDashboardOverview, getTeacherDashboardOverview } from '@/lib/dashboard';
-import { getPayments, getPendingFeesList, getPendingFeesStudentCount, getFeeCollectionTrend } from '@/lib/fees';
+import { getPayments, getPendingFeesList, getPendingFeesStudentCount, getFeeCollectionTrends, getClasswisePendingFees } from '@/lib/fees';
+import PendingFeesKPICard from '@/components/dashboard/PendingFeesKPICard';
+import PendingFeesStatCard from '@/components/dashboard/PendingFeesStatCard';
+import AttendanceKPICard from '@/components/dashboard/AttendanceKPICard';
 import { getAllExams, getExamDashboardStats } from '@/lib/exams';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentActor, getCurrentUserInfo } from '@/lib/iam';
 import { getCurrentRBACUser } from '@/lib/rbac';
 import { getTeacherCheckInStatus } from '@/lib/teacherAttendance';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
-import { toLocalDateStr, getAttendanceCollectionTrend } from '@/lib/attendance';
+import { toLocalDateStr, getAttendanceCollectionTrends } from '@/lib/attendance';
+import { todayInSchoolTz } from '@/lib/schoolToday';
 
 export const metadata = {
   title: 'Dashboard | SchoolApp 360',
@@ -41,7 +47,7 @@ export default async function DashboardPage() {
     return <TeacherDashboard currentUser={currentUser} />;
   }
 
-  const [{ stats, feesStats, attendanceToday, attendanceWeekly, snapshot }, userInfo, rbacUser] = await Promise.all([
+  const [{ stats, feesStats, attendanceToday, classWiseAttendanceToday, attendanceWeekly, snapshot }, userInfo, rbacUser] = await Promise.all([
     getDashboardOverview(),
     getCurrentActor(),
     getCurrentRBACUser(),
@@ -54,10 +60,11 @@ export default async function DashboardPage() {
   const displayName = userInfo?.name || 'Admin';
 
   if (rbacUser?.roleKey === 'Accountant') {
-    const [recentPayments, pendingFeesRows, pendingFeesStudentCount] = await Promise.all([
+    const [recentPayments, pendingFeesRows, pendingFeesStudentCount, classwisePendingFees] = await Promise.all([
       getPayments({ status: 'SUCCESS', pageSize: 5 }),
       getPendingFeesList(5),
       getPendingFeesStudentCount(),
+      getClasswisePendingFees(),
     ]);
     return (
       <AccountantDashboard
@@ -67,6 +74,7 @@ export default async function DashboardPage() {
         recentPayments={recentPayments.payments}
         pendingFeesRows={pendingFeesRows}
         pendingFeesStudentCount={pendingFeesStudentCount}
+        classwisePendingFees={classwisePendingFees}
       />
     );
   }
@@ -83,38 +91,52 @@ export default async function DashboardPage() {
   const showFees = can('fees.view');
   const showExams = can('exams.view');
 
-  const [defaulters, [dailyFeeTrend, monthlyFeeTrend, yearlyFeeTrend], pendingFeesStudentCount] = await Promise.all([
+  const [defaulters, feeTrends, pendingFeesStudentCount, classwisePendingFees] = await Promise.all([
     showFees ? getPendingFeesList(5, { onlyOverdue: true }) : Promise.resolve([]),
-    showFees
-      ? Promise.all([getFeeCollectionTrend('daily'), getFeeCollectionTrend('monthly'), getFeeCollectionTrend('yearly')])
-      : Promise.resolve([null, null, null]),
+    showFees ? getFeeCollectionTrends() : Promise.resolve(null),
     showFees ? getPendingFeesStudentCount() : Promise.resolve(0),
+    showFees ? getClasswisePendingFees() : Promise.resolve([]),
   ]);
+  const dailyFeeTrend = feeTrends?.daily ?? null;
+  const monthlyFeeTrend = feeTrends?.monthly ?? null;
+  const yearlyFeeTrend = feeTrends?.yearly ?? null;
   const [upcomingExams, examStats] = showExams
     ? await Promise.all([
         getAllExams().then((exams) =>
           exams
-            .filter((e) => e.startDate > toLocalDateStr(new Date()))
+            .filter((e) => e.startDate > todayInSchoolTz())
             .sort((a, b) => a.startDate.localeCompare(b.startDate))
             .slice(0, 4)
         ),
         getExamDashboardStats(),
       ])
     : [[], null];
-  const [dailyAttendanceTrend, monthlyAttendanceTrend, yearlyAttendanceTrend] = showAttendance
-    ? await Promise.all([
-        getAttendanceCollectionTrend('daily'),
-        getAttendanceCollectionTrend('monthly'),
-        getAttendanceCollectionTrend('yearly'),
-      ])
-    : [null, null, null];
+  const attendanceTrends = showAttendance ? await getAttendanceCollectionTrends() : null;
+  const dailyAttendanceTrend = attendanceTrends?.daily ?? null;
+  const monthlyAttendanceTrend = attendanceTrends?.monthly ?? null;
+  const yearlyAttendanceTrend = attendanceTrends?.yearly ?? null;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Good to see you, {displayName}</h1>
+      <div>
+        <h1 className="tracking-tight">
+          <span className="block text-lg font-normal text-gray-500 sm:inline sm:text-2xl sm:font-bold sm:text-gray-900">Good to see you,</span>{' '}
+          <span className="block text-3xl font-bold text-gray-900 sm:inline sm:text-2xl">{displayName}</span>
+        </h1>
+        <p className="text-sm text-gray-500 mt-1 sm:hidden">Here&apos;s what&apos;s happening today.</p>
+      </div>
+
+      <MobileKPITiles
+        items={[
+          ...(showStudents ? [{ label: 'Students', value: stats.totalStudents.value.toLocaleString(), href: '/dashboard/students', icon: <FiUsers className="w-5 h-5" /> }] : []),
+          ...(showTeachers ? [{ label: 'Teachers', value: stats.totalTeachers.value.toLocaleString(), href: '/dashboard/teachers', icon: <FiUser className="w-5 h-5" /> }] : []),
+          ...(showFees ? [{ label: 'Pending Fees', value: `₹${feesStats.pending.toLocaleString('en-IN')}`, href: '/dashboard/fees/students', icon: <FiCreditCard className="w-5 h-5" /> }] : []),
+          ...(showAttendance ? [{ label: 'Attendance', value: attendanceToday ? `${attendanceToday.percent}%` : '—', href: '/dashboard/attendance/daily', icon: <FiTrendingUp className="w-5 h-5" /> }] : []),
+        ]}
+      />
 
       {(showStudents || showTeachers || showFees || showAttendance) && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
           {showStudents && (
             <TotalStudentsKPICard
               value={stats.totalStudents.value.toLocaleString()}
@@ -135,23 +157,21 @@ export default async function DashboardPage() {
             />
           )}
           {showFees && (
-            <KPICard
-              label="Pending Fees"
-              icon={<FiCreditCard className="w-4 h-4" />}
+            <PendingFeesKPICard
               value={`₹${feesStats.pending.toLocaleString('en-IN')}`}
               context={`${pendingFeesStudentCount} student${pendingFeesStudentCount === 1 ? '' : 's'}`}
+              classwise={classwisePendingFees}
             />
           )}
           {showAttendance && (
-            <KPICard
-              label="Today's Attendance"
-              icon={<FiCheckSquare className="w-4 h-4" />}
+            <AttendanceKPICard
               value={attendanceToday ? `${attendanceToday.percent}%` : '—'}
               pillLabel={
                 attendanceWeekly?.trendVsLastWeek != null
                   ? `${attendanceWeekly.trendVsLastWeek > 0 ? '+' : ''}${attendanceWeekly.trendVsLastWeek}%`
                   : null
               }
+              classwise={classWiseAttendanceToday}
             />
           )}
         </div>
@@ -196,6 +216,7 @@ function AccountantDashboard({
   recentPayments,
   pendingFeesRows,
   pendingFeesStudentCount,
+  classwisePendingFees,
 }) {
   return (
     <div className="space-y-6">
@@ -224,13 +245,10 @@ function AccountantDashboard({
           icon={<FiCreditCard className="w-5 h-5" />}
           context="vs last month"
         />
-        <StatCard
-          variant="minimal"
-          accent="brand"
-          label="Pending Fees"
+        <PendingFeesStatCard
           value={`₹${feesStats.pending.toLocaleString('en-IN')}`}
-          icon={<FiCreditCard className="w-5 h-5" />}
           context={`Across ${pendingFeesStudentCount} student${pendingFeesStudentCount === 1 ? '' : 's'}`}
+          classwise={classwisePendingFees}
         />
       </div>
 
@@ -262,67 +280,63 @@ async function TeacherDashboard({ currentUser }) {
     getTeacherDashboardOverview(currentUser),
     getCurrentActor(),
     currentUser.teacherId
-      ? getTeacherCheckInStatus(currentUser.teacherId, await resolveSchoolId(), toLocalDateStr(new Date()))
+      ? getTeacherCheckInStatus(currentUser.teacherId, await resolveSchoolId(), todayInSchoolTz())
       : null,
   ]);
 
+  const pendingClasses = stats.attendanceTotal - stats.attendanceMarkedCount;
+
   return (
     <div className="space-y-6">
-      <WelcomeBanner name={actor?.name || currentUser.name} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-xl text-gray-500">Welcome</p>
+          <h1 className="text-3xl font-bold text-gray-900 mt-0.5">{actor?.name || currentUser.name}</h1>
+        </div>
         {checkInStatus && <TeacherCheckInCard initialStatus={checkInStatus} />}
-        <MyClassesCard classRows={classRows} />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <TeacherStatTile
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <ParentKPICard
           label="My Classes"
+          icon={<HiOutlineAcademicCap className="w-5 h-5" />}
           value={stats.totalClasses}
-          icon={<FiFileText className="w-4 h-4" />}
-          tone="violet"
+          context={stats.totalClasses > 0 ? 'Classes you manage' : 'No classes assigned yet'}
+          dotClassName="bg-sky-400"
         />
-        <TeacherStatTile
+        <ParentKPICard
           label="My Students"
+          icon={<FiUsers className="w-5 h-5" />}
           value={stats.totalStudents}
-          icon={<FiUsers className="w-4 h-4" />}
-          tone="blue"
+          context={`Across ${stats.totalClasses} class${stats.totalClasses === 1 ? '' : 'es'}`}
+          dotClassName="bg-green-400"
         />
-        <TeacherStatTile
+        <ParentKPICard
           label="Today's Attendance"
+          icon={<FiCheckSquare className="w-5 h-5" />}
           value={`${stats.attendanceMarkedCount}/${stats.attendanceTotal}`}
-          icon={<FiCheckSquare className="w-4 h-4" />}
-          tone="green"
+          context={
+            stats.attendanceTotal === 0
+              ? 'No classes assigned yet'
+              : pendingClasses > 0
+                ? `${pendingClasses} class${pendingClasses === 1 ? '' : 'es'} pending`
+                : 'All classes marked'
+          }
+          dotClassName={pendingClasses > 0 ? 'bg-amber-400' : 'bg-green-400'}
         />
-        <TeacherStatTile
+        <ParentKPICard
           label="Active Homework"
+          icon={<FiBook className="w-5 h-5" />}
           value={stats.activeHomeworkCount}
-          icon={<FiBook className="w-4 h-4" />}
-          tone="amber"
+          context={upcomingHomework[0] ? `Latest: ${upcomingHomework[0].title}` : 'No homework assigned yet'}
+          dotClassName="bg-amber-400"
         />
       </div>
 
-      <TeacherQuickLists recentNotices={recentNotices} upcomingHomework={upcomingHomework} />
-    </div>
-  );
-}
-
-const STAT_TILE_TONE = {
-  violet: 'bg-violet-50 text-violet-600',
-  blue: 'bg-blue-50 text-blue-600',
-  green: 'bg-green-50 text-green-600',
-  amber: 'bg-amber-50 text-amber-600',
-};
-
-// Same pastel-tile convention as the Students Report dashboards (Monthly/
-// Yearly/Subject Tests) — icon in its own tint circle, small uppercase
-// label, big bold number, no border/shadow chrome needed on a light bg.
-function TeacherStatTile({ label, value, icon, tone }) {
-  return (
-    <div className={`rounded-2xl p-5 ${STAT_TILE_TONE[tone]}`}>
-      <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/70 shrink-0">{icon}</span>
-      <p className="text-xs font-medium uppercase tracking-wide mt-3 opacity-80">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <MyClassesCard classRows={classRows} />
+        <TeacherQuickLists recentNotices={recentNotices} upcomingHomework={upcomingHomework} />
+      </div>
     </div>
   );
 }

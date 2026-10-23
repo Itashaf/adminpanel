@@ -134,8 +134,9 @@ function printReceipt(student, fee, school = {}) {
 
           <div class="summary">
             <div class="summary-row"><span>Total</span><span>₹${fee.totalAmount.toLocaleString('en-IN')}</span></div>
-            ${fee.discountAmount > 0 ? `<div class="summary-row discount"><span>Discount${fee.discountReason ? ` (${escapeHtml(fee.discountReason)})` : ''}</span><span>-₹${fee.discountAmount.toLocaleString('en-IN')}</span></div>
-            <div class="summary-row"><span>Payable</span><span>₹${fee.payableAmount.toLocaleString('en-IN')}</span></div>` : ''}
+            ${fee.discountAmount > 0 ? `<div class="summary-row discount"><span>Discount${fee.discountReason ? ` (${escapeHtml(fee.discountReason)})` : ''}</span><span>-₹${fee.discountAmount.toLocaleString('en-IN')}</span></div>` : ''}
+            ${fee.lateFeeAmount > 0 ? `<div class="summary-row"><span>Late Fee (${fee.daysOverdue} days overdue)</span><span>+₹${fee.lateFeeAmount.toLocaleString('en-IN')}</span></div>` : ''}
+            ${fee.discountAmount > 0 || fee.lateFeeAmount > 0 ? `<div class="summary-row"><span>Payable</span><span>₹${fee.payableAmount.toLocaleString('en-IN')}</span></div>` : ''}
             <div class="summary-row grand"><span>Amount Paid</span><span>₹${fee.paidAmount.toLocaleString('en-IN')}</span></div>
           </div>
 
@@ -222,6 +223,17 @@ export default function StudentFeeDetailPanel({ studentId, academicSession, auto
     applyUpdatedFee(updatedFee, message, onCollected);
   };
 
+  // A reversal puts the money back on the fee, so reload this student's fees and refresh the table row.
+  const handleReversed = async () => {
+    const nextFees = await getStudentFees(studentId, academicSession);
+    setFees(nextFees);
+    const totalFee = nextFees.reduce((sum, f) => sum + f.payableAmount, 0);
+    const paid = nextFees.reduce((sum, f) => sum + f.paidAmount, 0);
+    const due = totalFee - paid;
+    const feeStatus = totalFee === 0 ? 'NO_FEES' : due <= 0 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'DUE';
+    onCollected?.(studentId, { totalFee, paid, due, feeStatus }, 'Payment reversed.');
+  };
+
   const handleDiscounted = (updatedFee, message) => {
     setDiscountTarget(null);
     applyUpdatedFee(updatedFee, message, onCollected);
@@ -229,8 +241,9 @@ export default function StudentFeeDetailPanel({ studentId, academicSession, auto
 
   const totalFee = (fees || []).reduce((sum, f) => sum + f.totalAmount, 0);
   const totalDiscount = (fees || []).reduce((sum, f) => sum + f.discountAmount, 0);
+  const totalLateFee = (fees || []).reduce((sum, f) => sum + f.lateFeeAmount, 0);
   const totalPaid = (fees || []).reduce((sum, f) => sum + f.paidAmount, 0);
-  const totalDue = totalFee - totalDiscount - totalPaid;
+  const totalDue = totalFee - totalDiscount + totalLateFee - totalPaid;
 
   const latestPaidFee = (fees || []).filter((f) => f.paidAmount > 0).slice(-1)[0];
 
@@ -330,15 +343,22 @@ export default function StudentFeeDetailPanel({ studentId, academicSession, auto
                   <div key={fee.id} className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{TERM_LABELS[fee.term]}</p>
-                      {fee.discountAmount > 0 ? (
+                      {fee.discountAmount > 0 || fee.lateFeeAmount > 0 ? (
                         <p className="text-xs text-gray-400">
                           <span className="line-through">{formatCurrency(fee.totalAmount)}</span>{' '}
-                          <span className="text-indigo-600 font-medium">{formatCurrency(fee.payableAmount)}</span>
+                          <span className={fee.lateFeeAmount > 0 ? 'text-red-600 font-medium' : 'text-indigo-600 font-medium'}>
+                            {formatCurrency(fee.payableAmount)}
+                          </span>
                         </p>
                       ) : (
                         <p className="text-xs text-gray-400">{formatCurrency(fee.totalAmount)}</p>
                       )}
                       {fee.discountReason && <p className="text-[11px] text-gray-400">{fee.discountReason}</p>}
+                      {fee.lateFeeAmount > 0 && (
+                        <p className="text-[11px] text-red-500">
+                          +{formatCurrency(fee.lateFeeAmount)} late fee ({fee.daysOverdue} days overdue)
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <Badge {...STATUS_BADGE[fee.status]} />
@@ -416,6 +436,7 @@ export default function StudentFeeDetailPanel({ studentId, academicSession, auto
         onClose={() => setShowLedger(false)}
         studentId={studentId}
         studentName={student ? `${student.firstName} ${student.lastName}` : ''}
+        onReversed={handleReversed}
       />
     </div>
   );

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { updateSection } from '@/lib/classes';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function PUT(request, { params }) {
   const { error: authError } = await requirePermission('classes.manage');
   if (authError) return authError;
 
   const { id, sectionId } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.name || !data.capacity) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

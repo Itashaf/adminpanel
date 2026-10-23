@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { assignClassTeacher } from '@/lib/classes';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // For a class with no sections (Nursery/Playway) — assigns/unassigns the
 // class teacher directly on the class, without ever requiring a Section to
@@ -10,7 +11,7 @@ export async function PATCH(request, { params }) {
   if (authError) return authError;
 
   const { id } = await params;
-  const { classTeacherId } = await request.json();
+  const { classTeacherId } = await readJson(request);
 
   try {
     const section = await assignClassTeacher(id, classTeacherId);

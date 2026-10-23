@@ -30,6 +30,45 @@ import { subjectColor, subjectInitials } from '@/lib/timetableColors';
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DEFAULT_DURATION = 40;
 const DURATION_OPTIONS = [15, 20, 25, 30, 35, 40, 45, 50, 60];
+const SKELETON_PERIOD_COLS = 6;
+
+// Fetching a class/section's own timetable (switching the dropdown, not
+// the route itself — app/dashboard/academics/timetable/loading.jsx only
+// covers initial navigation) used to show a bare "Loading..." string here.
+// Mirrors the real Period × Day grid below instead, same bespoke-skeleton
+// convention as every other loading state in this app.
+function TimetableGridSkeleton() {
+  return (
+    <div className="space-y-5 animate-pulse">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="h-10 w-80 bg-gray-100 rounded-xl" />
+        <div className="h-10 w-32 bg-gray-50 rounded-lg" />
+      </div>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="grid" style={{ gridTemplateColumns: `110px repeat(${SKELETON_PERIOD_COLS}, minmax(0, 1fr))` }}>
+          <div className="h-12 bg-gray-50 border-b border-r border-gray-100" />
+          {Array.from({ length: SKELETON_PERIOD_COLS }).map((_, i) => (
+            <div key={i} className="h-12 bg-gray-50 border-b border-gray-100 flex items-center justify-center">
+              <div className="h-3 w-10 bg-gray-200 rounded" />
+            </div>
+          ))}
+          {DAYS.map((day) => (
+            <Fragment key={day}>
+              <div className="h-14 border-r border-gray-100 flex items-center px-3">
+                <div className="h-3 w-14 bg-gray-100 rounded" />
+              </div>
+              {Array.from({ length: SKELETON_PERIOD_COLS }).map((_, i) => (
+                <div key={i} className="p-1">
+                  <div className="h-full min-h-[48px] bg-gray-50 rounded-lg" />
+                </div>
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Today's day tab, so the grid opens already showing today's schedule
 // instead of always Monday — Sunday isn't one of the six tabs, so that one
@@ -458,7 +497,7 @@ export default function TimeTableClient({ classSections: initialClassSections, a
       {!selectedClass || (classNeedsSection && !selectedSection) ? (
         <p className="text-sm text-gray-500 text-center py-16">Pick a class and section to build its timetable.</p>
       ) : isLoading || !schedule ? (
-        <p className="text-sm text-gray-500 text-center py-16">Loading...</p>
+        <TimetableGridSkeleton />
       ) : (
         <>
           <div className="flex items-center justify-between gap-3 flex-wrap">

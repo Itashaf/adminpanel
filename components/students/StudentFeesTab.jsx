@@ -48,6 +48,10 @@ export default function StudentFeesTab({ student, canManage = true }) {
   }, [student.id, student.academicSession]);
 
   const feeByTerm = new Map((fees || []).map((fee) => [fee.term, fee]));
+  const totalFee = (fees || []).reduce((sum, fee) => sum + fee.payableAmount, 0);
+  const paidFee = (fees || []).reduce((sum, fee) => sum + fee.paidAmount, 0);
+  const dueFee = totalFee - paidFee;
+  const overallStatus = dueFee <= 0 ? 'Paid' : paidFee > 0 ? 'Partially Paid' : 'Due';
 
   // Optimistic update from the collection's own response — see the
   // "Optimistic UI Updates" rule in SKILL.md, no refetch needed.
@@ -87,13 +91,13 @@ export default function StudentFeesTab({ student, canManage = true }) {
           <FiCreditCard className="w-5 h-5" />
         </span>
         <div>
-          <h3 className="text-lg font-bold text-gray-900">Fees</h3>
+          <h3 className="text-base sm:text-lg font-bold text-gray-900">Fees</h3>
           <p className="text-sm text-gray-500 mt-0.5">Academic Session: {student.academicSession}</p>
         </div>
       </div>
 
       {canManage && (
-        <div className="flex items-center justify-between bg-gray-50 rounded-2xl px-5 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50 rounded-2xl px-4 sm:px-5 py-4">
           <div className="flex items-center gap-3 min-w-0">
             <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
               <FiTag className="w-4 h-4" />
@@ -110,7 +114,7 @@ export default function StudentFeesTab({ student, canManage = true }) {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:shrink-0 [&>button]:flex-1 sm:[&>button]:flex-none">
             {standingDiscount.discountType && (
               <Button
                 label={isApplyingToPending ? 'Applying...' : 'Apply to Pending Fees'}
@@ -137,6 +141,26 @@ export default function StudentFeesTab({ student, canManage = true }) {
       )}
 
       {!isLoading && error && <p className="text-sm text-red-500 text-center py-10">{error}</p>}
+
+      {!isLoading && !error && fees?.length > 0 && (
+        <div className="sm:hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <h3 className="text-base font-bold text-gray-900">Fee Summary</h3>
+          <p className="text-xs text-gray-500 mt-0.5 mb-3">Overview of fee payment status.</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {[
+              { label: 'Total Fee', value: `₹${totalFee.toLocaleString('en-IN')}`, tile: 'bg-blue-50 text-blue-700' },
+              { label: 'Paid', value: `₹${paidFee.toLocaleString('en-IN')}`, tile: 'bg-green-50 text-green-700' },
+              { label: 'Due', value: `₹${dueFee.toLocaleString('en-IN')}`, tile: 'bg-rose-50 text-rose-600' },
+              { label: 'Status', value: overallStatus, tile: 'bg-amber-50 text-amber-600' },
+            ].map(({ label, value, tile }) => (
+              <div key={label} className={`rounded-xl p-3 ${tile}`}>
+                <p className="text-xs opacity-80">{label}</p>
+                <p className="text-base font-bold mt-0.5">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!isLoading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

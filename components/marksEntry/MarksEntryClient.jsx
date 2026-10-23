@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FiCalendar, FiLayers, FiBook, FiInfo, FiClipboard } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
+import EmptyState from '@/components/EmptyState';
 import MarksEntrySheet from './MarksEntrySheet';
 import { getExamSchedules } from '@/lib/api';
 
@@ -50,13 +51,13 @@ export default function MarksEntryClient({ exams, role }) {
   const selectedSchedule = schedules.find((s) => s.id === selectedScheduleId) || null;
 
   return (
-    <div className="space-y-6 pb-28">
-      <div>
+    <div className="flex flex-col h-full">
+      <div className="shrink-0 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Marks Entry</h1>
         <p className="text-sm text-gray-500 mt-1">Select an exam, class and subject to enter marks.</p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 shrink-0">
         <div className={`grid grid-cols-1 gap-4 items-end ${selectedSchedule ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Exam</label>
@@ -117,21 +118,19 @@ export default function MarksEntryClient({ exams, role }) {
         )}
       </div>
 
-      {selectedSchedule ? (
-        <MarksEntrySheet schedule={selectedSchedule} role={role} />
-      ) : exams.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
-          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-violet-100 text-violet-600 mb-4">
-            <FiClipboard className="w-7 h-7" />
-          </span>
-          <h3 className="text-base font-bold text-gray-900">Nothing to enter yet</h3>
-          <p className="text-sm text-gray-500 mt-1.5">Once an exam is published with your subjects, it&apos;ll show up here.</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
-          <p className="text-sm text-gray-500">Choose an exam, class, and subject above to start entering marks.</p>
-        </div>
-      )}
+      <div className={`flex-1 min-h-0 flex flex-col mt-6 ${selectedSchedule ? 'pb-28' : ''}`}>
+        {selectedSchedule ? (
+          <MarksEntrySheet schedule={selectedSchedule} role={role} />
+        ) : exams.length === 0 ? (
+          <EmptyState
+            icon={FiClipboard}
+            title="Nothing to enter yet"
+            description="Once an exam is published with your subjects, it'll show up here."
+          />
+        ) : (
+          <EmptyState icon={FiClipboard} description="Choose an exam, class, and subject above to start entering marks." />
+        )}
+      </div>
     </div>
   );
 }

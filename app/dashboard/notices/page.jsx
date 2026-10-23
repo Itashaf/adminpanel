@@ -1,5 +1,5 @@
 import NoticesExplorer from '@/components/notices/NoticesExplorer';
-import { getVisibleNotices, getParentAccountOptions } from '@/lib/notices';
+import { getNoticesPageForUser, getParentAccountOptions } from '@/lib/notices';
 import { getAllSessions, getActiveSession } from '@/lib/academicSessions';
 import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
@@ -10,7 +10,10 @@ export const metadata = {
   title: 'Notices | SchoolApp 360',
 };
 
-export default async function NoticesPage() {
+const PAGE_SIZE = 10;
+
+export default async function NoticesPage({ searchParams }) {
+  const params = await searchParams;
   // Real session first — see app/dashboard/homework/page.jsx's identical
   // fix: the dashboard-toggle fallback never carries classTeacherOf, which
   // left a Class-Teacher-only teacher (no subject assignments) seeing no
@@ -22,8 +25,19 @@ export default async function NoticesPage() {
   // Teacher/Parent option lists are only ever needed for the "Individual"
   // recipient picker, which only Admin-tier can post — skip the extra
   // queries entirely for a Teacher session.
-  const [notices, sessions, activeSession, teachers, parentOptions] = await Promise.all([
-    getVisibleNotices(currentUser),
+  // Filters/page live in the URL (see NoticesExplorer's useUrlSync) so a
+  // refresh or router.refresh() after a save lands on the same view. Only that
+  // one page is fetched here; later pages/filters come from /api/notices/page.
+  const initialParams = {
+    search: params?.search || '',
+    audience: params?.audience || '',
+    className: params?.className || '',
+    priority: params?.priority || '',
+    page: Math.max(Number(params?.page) || 1, 1),
+  };
+
+  const [initialResult, sessions, activeSession, teachers, parentOptions] = await Promise.all([
+    getNoticesPageForUser(currentUser, { ...initialParams, pageSize: PAGE_SIZE }),
     getAllSessions(),
     getActiveSession(),
     isTeacher ? Promise.resolve([]) : getAllTeachers(schoolId),
@@ -32,7 +46,9 @@ export default async function NoticesPage() {
 
   return (
     <NoticesExplorer
-      notices={notices}
+      initialResult={initialResult}
+      initialParams={initialParams}
+      pageSize={PAGE_SIZE}
       sessionOptions={sessions.map((s) => ({ value: s.name, label: s.name }))}
       defaultSession={activeSession?.name || sessions[0]?.name || ''}
       currentUser={currentUser}

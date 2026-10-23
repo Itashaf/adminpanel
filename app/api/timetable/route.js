@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getTimeTable, saveTimeTable, deleteTimeTable } from '@/lib/timetable';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 // SchoolAdmin/SuperAdmin manage any class. A Teacher may only manage a
 // class+section they're actually the Class Teacher of (currentUser.
-// classTeacherOf) — same scoping convention as Attendance/Assessments, not
+// classTeacherOf) — same scoping convention as Attendance, not
 // the broader "any subject teacher" set.
 async function assertCanManageTimetable(className, sectionName) {
   const currentUser = await getCurrentUserInfo();
@@ -49,7 +50,7 @@ export async function GET(request) {
 }
 
 export async function PUT(request) {
-  const { className, sectionName = '', academicSession, schedule } = await request.json();
+  const { className, sectionName = '', academicSession, schedule } = await readJson(request);
   if (!className || !academicSession || !schedule) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }

@@ -1,10 +1,12 @@
 import AddTeacherForm from '@/components/teachers/AddTeacherForm';
+import { blockIfNotAdminTier } from '@/lib/roleGuard';
 
 export const metadata = {
   title: 'Add Teacher | SchoolApp 360',
 };
 
-export default function AddTeacherPage() {
+export default async function AddTeacherPage() {
+  await blockIfNotAdminTier();
   return (
     <div className="space-y-6 w-full">
       <div>

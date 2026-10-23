@@ -3,6 +3,7 @@ import { validateTeacherCredentials } from '@/lib/teachers';
 import { signSessionToken } from '@/lib/auth/jwt';
 import { checkLoginRateLimit } from '@/lib/auth/loginRateLimit';
 import { getUserFieldsForLegacyId } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Token-returning counterpart to app/actions/auth.js's teacherLoginAction —
 // that Server Action only flips lib/currentUser.js's in-memory dashboard
@@ -13,12 +14,12 @@ import { getUserFieldsForLegacyId } from '@/lib/rbac';
 // `Authorization: Bearer <token>` — lib/auth/session.js's getSession() reads
 // that header as a fallback when there's no cookie.
 export async function POST(request) {
-  const { email, password } = await request.json();
+  const { email, password } = await readJson(request);
   if (!email || !password) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  const rateLimit = checkLoginRateLimit(request.headers, email);
+  const rateLimit = await checkLoginRateLimit(request.headers, email);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many login attempts. Please try again later.' },

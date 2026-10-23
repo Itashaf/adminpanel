@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { addSchoolFromWizard, searchSchoolDirectory } from '@/lib/schools';
-import { setActiveSchoolContext } from '@/lib/school';
+import { runWithSchool } from '@/lib/auth/schoolContext';
 import { addSession, setActiveSession } from '@/lib/academicSessions';
 import { requireSuperAdmin } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 export async function GET(request) {
   const { error } = await requireSuperAdmin();
@@ -13,13 +14,18 @@ export async function GET(request) {
     search: searchParams.get('search') || '',
     status: searchParams.get('status') || '',
     page: Number(searchParams.get('page')) || 1,
-    pageSize: Number(searchParams.get('pageSize')) || 20,
+    pageSize: Math.min(100, Math.max(1, Number(searchParams.get('pageSize')) || 20)),
   });
   return NextResponse.json(result);
 }
 
 export async function POST(request) {
-  const data = await request.json();
+  // Creating a school is a Super Admin action (the /setup wizard is only linked
+  // from the Super Admin schools list) — it used to run for anyone.
+  const { error: authError } = await requireSuperAdmin();
+  if (authError) return authError;
+
+  const data = await readJson(request);
 
   if (!data.name || !data.code || !data.email || !data.phone || !data.sessionName) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -33,13 +39,14 @@ export async function POST(request) {
     // this new school completely empty, but a school with zero academic
     // sessions is a broken starting point (nothing else has a session to
     // attach to). Bootstrap the one the wizard's own Step 4 already collected
-    // — switching the active school context first so it's created *for*
-    // this school, not whichever one was active before.
+    // — created *for* this school (see runWithSchool below).
     if (data.startDate && data.endDate) {
       try {
-        await setActiveSchoolContext(school);
-        const session = await addSession({ name: data.sessionName, startDate: data.startDate, endDate: data.endDate });
-        await setActiveSession(session.id);
+        // Created for the new school only, without touching any shared setting.
+        await runWithSchool(school.id, async () => {
+          const session = await addSession({ name: data.sessionName, startDate: data.startDate, endDate: data.endDate });
+          await setActiveSession(session.id);
+        });
       } catch {
         // Non-fatal — the school itself was created successfully; worst case
         // its admin creates the first academic session by hand.

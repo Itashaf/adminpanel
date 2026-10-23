@@ -200,6 +200,7 @@ export default function DailyAttendanceBoard({ initialSession, initialDate, clas
         sectionName: selectedSection,
         records,
         markedBy: currentUser.name,
+        loadedMarkedAt: existingRecord?.markedAt || null,
       });
       setExistingRecord(saved);
       setBaseline({ statuses, remarks });

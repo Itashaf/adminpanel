@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { unlockMonthlyReport } from '@/lib/performance/monthlyReports';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Admin/Principal/SuperAdmin only — a Class Teacher holds the same
 // performanceReports.monthly.manage key (they need it to lock in the first
@@ -15,7 +16,7 @@ export async function POST(request, { params }) {
   }
 
   const { studentId } = await params;
-  const { academicSession, month } = await request.json();
+  const { academicSession, month } = await readJson(request);
   if (!academicSession || !month) {
     return NextResponse.json({ error: 'academicSession and month are required.' }, { status: 400 });
   }

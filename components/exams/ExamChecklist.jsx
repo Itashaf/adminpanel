@@ -1,29 +1,49 @@
 'use client';
 
-import { Fragment } from 'react';
-import { FiCheck } from 'react-icons/fi';
+import { FiCheck, FiBook, FiBarChart2, FiShield, FiFileText } from 'react-icons/fi';
 
-const STEP_TITLES = ['Exam created', 'Add subjects', 'Publish exam', 'Teachers enter marks', 'Verify marks', 'Generate results'];
+// One icon per step, shown when that step is current/upcoming — a DONE step
+// always shows a checkmark instead (see Step below), same as the reference
+// design: "Exam"/"Publish" are done here so they show checks, "Subjects" is
+// current so it shows its own icon, "Marks"/"Verify"/"Results" are upcoming
+// so they show their icons faded.
+const STEPS = [
+  { title: 'Exam', icon: FiCheck },
+  { title: 'Subjects', icon: FiBook },
+  { title: 'Publish', icon: FiCheck },
+  { title: 'Marks', icon: FiBarChart2 },
+  { title: 'Verify', icon: FiShield },
+  { title: 'Results', icon: FiFileText },
+];
+
+// Chevron/arrow shape — a point on the right, a notch on the left so the
+// next segment's point tucks into it, overlapped via a negative margin so
+// the row reads as one continuous arrow strip with no gaps.
+const CHEVRON_CLIP = 'polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%)';
 
 const STATUS_LABEL = { done: 'Completed', current: 'In progress', upcoming: 'Pending' };
 
-function Step({ index, title, status }) {
+function Step({ title, Icon, status, isFirst }) {
+  const bg = status === 'done' ? 'bg-green-100' : status === 'current' ? 'bg-indigo-100' : 'bg-gray-100';
+  const text = status === 'upcoming' ? 'text-gray-400' : 'text-gray-900';
+  const iconCircle =
+    status === 'done'
+      ? 'bg-green-500 text-white'
+      : status === 'current'
+      ? 'bg-gradient-to-br from-violet-700 to-blue-600 text-white'
+      : 'bg-gray-200 text-gray-400';
+
   return (
-    <div className="flex items-center gap-2 px-2 min-w-[132px]">
-      <span
-        className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold shrink-0 ${
-          status === 'done'
-            ? 'bg-green-500 text-white'
-            : status === 'current'
-            ? 'bg-gradient-to-br from-violet-700 to-blue-600 text-white'
-            : 'bg-gray-100 text-gray-400'
-        }`}
-      >
-        {status === 'done' ? <FiCheck className="w-3.5 h-3.5" /> : index + 1}
+    <div
+      style={{ clipPath: CHEVRON_CLIP, marginLeft: isFirst ? 0 : -16 }}
+      className={`flex-1 flex items-center justify-center gap-2.5 pl-6 pr-6 py-3 drop-shadow-lg ${bg}`}
+    >
+      <span className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${iconCircle}`}>
+        {status === 'done' ? <FiCheck className="w-4 h-4" /> : <Icon className="w-3.5 h-3.5" />}
       </span>
-      <div className="min-w-0 text-left">
-        <p className={`text-xs font-semibold truncate ${status === 'upcoming' ? 'text-gray-400' : 'text-gray-900'}`}>{title}</p>
-        <p className={`text-[11px] ${status === 'current' ? 'text-indigo-600' : status === 'done' ? 'text-gray-500' : 'text-gray-400'}`}>
+      <div className="min-w-0">
+        <p className={`text-sm font-semibold whitespace-nowrap ${text}`}>{title}</p>
+        <p className={`text-xs whitespace-nowrap ${status === 'current' ? 'text-indigo-600' : status === 'done' ? 'text-gray-500' : 'text-gray-400'}`}>
           {STATUS_LABEL[status]}
         </p>
       </div>
@@ -49,17 +69,10 @@ export default function ExamChecklist({ exam, progress, verificationSummary, has
   ];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-center overflow-x-auto">
-        {STEP_TITLES.map((title, index) => (
-          <Fragment key={title}>
-            <Step index={index} title={title} status={statuses[index]} />
-            {index < STEP_TITLES.length - 1 && (
-              <div className={`flex-1 h-0.5 min-w-[16px] ${statuses[index] === 'done' ? 'bg-green-200' : 'bg-gray-100'}`} />
-            )}
-          </Fragment>
-        ))}
-      </div>
+    <div className="flex items-center overflow-x-auto">
+      {STEPS.map((step, index) => (
+        <Step key={step.title} title={step.title} Icon={step.icon} status={statuses[index]} isFirst={index === 0} />
+      ))}
     </div>
   );
 }

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { sendFeeReminders } from '@/lib/fees';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { requirePermission } from '@/lib/rbac';
+import { isIdList } from '@/lib/http';
+import { readJson } from '@/lib/http';
 
 // POST /api/fees/send-reminder — { studentIds: string[] } (one or many).
 // Sends a real in-app Notice (Individual/Parent audience, same path/push
@@ -20,9 +22,9 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
 
-  const { studentIds } = await request.json();
-  if (!Array.isArray(studentIds) || studentIds.length === 0) {
-    return NextResponse.json({ error: 'studentIds must be a non-empty array' }, { status: 400 });
+  const { studentIds } = await readJson(request);
+  if (!isIdList(studentIds, 2000)) {
+    return NextResponse.json({ error: 'studentIds must be a list of 1 to 2000 student ids' }, { status: 400 });
   }
 
   try {

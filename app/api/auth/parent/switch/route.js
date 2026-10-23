@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { signSessionToken } from '@/lib/auth/jwt';
 import { verifyParentOwnsStudent } from '@/lib/parentAccounts';
+import { readJson } from '@/lib/http';
 
 // Mobile counterpart to app/actions/auth.js's switchActiveChildAction — a
 // mobile client has no cookie to silently re-issue, so it gets a fresh token
@@ -12,7 +13,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
 
-  const { studentId } = await request.json();
+  const { studentId } = await readJson(request);
   if (!studentId) {
     return NextResponse.json({ error: 'Missing studentId' }, { status: 400 });
   }

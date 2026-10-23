@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { unlockYearlyReport } from '@/lib/performance/yearlyReports';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Admin/Principal/SuperAdmin only — same shared-permission-key pattern as
 // Monthly unlock.
@@ -12,7 +13,7 @@ export async function POST(request, { params }) {
   }
 
   const { studentId } = await params;
-  const { academicSession } = await request.json();
+  const { academicSession } = await readJson(request);
   if (!academicSession) return NextResponse.json({ error: 'academicSession is required.' }, { status: 400 });
 
   const actorId = actor.id || actor.legacyId;

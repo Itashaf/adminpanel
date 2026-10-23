@@ -3,13 +3,14 @@ import { assignClassToTeacher, removeAssignmentFromTeacher } from '@/lib/teacher
 import { getClassSectionsMap } from '@/lib/classes';
 import { requirePermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { readJson } from '@/lib/http';
 
 export async function POST(request, { params }) {
   const { error: authError } = await requirePermission('teachers.update');
   if (authError) return authError;
 
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   // Section count is now per-school/admin-defined (see lib/classes.js's
   // getClassSectionsMap) — section is only actually required for a class
@@ -36,7 +37,7 @@ export async function DELETE(request, { params }) {
   if (authError) return authError;
 
   const { id } = await params;
-  const { assignmentId } = await request.json();
+  const { assignmentId } = await readJson(request);
 
   if (!assignmentId) {
     return NextResponse.json({ error: 'Missing assignment id' }, { status: 400 });

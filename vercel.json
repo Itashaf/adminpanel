@@ -1,9 +1,19 @@
 {
-  "regions": ["syd1"],
+  "regions": [
+    "syd1"
+  ],
   "crons": [
     {
       "path": "/api/cron/generate-fees",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-support-tickets",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-payments",
+      "schedule": "0 5 * * *"
     }
   ]
 }

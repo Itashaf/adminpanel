@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { updateSubject, deleteSubject } from '@/lib/subjects';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request, { params }) {
   const { error: authError } = await requirePermission('subjects.manage');
   if (authError) return authError;
 
   const { id } = await params;
-  const { name, code, type } = await request.json();
+  const { name, code, type } = await readJson(request);
 
   try {
     const subject = await updateSubject(id, { name, code, type });

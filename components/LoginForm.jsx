@@ -135,6 +135,12 @@ export default function LoginForm() {
         <RoleToggle role={role} onChange={handleRoleChange} options={VALID_ROLES} icons={ROLE_ICONS} />
       </div>
 
+      {searchParams.get('expired') && (
+        <p className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          Your session has ended. Please sign in again.
+        </p>
+      )}
+
       <Form onSubmit={handleSubmit(onSubmit)}>
         {formError && <p className="text-sm text-red-500">{formError}</p>}
 

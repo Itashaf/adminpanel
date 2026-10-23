@@ -1,7 +1,7 @@
 import { forwardRef, useId } from 'react';
 
 const Input = forwardRef(function Input(
-  { type = 'text', placeholder, icon, endAdornment, error, onWheel, ...rest },
+  { type = 'text', placeholder, icon, endAdornment, error, onWheel, className = '', ...rest },
   ref
 ) {
   // A number input's native up/down spinner and its scroll-to-change-value
@@ -41,7 +41,7 @@ const Input = forwardRef(function Input(
               : 'border-gray-200 focus:ring-indigo-500'
           } ${icon ? 'pl-10' : 'pl-4'} ${endAdornment ? 'pr-10' : 'pr-4'} ${
             isNumber ? '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none' : ''
-          }`}
+          } ${className}`}
           {...rest}
         />
         <datalist id={datalistId}></datalist>

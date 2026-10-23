@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { updateHomework, deleteHomework } from '@/lib/homework';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 export async function PUT(request, { params }) {
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.academicSession || !data.className || !data.subject || !data.title) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

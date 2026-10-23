@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { deleteFeeStructure, getFeeStructureById, updateFeeStructure } from '@/lib/fees';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, requireStaffPermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function GET(request, { params }) {
-  const { user, error } = await requirePermission('fees.view');
+  const { user, error } = await requireStaffPermission('fees.view');
   if (error) return error;
   if (user.roleKey === 'Parent') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -22,7 +23,7 @@ export async function PUT(request, { params }) {
   if (error) return error;
 
   const { id } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   try {
     const structure = await updateFeeStructure(id, data);

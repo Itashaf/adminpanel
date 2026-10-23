@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { previewMonthlyImport } from '@/lib/performance/bulkImport';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function POST(request) {
   const { error } = await requirePermission('performanceReports.monthly.manage');
   if (error) return error;
 
-  const { className, sectionName, academicSession, activities, holistic, remarks } = await request.json();
+  const { className, sectionName, academicSession, activities, holistic, remarks } = await readJson(request);
   if (!className || !sectionName || !academicSession) {
     return NextResponse.json({ error: 'className, sectionName and academicSession are required.' }, { status: 400 });
   }

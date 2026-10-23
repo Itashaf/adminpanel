@@ -21,7 +21,7 @@ import {
 import Modal from '@/components/Modal';
 import Button from '@/components/Button';
 import Toast from '@/components/Toast';
-import KPICard from '@/components/dashboard/KPICard';
+import ParentKPICard from '@/components/parent/ParentKPICard';
 import LeaveStatusBadge from './LeaveStatusBadge';
 import { reviewLeave } from '@/lib/api';
 import { LEAVE_TYPES, LEAVE_TYPE_STYLES } from '@/lib/leaveConstants';
@@ -127,7 +127,7 @@ function LeaveRequestCard({ leave, balanceForType, onApprove, onReject }) {
   const days = dayCount(leave.startDate, leave.endDate);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <div className="bg-white rounded-[24px] border border-gray-100 shadow-sm p-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-3 min-w-0">
           <span className={`flex items-center justify-center w-11 h-11 rounded-xl shrink-0 ${typeStyle.iconBg}`}>
@@ -257,14 +257,9 @@ export default function AdminLeaveView({ leaves, balanceByTeacher = {} }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-indigo-100 text-indigo-700 shrink-0">
-            <FiCalendar className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pending Leave Requests</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Review and respond to teacher leave applications.</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Leave Requests</h1>
+          <p className="text-base text-gray-500 mt-1.5">Review and respond to teacher leave applications.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
@@ -288,10 +283,34 @@ export default function AdminLeaveView({ leaves, balanceByTeacher = {} }) {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Total Requests" icon={<FiFileText className="w-4 h-4" />} value={leaves.length} />
-        <KPICard label="Pending" icon={<FiClock className="w-4 h-4" />} value={pendingLeaves.length} />
-        <KPICard label="Approved" icon={<FiCheck className="w-4 h-4" />} value={approvedCount} />
-        <KPICard label="Rejected" icon={<FiX className="w-4 h-4" />} value={rejectedCount} />
+        <ParentKPICard
+          label="Total Requests"
+          icon={<FiFileText className="w-5 h-5" />}
+          value={leaves.length}
+          context="All teacher leave requests"
+          dotClassName="bg-sky-400"
+        />
+        <ParentKPICard
+          label="Pending"
+          icon={<FiClock className="w-5 h-5" />}
+          value={pendingLeaves.length}
+          context={pendingLeaves.length > 0 ? 'Waiting for your review' : 'Nothing waiting'}
+          dotClassName="bg-amber-400"
+        />
+        <ParentKPICard
+          label="Approved"
+          icon={<FiCheck className="w-5 h-5" />}
+          value={approvedCount}
+          context="Leave approved"
+          dotClassName="bg-green-400"
+        />
+        <ParentKPICard
+          label="Rejected"
+          icon={<FiX className="w-5 h-5" />}
+          value={rejectedCount}
+          context="Leave rejected"
+          dotClassName="bg-red-400"
+        />
       </div>
 
       {viewMode === 'history' ? (
@@ -301,32 +320,70 @@ export default function AdminLeaveView({ leaves, balanceByTeacher = {} }) {
               <p className="text-sm text-gray-500">No reviewed requests yet.</p>
             </div>
           ) : (
-            historyLeaves.map((leave) => {
-              const typeStyle = LEAVE_TYPE_STYLES[leave.leaveType] || LEAVE_TYPE_STYLES.Other;
-              const TypeIcon = LEAVE_TYPE_ICONS[typeStyle.icon] || FiFileText;
-              return (
-                <div key={leave.id} className="flex items-start gap-3 px-5 py-4 border-b border-gray-100 last:border-b-0">
-                  <span className={`flex items-center justify-center w-10 h-10 rounded-xl shrink-0 ${typeStyle.iconBg}`}>
-                    <TypeIcon className="w-4 h-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-gray-900">{leave.teacherName}</p>
-                      <span className="text-xs text-gray-400">{leave.leaveType} Leave</span>
-                      <LeaveStatusBadge status={leave.status} />
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      <th className="py-4 pl-6 pr-4 w-16">S.No.</th>
+                      <th className="py-4 pr-4">Teacher</th>
+                      <th className="py-4 pr-4">Leave Type</th>
+                      <th className="py-4 pr-4">Date</th>
+                      <th className="py-4 pr-4">Status</th>
+                      <th className="py-4 pr-6">Reviewed By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {historyLeaves.map((leave, index) => (
+                      <tr key={leave.id} className="align-top hover:bg-gray-50/60 transition">
+                        <td className="py-4 pl-6 pr-4 text-gray-500">{index + 1}</td>
+                        <td className="py-4 pr-4 font-medium text-gray-900 whitespace-nowrap">{leave.teacherName}</td>
+                        <td className="py-4 pr-4 text-gray-700 whitespace-nowrap">{leave.leaveType} Leave</td>
+                        <td className="py-4 pr-4 text-gray-700 whitespace-nowrap">
+                          {formatDate(leave.startDate)}
+                          {leave.endDate !== leave.startDate ? ` – ${formatDate(leave.endDate)}` : ''}
+                        </td>
+                        <td className="py-4 pr-4">
+                          <LeaveStatusBadge status={leave.status} />
+                        </td>
+                        <td className="py-4 pr-6 text-gray-500 min-w-[160px]">
+                          {leave.reviewedByName || 'Admin'}
+                          {leave.reviewNote ? ` — ${leave.reviewNote}` : ''}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="md:hidden">
+                {historyLeaves.map((leave) => {
+                  const typeStyle = LEAVE_TYPE_STYLES[leave.leaveType] || LEAVE_TYPE_STYLES.Other;
+                  const TypeIcon = LEAVE_TYPE_ICONS[typeStyle.icon] || FiFileText;
+                  return (
+                    <div key={leave.id} className="flex items-start gap-3 px-5 py-4 border-b border-gray-100 last:border-b-0">
+                      <span className={`flex items-center justify-center w-10 h-10 rounded-xl shrink-0 ${typeStyle.iconBg}`}>
+                        <TypeIcon className="w-4 h-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900">{leave.teacherName}</p>
+                          <span className="text-xs text-gray-400">{leave.leaveType} Leave</span>
+                          <LeaveStatusBadge status={leave.status} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDate(leave.startDate)}
+                          {leave.endDate !== leave.startDate ? ` – ${formatDate(leave.endDate)}` : ''}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {leave.status} by {leave.reviewedByName || 'Admin'}
+                          {leave.reviewNote ? ` — ${leave.reviewNote}` : ''}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formatDate(leave.startDate)}
-                      {leave.endDate !== leave.startDate ? ` – ${formatDate(leave.endDate)}` : ''}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {leave.status} by {leave.reviewedByName || 'Admin'}
-                      {leave.reviewNote ? ` — ${leave.reviewNote}` : ''}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       ) : (

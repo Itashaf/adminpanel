@@ -1,8 +1,9 @@
 import StudentFeesExplorer from '@/components/fees/StudentFeesExplorer';
-import { getFeesStats, getStudentFeeSummaries } from '@/lib/fees';
+import { getFeesStats, getStudentFeeSummaries, getClasswisePendingFees } from '@/lib/fees';
 import { getStudentStats } from '@/lib/students';
 import { getSchoolSettings } from '@/lib/schoolSettings';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { blockIfTeacher } from '@/lib/roleGuard';
 
 export const metadata = {
   title: 'Student Fees | SchoolApp 360',
@@ -11,6 +12,7 @@ export const metadata = {
 const PAGE_SIZE = 10;
 
 export default async function FeesStudentsPage({ searchParams }) {
+  await blockIfTeacher();
   const params = await searchParams;
   const schoolId = await resolveSchoolId();
 
@@ -28,10 +30,11 @@ export default async function FeesStudentsPage({ searchParams }) {
     page: Number(params?.page) || 1,
   };
 
-  const [feesStats, studentStats, school, initialResult] = await Promise.all([
+  const [feesStats, studentStats, school, classwisePendingFees, initialResult] = await Promise.all([
     getFeesStats(),
     getStudentStats(schoolId),
     getSchoolSettings(),
+    getClasswisePendingFees(),
     getStudentFeeSummaries({
       className: initialFilters.className,
       section: initialFilters.section,
@@ -48,6 +51,7 @@ export default async function FeesStudentsPage({ searchParams }) {
     <StudentFeesExplorer
       feesStats={feesStats}
       totalStudents={studentStats.active}
+      classwisePendingFees={classwisePendingFees}
       initialResult={initialResult}
       initialFilters={initialFilters}
       pageSize={PAGE_SIZE}

@@ -150,7 +150,7 @@ export default function NotificationBell() {
               )}
             </div>
 
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="max-h-[400px] overflow-y-auto notice-scroll">
               {isLoading && notifications.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-10">Loading...</p>
               ) : notifications.length === 0 ? (

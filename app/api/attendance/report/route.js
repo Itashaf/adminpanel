@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/currentUser';
 import { getCurrentUserInfo } from '@/lib/iam';
 import { isClassInTeacherScope } from '@/lib/roleGuard';
 import { requirePermission } from '@/lib/rbac';
+import { todayInSchoolTz } from '@/lib/schoolToday';
 
 function toLocalDateStr(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -24,7 +25,7 @@ export async function GET(request) {
   const academicSession = searchParams.get('session');
   const className = searchParams.get('class');
   const sectionName = searchParams.get('section');
-  const to = searchParams.get('to') || toLocalDateStr(new Date());
+  const to = searchParams.get('to') || todayInSchoolTz();
   const from = searchParams.get('from') || (() => {
     const d = new Date(`${to}T00:00:00`);
     d.setDate(d.getDate() - 29);

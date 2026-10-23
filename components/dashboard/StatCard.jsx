@@ -53,6 +53,11 @@ export default function StatCard({
   // label (e.g. "this month"), shown under the trend % pill.
   deltaValue,
   deltaLabel,
+  // `variant="minimal"` only — optional extra node below the context line
+  // (e.g. a "View Classwise" CTA that opens a popup), same reasoning as
+  // KPICard.jsx's own `footer` prop. Omitted by every other caller, so this
+  // is purely additive.
+  footer,
 }) {
   if (variant === 'minimal') {
     const palette = ACCENTS[accent] || ACCENTS.blue;
@@ -73,23 +78,31 @@ export default function StatCard({
         <p className={`text-4xl font-bold tabular-nums tracking-tight leading-tight mt-1 ${isBrand ? 'text-white' : 'text-gray-900'}`}>
           {value}
         </p>
-        {context && (
-          <p className={`flex items-center gap-1.5 text-sm mt-2 ${isBrand ? 'text-white/70' : 'text-gray-400'}`}>
-            <span
-              className={`flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold shrink-0 ${
-                isBrand
-                  ? 'bg-white/20 text-white'
-                  : contextTone === 'up'
-                    ? 'bg-green-100 text-green-600'
-                    : contextTone === 'down'
-                      ? 'bg-red-100 text-red-600'
-                      : 'bg-gray-100 text-gray-400'
-              }`}
-            >
-              {contextTone === 'up' ? '▲' : contextTone === 'down' ? '▼' : '−'}
-            </span>
-            {context}
-          </p>
+        {/* Context + footer share one row when both exist (e.g. Pending
+            Fees' student count + "View Classwise") instead of stacking —
+            unchanged when only one of them is passed. */}
+        {(context || footer) && (
+          <div className="flex items-center justify-between gap-2 mt-2">
+            {context && (
+              <p className={`flex items-center gap-1.5 text-sm ${isBrand ? 'text-white/70' : 'text-gray-400'}`}>
+                <span
+                  className={`flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold shrink-0 ${
+                    isBrand
+                      ? 'bg-white/20 text-white'
+                      : contextTone === 'up'
+                        ? 'bg-green-100 text-green-600'
+                        : contextTone === 'down'
+                          ? 'bg-red-100 text-red-600'
+                          : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  {contextTone === 'up' ? '▲' : contextTone === 'down' ? '▼' : '−'}
+                </span>
+                {context}
+              </p>
+            )}
+            {footer}
+          </div>
         )}
       </div>
     );

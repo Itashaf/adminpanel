@@ -29,14 +29,26 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+/* App-wide scrollbar — same look as the Notification Bell list (.notice-scroll
+   below): 4px, theme-gradient thumb, invisible until the scroll area is hovered. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+  scrollbar-color: transparent transparent;
+}
+
+*:hover {
+  scrollbar-color: #4f46e5 transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 2px;
-  height: 2px;
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 *::-webkit-scrollbar-track {
@@ -44,8 +56,12 @@ body {
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.25);
+  background: transparent;
   border-radius: 9999px;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #6d28d9, #4f46e5, #2563eb);
 }
 
 /* Sidebar nav (components/dashboard/Sidebar.jsx) scrolls when a submenu's
@@ -60,10 +76,73 @@ body {
   -ms-overflow-style: none;
 }
 
+/* Generic "no visible scrollbar, still scrollable" utility — same technique
+   as .sidebar-nav-scroll above, for any container that needs it. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 .sidebar-nav-scroll::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
+}
+
+/* The exam-detail header's "Classes (N)" hover popover (ExamDetailsClient.jsx)
+   — lighter and thinner than the already-thin global scrollbar, since this
+   is a small popover list, not a page-level scroll area. */
+.exam-classes-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+
+.exam-classes-scroll::-webkit-scrollbar {
+  width: 1px;
+}
+
+.exam-classes-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+/* Notification Bell dropdown list (components/dashboard/NotificationBell.jsx)
+   — theme-gradient thumb, invisible until hover (auto-hide) instead of the
+   always-visible gray thumb everywhere else on the app. */
+.notice-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  forced-color-adjust: none;
+}
+
+.notice-scroll:hover {
+  scrollbar-color: #4f46e5 transparent;
+}
+
+.notice-scroll::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+.notice-scroll::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.notice-scroll::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.notice-scroll::-webkit-scrollbar-thumb {
+  background: transparent !important;
+  border-radius: 9999px !important;
+}
+
+.notice-scroll:hover::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #6d28d9, #4f46e5, #2563eb) !important;
 }
 
 /* Fallback @page for printable reports (see

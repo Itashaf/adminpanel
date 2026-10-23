@@ -4,28 +4,38 @@ import Input from '@/components/Input';
 import Dropdown from '@/components/Dropdown';
 import { GUARDIAN_RELATIONSHIPS } from '@/lib/students';
 
-export default function GuardianFields({ register, control, errors, prefix, required = false }) {
+export default function GuardianFields({
+  register,
+  control,
+  errors,
+  prefix,
+  required = false,
+  hideRelationship = false,
+  relationshipOptions = GUARDIAN_RELATIONSHIPS,
+}) {
   return (
     <>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Relationship {required && <span className="text-red-500">*</span>}
-        </label>
-        <Controller
-          name={`${prefix}.relationship`}
-          control={control}
-          render={({ field }) => (
-            <Dropdown
-              placeholder="Select relationship"
-              icon={<FiUsers className="w-4 h-4" />}
-              options={GUARDIAN_RELATIONSHIPS.map((rel) => ({ value: rel, label: rel }))}
-              value={field.value}
-              onChange={field.onChange}
-              error={errors?.relationship?.message}
-            />
-          )}
-        />
-      </div>
+      {!hideRelationship && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Relationship {required && <span className="text-red-500">*</span>}
+          </label>
+          <Controller
+            name={`${prefix}.relationship`}
+            control={control}
+            render={({ field }) => (
+              <Dropdown
+                placeholder="Select relationship"
+                icon={<FiUsers className="w-4 h-4" />}
+                options={relationshipOptions.map((rel) => ({ value: rel, label: rel }))}
+                value={field.value}
+                onChange={field.onChange}
+                error={errors?.relationship?.message}
+              />
+            )}
+          />
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">

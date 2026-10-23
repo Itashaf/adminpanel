@@ -49,7 +49,14 @@ export default function UpcomingExamsCard({ exams, stats }) {
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">{exam.name}</p>
-                <p className="text-xs text-gray-400 truncate">{exam.classes.join(', ')}</p>
+                <p className="flex items-center gap-1 text-xs text-gray-400 truncate">
+                  {exam.classes.slice(0, 3).join(', ')}
+                  {exam.classes.length > 3 && (
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 text-[9px] font-bold shrink-0">
+                      +{exam.classes.length - 3}
+                    </span>
+                  )}
+                </p>
               </div>
               <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500 shrink-0">
                 <FiCalendar className="w-3.5 h-3.5" />

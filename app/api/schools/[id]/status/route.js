@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { updateSchoolDirectoryStatus } from '@/lib/schools';
 import { requireSuperAdmin } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 export async function PATCH(request, { params }) {
   const { error } = await requireSuperAdmin();
   if (error) return error;
 
   const { id } = await params;
-  const { status } = await request.json();
+  const { status } = await readJson(request);
 
   if (!status) {
     return NextResponse.json({ error: 'Missing status' }, { status: 400 });

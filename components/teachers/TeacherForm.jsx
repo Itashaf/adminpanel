@@ -2,9 +2,21 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FiUser, FiDroplet, FiBriefcase, FiCheckSquare, FiUserCheck, FiMap, FiGrid, FiHeart, FiUsers } from 'react-icons/fi';
+import {
+  FiUser,
+  FiDroplet,
+  FiFlag,
+  FiBriefcase,
+  FiCheckSquare,
+  FiMap,
+  FiGrid,
+  FiHeart,
+  FiUsers,
+  FiPlus,
+  FiTrash2,
+} from 'react-icons/fi';
 import Input from '@/components/Input';
 import Dropdown from '@/components/Dropdown';
 import DatePicker from '@/components/DatePicker';
@@ -12,22 +24,24 @@ import Button from '@/components/Button';
 import FileDropzone from '@/components/FileDropzone';
 import Toggle from '@/components/Toggle';
 import FormSection from './FormSection';
+import GuardianFields from '../students/GuardianFields';
 import { teacherSchema } from '@/lib/schemas';
 import {
   GENDERS,
   BLOOD_GROUPS,
+  RELIGIONS,
+  GUARDIAN_RELATIONSHIPS,
   EMPLOYMENT_TYPES,
-  TEACHER_STATUSES,
-  ACCOUNT_STATUSES,
   MARITAL_STATUSES,
   EMERGENCY_RELATIONSHIPS,
 } from '@/lib/teacherConstants';
-import { getIndianStates, getCitiesForState, getStateCodeByName } from '@/lib/location';
+import { getIndianStates, getCitiesForState, getStateCodeByName, getNationalityOptions } from '@/lib/location';
 import { STUDENT_PHOTO_ACCEPT_TYPES, MAX_STUDENT_PHOTO_BYTES } from '@/lib/studentConstants';
 import { MAX_DOCUMENT_BYTES, DOCUMENT_ACCEPT_TYPES } from '@/lib/documentConstants';
 import { uploadTeacherPhoto, uploadTeacherDocument } from '@/lib/api';
 
 const INDIAN_STATES = getIndianStates();
+const NATIONALITY_OPTIONS = getNationalityOptions();
 
 export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, submitLabel = 'Save Teacher', cancelHref = '/dashboard/teachers' }) {
   const [isFresher, setIsFresher] = useState(defaultValues?.isFresher ?? true);
@@ -48,9 +62,16 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
     handleSubmit,
     setValue,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(teacherSchema), defaultValues });
 
+  const { fields: otherEducationFields, append: appendOtherEducation, remove: removeOtherEducation } = useFieldArray({
+    control,
+    name: 'otherEducation',
+  });
+
+  const religion = watch('religion');
   const cityOptions = getCitiesForState(selectedStateCode);
 
   const handlePhotoSelect = (file) => {
@@ -77,7 +98,7 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
   // matching resolvedDocumentUrl for the same reasoning.
   const resolvedDocumentUrl = (value) => {
     if (value instanceof File) return undefined;
-    if (typeof value === 'string' && /^https?:\/\//.test(value)) return value;
+    if (typeof value === 'string' && /^(https?:\/\/|\/api\/documents\/)/.test(value)) return value;
     return null;
   };
 
@@ -140,7 +161,7 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
         <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{formError}</p>
       )}
 
-      <FormSection title="Personal Information" description="Teacher's personal details">
+      <FormSection title="Personal Information">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             First Name <span className="text-red-500">*</span>
@@ -260,7 +281,51 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Nationality</label>
-          <Input placeholder="Enter nationality" {...register('nationality')} />
+          <Controller
+            name="nationality"
+            control={control}
+            render={({ field }) => (
+              <Dropdown
+                placeholder="Select nationality"
+                icon={<FiFlag className="w-4 h-4" />}
+                options={NATIONALITY_OPTIONS}
+                searchable
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Religion</label>
+          <Controller
+            name="religion"
+            control={control}
+            render={({ field }) => (
+              <Dropdown
+                placeholder="Select or type religion"
+                icon={<FiFlag className="w-4 h-4" />}
+                options={RELIGIONS.map((r) => ({ value: r, label: r }))}
+                searchable
+                creatable
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+
+        {religion === 'Other' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Specify Religion</label>
+            <Input placeholder="Type religion" {...register('religionOther')} />
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Caste</label>
+          <Input placeholder="e.g. General" {...register('caste')} />
         </div>
 
         <div>
@@ -269,11 +334,25 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
         </div>
       </FormSection>
 
-      <FormSection
-        title="Documents and Photos"
-        description="Aadhaar card is mandatory; other documents and photos are optional"
-        contentClassName="flex flex-wrap gap-4"
-      >
+      <FormSection title="Father Details (Optional)">
+        <GuardianFields register={register} control={control} errors={errors.father} prefix="father" hideRelationship />
+      </FormSection>
+
+      <FormSection title="Mother Details (Optional)">
+        <GuardianFields register={register} control={control} errors={errors.mother} prefix="mother" hideRelationship />
+      </FormSection>
+
+      <FormSection title="Guardian Details (Optional)">
+        <GuardianFields
+          register={register}
+          control={control}
+          errors={errors.guardian}
+          prefix="guardian"
+          relationshipOptions={GUARDIAN_RELATIONSHIPS}
+        />
+      </FormSection>
+
+      <FormSection title="Documents and Photos" contentClassName="flex flex-wrap gap-4">
         <Controller
           name="aadhaarDocument"
           control={control}
@@ -318,7 +397,7 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
         />
       </FormSection>
 
-      <FormSection title="Education Details" description="School and graduation qualification details">
+      <FormSection title="Education Details (Optional)">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">10th Marks / Percentage</label>
           <Input placeholder="e.g. 88%" {...register('tenthPercentage')} />
@@ -338,9 +417,49 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
           <label className="block text-sm font-medium text-gray-700 mb-2">University / College</label>
           <Input placeholder="e.g. University of Lucknow" {...register('graduationUniversity')} />
         </div>
+
+        <div className="sm:col-span-2 lg:col-span-3 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between mt-4 mb-3">
+            <h3 className="text-sm font-semibold text-gray-700">Other Degrees / Diplomas / Courses (optional)</h3>
+            <button
+              type="button"
+              onClick={() => appendOtherEducation({ name: '', institution: '', year: '' })}
+              className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 cursor-pointer"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Education
+            </button>
+          </div>
+
+          {otherEducationFields.map((field, index) => (
+            <div key={field.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Degree / Diploma / Course</label>
+                <Input placeholder="e.g. PGDCA" {...register(`otherEducation.${index}.name`)} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Institution</label>
+                <Input placeholder="e.g. IGNOU" {...register(`otherEducation.${index}.institution`)} />
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                  <Input placeholder="e.g. 2019" {...register(`otherEducation.${index}.year`)} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeOtherEducation(index)}
+                  className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 cursor-pointer"
+                >
+                  <FiTrash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </FormSection>
 
-      <FormSection title="Professional Information" description="Employment and qualification details">
+      <FormSection title="Professional Information">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Employee ID <span className="text-red-500">*</span>
@@ -382,18 +501,6 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Qualification <span className="text-red-500">*</span>
-          </label>
-          <Input placeholder="e.g. M.Sc., B.Ed." error={errors.qualification?.message} {...register('qualification')} />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
-          <Input placeholder="e.g. Mathematics" {...register('specialization')} />
-        </div>
-
-        <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
           <Input placeholder="e.g. 7 years" {...register('experience')} />
         </div>
@@ -417,29 +524,11 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
             )}
           />
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Teacher Status</label>
-          <Controller
-            name="status"
-            control={control}
-            render={({ field }) => (
-              <Dropdown
-                placeholder="Select status"
-                icon={<FiCheckSquare className="w-4 h-4" />}
-                options={TEACHER_STATUSES.map((s) => ({ value: s, label: s }))}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </div>
       </FormSection>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
         <div className="mb-5">
-          <h2 className="text-base font-semibold text-indigo-700">Documents & Verification</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Bank details for salary transfer and work experience verification</p>
+          <h2 className="text-base font-semibold text-indigo-700">Documents & Verification (Optional)</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -486,7 +575,7 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
         </div>
       </div>
 
-      <FormSection title="Emergency Contact" description="Who to reach in case of an emergency">
+      <FormSection title="Emergency Contact (Optional)">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Contact Name</label>
           <Input placeholder="Enter contact name" {...register('emergencyContactName')} />
@@ -517,52 +606,7 @@ export default function TeacherForm({ defaultValues, onSubmit: onSubmitProp, sub
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
         <div className="mb-5">
-          <h2 className="text-base font-semibold text-indigo-700">System Access</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Every teacher gets app access using the email above — no separate login email needed.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-            <Dropdown
-              placeholder="Teacher"
-              icon={<FiUserCheck className="w-4 h-4" />}
-              options={[{ value: 'Teacher', label: 'Teacher' }]}
-              value="Teacher"
-              onChange={() => {}}
-              disabled
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
-            <Controller
-              name="accountStatus"
-              control={control}
-              render={({ field }) => (
-                <Dropdown
-                  placeholder="Select status"
-                  icon={<FiCheckSquare className="w-4 h-4" />}
-                  options={ACCOUNT_STATUSES.map((s) => ({ value: s, label: s }))}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </div>
-
-          <p className="sm:col-span-2 lg:col-span-3 text-xs text-gray-400">
-            Passwords are never stored or shown here — the teacher sets their own password through SchoolApp 360&apos;s secure sign-in flow.
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-gray-50 rounded-xl border border-gray-100 p-5 sm:p-6">
-        <div className="mb-5">
-          <h2 className="text-base font-semibold text-gray-700">Address</h2>
-          <p className="text-sm text-gray-400 mt-0.5">Optional — residential address for records</p>
+          <h2 className="text-base font-semibold text-indigo-700">Address (Optional)</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

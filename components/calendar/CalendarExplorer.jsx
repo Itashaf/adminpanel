@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FiPlus, FiCalendar, FiChevronDown, FiX, FiTag } from 'react-icons/fi';
 import Toast from '@/components/Toast';
-import Pagination from '@/components/Pagination';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
+import { useUrlSync } from '@/lib/hooks/useUrlSync';
 import Dropdown from '@/components/Dropdown';
 import Badge from '@/components/Badge';
 import CalendarFilterPills from './CalendarFilterPills';
@@ -19,7 +20,7 @@ const EVENT_TYPE_OPTIONS = CALENDAR_FILTER_PILLS.map((pill) => ({
   label: pill.value ? pill.label : 'All Events',
 }));
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 const MOBILE_TABS = [
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'thisWeek', label: 'This Week' },
@@ -43,25 +44,31 @@ function formatDate(dateString) {
 
 export default function CalendarExplorer({ events, sessionOptions, defaultSession }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const today = isoToday();
   const now = new Date();
 
-  const [session, setSession] = useState(defaultSession || '');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState('startDate');
-  const [sortDir, setSortDir] = useState('asc');
-  const [page, setPage] = useState(1);
+  const [session, setSession] = useState(() => searchParams.get('session') || defaultSession || '');
+  const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get('category') || '');
+  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+  const [sortKey, setSortKey] = useState(() => searchParams.get('sort') || 'startDate');
+  const [sortDir, setSortDir] = useState(() => searchParams.get('dir') || 'asc');
+  const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [viewMode, setViewMode] = useState('month');
-  const [viewTab, setViewTab] = useState('calendar');
+  const [viewTab, setViewTab] = useState(() => searchParams.get('tab') || 'calendar');
   const [showDrawer, setShowDrawer] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
   const [mobileTab, setMobileTab] = useState('upcoming');
   const [showMobileCalendar, setShowMobileCalendar] = useState(false);
+
+  useUrlSync(
+    { session, category: categoryFilter, q: search, sort: sortKey, dir: sortDir, page, tab: viewTab },
+    { session: defaultSession || '', category: '', q: '', sort: 'startDate', dir: 'asc', page: 1, tab: 'calendar' }
+  );
 
   const sessionEvents = useMemo(
     () => events.filter((e) => !session || !e.academicSession || e.academicSession === session),
@@ -177,7 +184,7 @@ export default function CalendarExplorer({ events, sessionOptions, defaultSessio
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Academic Calendar</h1>
@@ -223,16 +230,16 @@ export default function CalendarExplorer({ events, sessionOptions, defaultSessio
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              {['calendar', 'agenda'].map((tab) => (
+              {[{ key: 'calendar', label: 'Calendar' }, { key: 'agenda', label: 'Events' }].map(({ key, label }) => (
                 <button
-                  key={tab}
+                  key={key}
                   type="button"
-                  onClick={() => setViewTab(tab)}
-                  className={`px-4 h-9 rounded-md text-sm font-semibold capitalize cursor-pointer transition ${
-                    viewTab === tab ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  onClick={() => setViewTab(key)}
+                  className={`px-4 h-9 rounded-md text-sm font-semibold cursor-pointer transition ${
+                    viewTab === key ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {tab}
+                  {label}
                 </button>
               ))}
             </div>
@@ -272,9 +279,7 @@ export default function CalendarExplorer({ events, sessionOptions, defaultSessio
           <div className="space-y-4">
             <EventsTable events={pagedEvents} onEdit={handleOpenEdit} sortKey={sortKey} sortDir={sortDir} onSortChange={handleSortChange} />
 
-            {sortedEvents.length > 0 && (
-              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={sortedEvents.length} pageSize={PAGE_SIZE} itemLabel="events" />
-            )}
+            <FixedPaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalCount={sortedEvents.length} pageSize={PAGE_SIZE} itemLabel="events" />
           </div>
         )}
       </div>

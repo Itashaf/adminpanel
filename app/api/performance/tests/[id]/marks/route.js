@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSubjectTestById, uploadSubjectTestMarks } from '@/lib/performance/subjectTests';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function GET(request, { params }) {
   const { error } = await requirePermission('performanceReports.view');
@@ -19,7 +20,7 @@ export async function POST(request, { params }) {
   if (error) return error;
 
   const { id } = await params;
-  const { rows } = await request.json();
+  const { rows } = await readJson(request);
   if (!Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: 'No rows to import' }, { status: 400 });
   }

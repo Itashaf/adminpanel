@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getMarksSheet, saveExamMarks } from '@/lib/examMarks';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { requireAnyPermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // GET /api/exams/schedules/[scheduleId]/marks — the full student roster for
 // this schedule with any already-entered marks, the exact shape the Teacher
 // marks-entry screen (Phase 3) renders.
 export async function GET(request, { params }) {
+  const { error: permError } = await requireAnyPermission(['marks.view', 'marks.enter', 'marks.update']);
+  if (permError) return permError;
+
   const { scheduleId } = await params;
   // Real session required. The old `sessionUser ||
   // mergeWithDashboardActor(sessionUser)` pattern's `if (!currentUser)` check
@@ -31,8 +36,11 @@ export async function GET(request, { params }) {
 // submit=false is "Save Draft"; submit=true is "Submit Marks" (locks further
 // edits until an admin approves/rejects — see lib/examMarks.js).
 export async function POST(request, { params }) {
+  const { error: permError } = await requireAnyPermission(['marks.enter', 'marks.update']);
+  if (permError) return permError;
+
   const { scheduleId } = await params;
-  const { rows, submit } = await request.json();
+  const { rows, submit } = await readJson(request);
 
   if (!Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

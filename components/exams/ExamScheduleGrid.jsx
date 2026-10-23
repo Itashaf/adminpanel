@@ -9,6 +9,7 @@ import Dropdown from '@/components/Dropdown';
 import DropdownMenu from '@/components/DropdownMenu';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Toast from '@/components/Toast';
+import EmptyState from '@/components/EmptyState';
 import ExamScheduleFormModal from './ExamScheduleFormModal';
 import ExamEnrollmentModal from './ExamEnrollmentModal';
 import ExamSubjectsManagerModal from './ExamSubjectsManagerModal';
@@ -166,8 +167,8 @@ export default function ExamScheduleGrid({ examId, examClasses, examStartDate, e
   const filteredSchedules = classFilter ? schedules.filter((s) => s.className === classFilter) : schedules;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+    <div className="h-full flex flex-col">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 shrink-0">
         <div>
           <h2 className="text-base font-bold text-gray-900">Subjects &amp; Exam Schedule</h2>
         </div>
@@ -189,17 +190,11 @@ export default function ExamScheduleGrid({ examId, examClasses, examStartDate, e
       </div>
 
       {schedules.length === 0 ? (
-        <div className="flex-1 min-h-[140px] flex flex-col items-center justify-center text-center px-5">
-          <p className="text-sm font-semibold text-gray-900">No subjects added yet</p>
-          <p className="text-xs text-gray-500 mt-1">Add subjects to start creating the exam schedule.</p>
-        </div>
+        <EmptyState className="mt-6" icon={FiLayers} title="No subjects added yet" description="Add subjects to start creating the exam schedule." />
       ) : filteredSchedules.length === 0 ? (
-        <div className="flex-1 min-h-[140px] flex flex-col items-center justify-center text-center px-5">
-          <p className="text-sm font-semibold text-gray-900">No subjects for {classFilter}</p>
-          <p className="text-xs text-gray-500 mt-1">Try a different class, or clear the filter.</p>
-        </div>
+        <EmptyState className="mt-6" icon={FiLayers} title={`No subjects for ${classFilter}`} description="Try a different class, or clear the filter." />
       ) : (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div
             style={{ gridTemplateColumns: SCHEDULE_GRID_COLS }}
             className="hidden md:grid gap-4 px-4 sm:px-5 py-2.5 bg-gray-50/80 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0"

@@ -2,22 +2,32 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { FiSearch, FiDownload, FiUsers, FiCreditCard, FiClock, FiChevronUp, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiDownload, FiUsers, FiCreditCard, FiClock, FiChevronUp, FiChevronDown, FiArrowRight, FiBell, FiMoreVertical, FiEye } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
+import DropdownMenu from '@/components/DropdownMenu';
 import Pagination from '@/components/Pagination';
 import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Toast from '@/components/Toast';
 import KPICard from '@/components/dashboard/KPICard';
+import ClasswisePendingFeesModal from '@/components/dashboard/ClasswisePendingFeesModal';
 import StudentFeeDetailPanel from './StudentFeeDetailPanel';
 import BulkCollectModal from './BulkCollectModal';
+import SendFeesReminderModal from './SendFeesReminderModal';
 import { useClassSections } from '@/lib/hooks/useClassSections';
 import { getStudentFeeSummaries, getStudentFeesStats } from '@/lib/api';
 
 function formatCurrency(amount) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
+
+function formatDateTime(isoString) {
+  if (!isoString) return null;
+  return new Date(isoString).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+const EXPORT_PAGE_SIZE = 500;
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
@@ -57,10 +67,67 @@ function SortableHeader({ label, field, sortBy, sortDir, onSort }) {
   );
 }
 
-export default function StudentFeesExplorer({ feesStats, totalStudents, initialResult, initialFilters, pageSize, school }) {
+export default function StudentFeesExplorer({
+  feesStats,
+  totalStudents,
+  classwisePendingFees,
+  initialResult,
+  initialFilters,
+  pageSize,
+  school,
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [stats, setStats] = useState(feesStats);
+  const [classwiseOpen, setClasswiseOpen] = useState(false);
+  const [sendingReminderId, setSendingReminderId] = useState(null);
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+
+  // Per-row "Remind" — one real in-app Notice + push to every parent linked
+  // to this student (see lib/fees.js's sendFeeReminders), the due amount and
+  // quarter(s) always recomputed server-side, never trusted from this row.
+  const handleSendReminder = async (row) => {
+    setSendingReminderId(row.studentId);
+    try {
+      const res = await fetch('/api/fees/send-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: [row.studentId] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send reminder');
+      if (data.sent.length > 0) {
+        setToastMessage(`Reminder sent to ${data.sent.length} parent${data.sent.length === 1 ? '' : 's'}.`);
+        const remindedAt = data.sent[0]?.remindedAt;
+        if (remindedAt) {
+          setResult((prev) => ({
+            ...prev,
+            rows: prev.rows.map((r) => (r.studentId === row.studentId ? { ...r, lastFeeReminderAt: remindedAt } : r)),
+          }));
+        }
+      } else {
+        setToastMessage(data.skipped[0]?.reason || 'Nothing to remind — no pending fee due.');
+      }
+    } catch (err) {
+      setToastMessage(err.message);
+    } finally {
+      setSendingReminderId(null);
+    }
+  };
+
+  // SendFeesReminderModal's result — update whichever rows on THIS page
+  // happen to match (full list the modal sent to is usually bigger than
+  // one page), toast the real sent/student count.
+  const handleReminderModalSent = (data) => {
+    const studentCount = new Set(data.sent.map((s) => s.studentId)).size;
+    setToastMessage(`Reminder sent to ${data.sent.length} parent${data.sent.length === 1 ? '' : 's'} across ${studentCount} student${studentCount === 1 ? '' : 's'}.`);
+    const remindedAtByStudent = new Map(data.sent.map((s) => [s.studentId, s.remindedAt]));
+    setResult((prev) => ({
+      ...prev,
+      rows: prev.rows.map((r) => (remindedAtByStudent.has(r.studentId) ? { ...r, lastFeeReminderAt: remindedAtByStudent.get(r.studentId) } : r)),
+    }));
+  };
+
   const [className, setClassName] = useState(initialFilters?.className || '');
   const [section, setSection] = useState(initialFilters?.section || '');
   const [status, setStatus] = useState(initialFilters?.status || '');
@@ -159,9 +226,21 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const all = await getStudentFeeSummaries({ className, section, status, search, sortBy, sortDir, page: 1, pageSize: 5000 });
+      // Pulled in pages of EXPORT_PAGE_SIZE until everything matching the
+      // current filters is in — no fixed row cap.
+      const allRows = [];
+      let exportPage = 1;
+      let exportTotal = 0;
+      let chunkSize = 0;
+      do {
+        const chunk = await getStudentFeeSummaries({ className, section, status, search, sortBy, sortDir, page: exportPage, pageSize: EXPORT_PAGE_SIZE });
+        allRows.push(...chunk.rows);
+        exportTotal = chunk.total;
+        chunkSize = chunk.rows.length;
+        exportPage += 1;
+      } while (allRows.length < exportTotal && chunkSize > 0);
       const header = ['Admission No', 'Student Name', 'Class', 'Section', 'Total Fee', 'Paid', 'Due', 'Status'];
-      const lines = all.rows.map((r) =>
+      const lines = allRows.map((r) =>
         [r.admissionId, r.name, r.class, r.section, r.totalFee, r.paid, r.due, r.feeStatus].join(',')
       );
       const csv = [header.join(','), ...lines].join('\n');
@@ -202,11 +281,37 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <KPICard label="Total Students" icon={<FiUsers className="w-4 h-4" />} value={totalStudents} />
           <KPICard label="Amount Collected" icon={<FiCreditCard className="w-4 h-4" />} value={formatCurrency(stats.collected)} />
-          <KPICard label="Pending Amount" icon={<FiClock className="w-4 h-4" />} value={formatCurrency(stats.pending)} />
+          <KPICard
+            label="Pending Amount"
+            icon={<FiClock className="w-4 h-4" />}
+            value={formatCurrency(stats.pending)}
+            footer={
+              <button
+                type="button"
+                onClick={() => setClasswiseOpen(true)}
+                className="flex items-center gap-1 text-xs font-semibold text-white/90 hover:text-white cursor-pointer"
+              >
+                View Classwise
+                <FiArrowRight className="w-3 h-3" />
+              </button>
+            }
+          />
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="w-full sm:w-40">
+          <div className="flex-1">
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                resetToPage1();
+              }}
+              placeholder="Search by name, admission no. or transaction ID..."
+              icon={<FiSearch />}
+              className="bg-white"
+            />
+          </div>
+          <div className="w-full sm:w-40 [&>button]:h-[42px]">
             <Dropdown
               options={classOptions}
               value={className}
@@ -217,7 +322,7 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
               }}
             />
           </div>
-          <div className="w-full sm:w-40">
+          <div className="w-full sm:w-40 [&>button]:h-[42px] [&>button:disabled]:bg-white">
             <Dropdown
               options={sectionOptions}
               value={section}
@@ -228,7 +333,7 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
               disabled={!className}
             />
           </div>
-          <div className="w-full sm:w-40">
+          <div className="w-full sm:w-40 [&>button]:h-[42px]">
             <Dropdown
               options={STATUS_OPTIONS}
               value={status}
@@ -238,17 +343,14 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
               }}
             />
           </div>
-          <div className="flex-1">
-            <Input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                resetToPage1();
-              }}
-              placeholder="Search by name, admission no. or transaction ID..."
-              icon={<FiSearch />}
-            />
-          </div>
+          <button
+            type="button"
+            onClick={() => setReminderModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 h-[42px] px-4 rounded-full text-sm font-medium text-white bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:opacity-90 transition cursor-pointer whitespace-nowrap"
+          >
+            Send Fees Reminder
+            <FiBell className="w-4 h-4" />
+          </button>
         </div>
 
         <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${isLoading ? 'opacity-60' : ''}`}>
@@ -262,13 +364,13 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
                     <th className="py-4 pl-6 pr-2 w-10">
                       <input type="checkbox" checked={allOnPageSelected} onChange={toggleAllOnPage} className="rounded border-gray-300 cursor-pointer" />
                     </th>
-                    <th className="py-4 pr-4">Admission No.</th>
                     <th className="py-4 pr-4">Student Name</th>
                     <th className="py-4 pr-4">Class</th>
                     <th className="py-4 pr-4">Total Fee</th>
                     <SortableHeader label="Paid" field="paid" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Due" field="due" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <th className="py-4 pr-4">Status</th>
+                    <th className="py-4 pr-4 text-center">Reminded On</th>
                     <th className="py-4 pr-6 text-center">Action</th>
                   </tr>
                 </thead>
@@ -286,8 +388,10 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
                           className="rounded border-gray-300 cursor-pointer"
                         />
                       </td>
-                      <td className="py-4 pr-4 text-gray-700">{row.admissionId}</td>
-                      <td className="py-4 pr-4 font-medium text-gray-900">{row.name}</td>
+                      <td className="py-4 pr-4">
+                        <p className="font-medium text-gray-900">{row.name}</p>
+                        <p className="text-xs text-gray-400">{row.admissionId}</p>
+                      </td>
                       <td className="py-4 pr-4 text-gray-700">
                         {row.class}{row.section ? `-${row.section}` : ''}
                       </td>
@@ -297,6 +401,7 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
                       <td className="py-4 pr-4">
                         <Badge {...(STATUS_BADGE[row.feeStatus] || STATUS_BADGE.NO_FEES)} />
                       </td>
+                      <td className="py-4 pr-4 text-gray-500 text-center">{formatDateTime(row.lastFeeReminderAt) || '—'}</td>
                       <td className="py-4 pr-6">
                         <div className="flex items-center justify-center gap-1.5">
                           <Button
@@ -310,15 +415,27 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
                             }}
                             fullWidth={false}
                           />
-                          <Button
-                            label="View"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setActiveStudentId(row.studentId);
-                              setAutoCollect(false);
-                            }}
-                            fullWidth={false}
+                          <DropdownMenu
+                            trigger={<FiMoreVertical className="w-4 h-4" />}
+                            items={[
+                              {
+                                label: 'View Details',
+                                icon: <FiEye className="w-4 h-4" />,
+                                onClick: () => {
+                                  setActiveStudentId(row.studentId);
+                                  setAutoCollect(false);
+                                },
+                              },
+                              ...(row.feeStatus !== 'PAID' && row.feeStatus !== 'NO_FEES'
+                                ? [
+                                    {
+                                      label: sendingReminderId === row.studentId ? 'Sending...' : 'Fee Reminder',
+                                      icon: <FiBell className="w-4 h-4" />,
+                                      onClick: () => handleSendReminder(row),
+                                    },
+                                  ]
+                                : []),
+                            ]}
                           />
                         </div>
                       </td>
@@ -403,6 +520,14 @@ export default function StudentFeesExplorer({ feesStats, totalStudents, initialR
           setSelectedIds(new Set());
           setToastMessage(message);
         }}
+      />
+
+      <ClasswisePendingFeesModal isOpen={classwiseOpen} onClose={() => setClasswiseOpen(false)} classwise={classwisePendingFees} />
+
+      <SendFeesReminderModal
+        isOpen={reminderModalOpen}
+        onClose={() => setReminderModalOpen(false)}
+        onSent={handleReminderModalSent}
       />
 
       {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}

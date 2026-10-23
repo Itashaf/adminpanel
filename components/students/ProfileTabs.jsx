@@ -16,6 +16,7 @@ import InfoCard from './InfoCard';
 import GuardianCard from './GuardianCard';
 import StudentAttendanceTab from './StudentAttendanceTab';
 import StudentFeesTab from './StudentFeesTab';
+import StudentAcademicMobile from './StudentAcademicMobile';
 
 const ALL_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -54,7 +55,7 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function ProfileTabs({ student, initialTab, canManage = true, roleKey }) {
+export default function ProfileTabs({ student, initialTab, canManage = true, roleKey, classInfo }) {
   const TABS =
     roleKey === 'Accountant'
       ? ALL_TABS.filter((t) => ACCOUNTANT_TABS.includes(t.key))
@@ -87,14 +88,14 @@ export default function ProfileTabs({ student, initialTab, canManage = true, rol
 
   return (
     <div>
-      <div className="flex items-center gap-1 border-b border-gray-100 overflow-x-auto mb-5">
+      <div className="flex items-center gap-1 border-b border-gray-100 overflow-x-auto overflow-y-hidden mb-4 sm:mb-5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[linear-gradient(90deg,#6d28d9,#2563eb)]">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
             disabled={tab.comingSoon}
             onClick={() => selectTab(tab.key)}
-            className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+            className={`relative px-3 sm:px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
               tab.comingSoon
                 ? 'text-gray-300 cursor-not-allowed'
                 : activeTab === tab.key
@@ -109,7 +110,7 @@ export default function ProfileTabs({ student, initialTab, canManage = true, rol
               </span>
             )}
             {activeTab === tab.key && !tab.comingSoon && (
-              <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 rounded-full" />
+              <span className="absolute left-0 right-0 bottom-0 h-0.5 bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 rounded-full" />
             )}
           </button>
         ))}
@@ -127,6 +128,8 @@ export default function ProfileTabs({ student, initialTab, canManage = true, rol
               { label: 'Blood Group', value: student.bloodGroup },
               { label: 'Admission Date', value: formatDate(student.admissionDate) },
               { label: 'Nationality', value: student.nationality },
+              { label: 'Religion', value: student.religion },
+              { label: 'Caste', value: student.caste },
               { label: 'Aadhaar Number', value: student.aadhaarNumber },
               { label: 'WhatsApp Number', value: student.whatsappNumber },
             ]}
@@ -143,19 +146,20 @@ export default function ProfileTabs({ student, initialTab, canManage = true, rol
             ]}
           />
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-            <div className="flex items-center gap-4 mb-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-8">
+            <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
               <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-violet-100 text-violet-600 shrink-0">
                 <FiUsers className="w-5 h-5" />
               </span>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Parent / Guardian</h3>
-                <p className="text-sm text-gray-500 mt-0.5">Primary and secondary guardian contacts.</p>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">Father / Mother / Guardian</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Father, mother, and any additional guardian contact.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <GuardianCard guardian={student.guardian} />
+              {student.guardian && <GuardianCard guardian={student.guardian} />}
               {student.secondaryGuardian && <GuardianCard guardian={student.secondaryGuardian} />}
+              {student.otherGuardian && <GuardianCard guardian={student.otherGuardian} />}
             </div>
           </div>
 
@@ -189,7 +193,10 @@ export default function ProfileTabs({ student, initialTab, canManage = true, rol
         </div>
       )}
 
+      {activeTab === 'academic' && <StudentAcademicMobile student={student} classInfo={classInfo} />}
+
       {activeTab === 'academic' && (
+        <div className="hidden sm:block">
         <InfoCard
           title="Academic Record"
           subtitle="Current class placement and enrollment status."
@@ -202,6 +209,7 @@ export default function ProfileTabs({ student, initialTab, canManage = true, rol
             { label: 'Status', value: student.status },
           ]}
         />
+        </div>
       )}
 
       {activeTab === 'fees' && <StudentFeesTab student={student} canManage={canManage} />}
@@ -209,13 +217,13 @@ export default function ProfileTabs({ student, initialTab, canManage = true, rol
       {activeTab === 'attendance' && <StudentAttendanceTab studentId={student.id} admissionDate={student.admissionDate} />}
 
       {activeTab === 'documents' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-          <div className="flex items-center gap-4 mb-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-8">
+          <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-violet-100 text-violet-600 shrink-0">
               <FiFile className="w-5 h-5" />
             </span>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Documents</h3>
+              <h3 className="text-base sm:text-lg font-bold text-gray-900">Documents</h3>
               <p className="text-sm text-gray-500 mt-0.5">Identity and enrollment documents on file.</p>
             </div>
           </div>

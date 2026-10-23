@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // Pinned to exactly Vercel's build runtime — with no binaryTargets set,
   // Prisma has been observed bundling more than one platform's query engine
   // binary (~20MB each) into the generated client, and since this app has
@@ -117,27 +117,27 @@ enum UserStatus {
 // Teacher/Student/Fee/Exam relation at User.id instead would be a much
 // larger, riskier migration than this one extra FK hop.
 model User {
-  id           String     @id @default(cuid())
-  schoolId     String?
-  school       School?    @relation(fields: [schoolId], references: [id])
-  roleId       String
-  role         Role       @relation(fields: [roleId], references: [id])
-  name         String
-  email        String
-  phone        String     @default("")
-  passwordHash String
-  status       UserStatus @default(Active)
-  photoUrl     String?
-  passwordSetToken          String?   @unique
+  id                        String     @id @default(cuid())
+  schoolId                  String?
+  school                    School?    @relation(fields: [schoolId], references: [id])
+  roleId                    String
+  role                      Role       @relation(fields: [roleId], references: [id])
+  name                      String
+  email                     String
+  phone                     String     @default("")
+  passwordHash              String
+  status                    UserStatus @default(Active)
+  photoUrl                  String?
+  passwordSetToken          String?    @unique
   passwordSetTokenExpiresAt DateTime?
   lastPasswordResetAt       DateTime?
   // Stamped by lib/rbac.js's touchLastLogin() on every successful login
   // through any flow (SuperAdmin/SchoolAdmin/Teacher/Parent's legacy tables,
   // or a pure User-only Principal/Accountant account) — the Users table's
   // "Last Login" column reads this directly, not a guess from createdAt.
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  lastLoginAt               DateTime?
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
 
   superAdminOf   SuperAdmin?
   schoolAdminOf  SchoolAdmin?
@@ -161,39 +161,39 @@ model User {
 // whichever school is "active", see lib/school.js), so a real per-school
 // count isn't possible until that data is made multi-tenant too.
 model School {
-  id                 String       @id @default(cuid())
-  name               String
-  code               String       @unique
-  principalName      String       @default("")
-  email              String
-  phone              String
-  displayName        String
-  logoUrl            String       @default("")
-  website            String       @default("")
-  addressLine1       String       @default("")
-  addressLine2       String       @default("")
-  city               String       @default("")
-  state              String       @default("")
-  country            String       @default("")
-  pinCode            String       @default("")
-  primaryColor       String       @default("")
-  secondaryColor     String       @default("")
-  timezone           String       @default("Asia/Kolkata")
-  currency           String       @default("INR")
-  dateFormat         String       @default("DD/MM/YYYY")
-  studentIdPrefix    String       @default("STD")
-  teacherIdPrefix    String       @default("TCH")
+  id                         String                   @id @default(cuid())
+  name                       String
+  code                       String                   @unique
+  principalName              String                   @default("")
+  email                      String
+  phone                      String
+  displayName                String
+  logoUrl                    String                   @default("")
+  website                    String                   @default("")
+  addressLine1               String                   @default("")
+  addressLine2               String                   @default("")
+  city                       String                   @default("")
+  state                      String                   @default("")
+  country                    String                   @default("")
+  pinCode                    String                   @default("")
+  primaryColor               String                   @default("")
+  secondaryColor             String                   @default("")
+  timezone                   String                   @default("Asia/Kolkata")
+  currency                   String                   @default("INR")
+  dateFormat                 String                   @default("DD/MM/YYYY")
+  studentIdPrefix            String                   @default("STD")
+  teacherIdPrefix            String                   @default("TCH")
   // See lib/attendance.js's computeAttendanceAccess(), the only place these
   // two are actually read/enforced.
-  attendanceDeadlineTime     String @default("14:00")
-  attendanceEditGraceMinutes Int    @default(30)
+  attendanceDeadlineTime     String                   @default("14:00")
+  attendanceEditGraceMinutes Int                      @default(30)
   // Tie-break convention for exam rank (see lib/examResults.js's
   // computeRanks): "Skip" = competition ranking (1,1,3 — a tie's rank
   // consumes the positions it ties for), "Dense" = dense ranking (1,1,2 —
   // the next rank is always previous+1). No settings UI toggle exists for
   // this yet; it's read here so one can be added later without another
   // migration.
-  examRankTieMode            String @default("Skip")
+  examRankTieMode            String                   @default("Skip")
   // Per-school Razorpay account (Super Admin only — see
   // components/superadmin/SchoolPaymentSettingsCard.jsx and
   // lib/razorpay.js's getRazorpayCredentials). `razorpayKeyId` is Razorpay's
@@ -206,54 +206,60 @@ model School {
   // falls back to the platform-wide RAZORPAY_KEY_ID/SECRET env vars, so
   // every existing school keeps working unchanged until a Super Admin
   // explicitly sets its own keys.
-  razorpayKeyId              String @default("")
-  razorpayKeySecretCipher    String @default("")
+  razorpayKeyId              String                   @default("")
+  razorpayKeySecretCipher    String                   @default("")
   // Platform-operator-controlled module toggles (Super Admin only — see
   // lib/featureFlags.js for the key list and lib/schools.js's
   // updateSchoolFeatures). Empty array = every optional module enabled,
   // which is the default for every existing school so this migration
   // changes nothing until a Super Admin explicitly disables something.
-  disabledFeatures   String[]     @default([])
-  status             SchoolStatus @default(Active)
-  currentSessionName String
-  studentCount       Int          @default(0)
-  teacherCount       Int          @default(0)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @default(now()) @updatedAt
-  admin              SchoolAdmin?
-  students           Student[]
-  teachers           Teacher[]
-  classes            Class[]
-  sections           Section[]
-  attendanceRecords  Attendance[]
-  feeStructures      FeeStructure[]
-  studentFees        StudentFee[]
-  payments           Payment[]
-  notices            Notice[]
-  calendarEvents     CalendarEvent[]
-  homework           Homework[]
-  pushTokens         PushToken[]
-  academicSessions   AcademicSession[]
-  parentAccounts     ParentAccount[]
-  parentNotifications ParentNotification[]
-  teacherNotifications TeacherNotification[]
-  adminNotifications AdminNotification[]
-  exams              Exam[]
-  examSchedules      ExamSchedule[]
-  examMarks          ExamMark[]
-  examResults        ExamResult[]
-  examAuditLogs      ExamAuditLog[]
-  examOptionalEnrollments ExamOptionalEnrollment[]
-  gradeScales        GradeScale[]
-  subjects           Subject[]
-  timeTables         TimeTable[]
-  teacherLeaves      TeacherLeave[]
-  teacherAttendances TeacherAttendance[]
-  users              User[]
-  subjectTests       SubjectTest[]
-  monthlyReports     MonthlyReport[]
-  yearlyReports      YearlyReport[]
-  generatedReportJobs GeneratedReportJob[]
+  disabledFeatures           String[]                 @default([])
+  status                     SchoolStatus             @default(Active)
+  currentSessionName         String
+  studentCount               Int                      @default(0)
+  teacherCount               Int                      @default(0)
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @default(now()) @updatedAt
+  admin                      SchoolAdmin?
+  students                   Student[]
+  teachers                   Teacher[]
+  classes                    Class[]
+  sections                   Section[]
+  attendanceRecords          Attendance[]
+  feeStructures              FeeStructure[]
+  studentFees                StudentFee[]
+  payments                   Payment[]
+  feeAuditLogs               FeeAuditLog[]
+  reportLocks                ReportLock[]
+  notices                    Notice[]
+  calendarEvents             CalendarEvent[]
+  homework                   Homework[]
+  pushTokens                 PushToken[]
+  academicSessions           AcademicSession[]
+  parentAccounts             ParentAccount[]
+  parentNotifications        ParentNotification[]
+  teacherNotifications       TeacherNotification[]
+  adminNotifications         AdminNotification[]
+  exams                      Exam[]
+  examSchedules              ExamSchedule[]
+  examMarks                  ExamMark[]
+  examResults                ExamResult[]
+  examAuditLogs              ExamAuditLog[]
+  examOptionalEnrollments    ExamOptionalEnrollment[]
+  gradeScales                GradeScale[]
+  subjects                   Subject[]
+  timeTables                 TimeTable[]
+  teacherLeaves              TeacherLeave[]
+  teacherAttendances         TeacherAttendance[]
+  users                      User[]
+  subjectTests               SubjectTest[]
+  monthlyReports             MonthlyReport[]
+  yearlyReports              YearlyReport[]
+  generatedReportJobs        GeneratedReportJob[]
+  studentEnrollments         StudentEnrollment[]
+  studentPromotionLogs       StudentPromotionLog[]
+  parentStudentLinks         ParentStudentLink[]
+  supportTickets             SupportTicket[]
 }
 
 // A real login account for a parent/guardian — decoupled from any one
@@ -281,8 +287,17 @@ model ParentAccount {
   @@unique([schoolId, email])
 }
 
+// `schoolId` is denormalized from both parentAccount.schoolId and
+// student.schoolId (which must always agree — a parent can only ever be
+// linked to a student in their own school) — added as a defense-in-depth
+// guard, not a new concept: every write path (lib/parentAccounts.js's
+// linkOrCreateParentAccount) already resolves both sides against the same
+// schoolId before creating a link, this just makes that invariant checkable
+// at the DB level too instead of only in application code.
 model ParentStudentLink {
   id              String        @id @default(cuid())
+  schoolId        String
+  school          School        @relation(fields: [schoolId], references: [id])
   parentAccountId String
   parentAccount   ParentAccount @relation(fields: [parentAccountId], references: [id], onDelete: Cascade)
   studentId       String
@@ -290,6 +305,7 @@ model ParentStudentLink {
   createdAt       DateTime      @default(now())
 
   @@unique([parentAccountId, studentId])
+  @@index([schoolId])
 }
 
 enum SchoolStatus {
@@ -304,20 +320,20 @@ enum SchoolStatus {
 // that join explicitly rather than an `include` — kept as-is to avoid
 // touching working code beyond what this migration needed).
 model SchoolAdmin {
-  id                   String      @id @default(cuid())
-  schoolId             String      @unique
-  school               School      @relation(fields: [schoolId], references: [id])
-  name                 String
-  email                String      @unique
-  passwordHash         String
-  status               AdminStatus @default(Active)
-  permissions          Json
-  photoUrl             String?
-  createdAt            DateTime    @default(now())
-  lastPasswordResetAt  DateTime?
+  id                  String      @id @default(cuid())
+  schoolId            String      @unique
+  school              School      @relation(fields: [schoolId], references: [id])
+  name                String
+  email               String      @unique
+  passwordHash        String
+  status              AdminStatus @default(Active)
+  permissions         Json
+  photoUrl            String?
+  createdAt           DateTime    @default(now())
+  lastPasswordResetAt DateTime?
   // RBAC migration (Option B) — see SuperAdmin.userId's comment.
-  userId               String?     @unique
-  user                 User?       @relation(fields: [userId], references: [id])
+  userId              String?     @unique
+  user                User?       @relation(fields: [userId], references: [id])
 }
 
 // TransferredOut/Graduated exist so a student who has ever had a fee,
@@ -341,50 +357,56 @@ enum StudentStatus {
 // student it belongs to, so normalizing it would only add join overhead for
 // no benefit here.
 model Student {
-  id                  String        @id @default(cuid())
-  schoolId            String
-  school              School        @relation(fields: [schoolId], references: [id])
-  admissionId         String
-  photoUrl            String?
-  firstName           String
-  lastName            String
-  initials            String
-  class               String
-  section             String
-  academicSession     String
-  admissionDate       String
-  dob                 String
-  gender              String
-  bloodGroup          String        @default("")
-  nationality         String        @default("")
-  aadhaarNumber       String        @default("")
-  aadhaarDocumentName String        @default("")
+  id                      String                   @id @default(cuid())
+  schoolId                String
+  school                  School                   @relation(fields: [schoolId], references: [id])
+  admissionId             String
+  photoUrl                String?
+  firstName               String
+  lastName                String
+  initials                String
+  class                   String
+  section                 String
+  academicSession         String
+  admissionDate           String
+  dob                     String
+  gender                  String
+  bloodGroup              String                   @default("")
+  nationality             String                   @default("")
+  religion                String                   @default("")
+  caste                   String                   @default("")
+  aadhaarNumber           String                   @default("")
+  aadhaarDocumentName     String                   @default("")
   // The actual uploaded file for the student's own Aadhaar — DocumentName
   // above is just the filename shown in the form, kept for backward
   // compatibility with rows saved before this existed. Guardian/secondary
   // guardian Aadhaar documents live inside their own Json blobs below
   // (aadhaarDocumentUrl key), same reasoning.
-  aadhaarDocumentUrl  String?
-  whatsappNumber      String        @default("")
-  status              StudentStatus @default(Active)
-  previousSchool      Json?
-  guardian            Json?
-  secondaryGuardian   Json?
-  emergencyContacts   Json?
-  address             Json?
-  feeDetails          Json?
+  aadhaarDocumentUrl      String?
+  whatsappNumber          String                   @default("")
+  status                  StudentStatus            @default(Active)
+  previousSchool          Json?
+  guardian                Json?
+  secondaryGuardian       Json?
+  // Third, optional contact — see GuardianFields.jsx's "Guardian Details"
+  // section (relationship picked by the user, Father/Mother excluded since
+  // those are their own dedicated sections above).
+  otherGuardian           Json?
+  emergencyContacts       Json?
+  address                 Json?
+  feeDetails              Json?
   // Father Photo / Mother Photo / Birth Certificate / SLC / Other Document —
   // grouped as one flexible bag (fatherPhotoUrl, motherPhotoUrl,
   // birthCertificateUrl, slcUrl, otherDocumentUrl) rather than five more
   // scalar columns, same convention as guardian/address/feeDetails above.
-  documents           Json?
+  documents               Json?
   // Parent portal login now lives on ParentAccount (see that model's
   // comment) — one account can link several siblings, which a per-Student
   // email+password column could never express.
-  parentLinks         ParentStudentLink[]
-  parentNotifications ParentNotification[]
-  examMarks           ExamMark[]
-  examResults         ExamResult[]
+  parentLinks             ParentStudentLink[]
+  parentNotifications     ParentNotification[]
+  examMarks               ExamMark[]
+  examResults             ExamResult[]
   examOptionalEnrollments ExamOptionalEnrollment[]
   // A standing (recurring) fee discount — e.g. sibling or staff-child — set
   // once here rather than re-applied on every term. Copied onto each new
@@ -393,15 +415,21 @@ model Student {
   // the explicit, separate "apply to pending fees" action (see
   // applyStandingDiscountToPendingFees), so an admin isn't surprised by
   // discounts silently changing fees they already reviewed.
-  discountType        DiscountType?
-  discountValue       Int?
-  discountReason      String?
-  createdAt           DateTime      @default(now())
-  studentFees         StudentFee[]
-  payments            Payment[]
-  subjectTestMarks    SubjectTestMark[]
-  monthlyReports      MonthlyReport[]
-  yearlyReports       YearlyReport[]
+  discountType            DiscountType?
+  discountValue           Int?
+  discountReason          String?
+  // When a fee reminder (lib/fees.js's sendFeeReminders) was last actually
+  // sent for this student — the Student Fees table's "Reminded On" column.
+  // Set on every successful send, regardless of which term(s) it covered.
+  lastFeeReminderAt       DateTime?
+  createdAt               DateTime                 @default(now())
+  studentFees             StudentFee[]
+  payments                Payment[]
+  subjectTestMarks        SubjectTestMark[]
+  monthlyReports          MonthlyReport[]
+  yearlyReports           YearlyReport[]
+  enrollments             StudentEnrollment[]
+  promotionLogs           StudentPromotionLog[]
 
   @@unique([schoolId, admissionId])
   // Every roster/count query in the app filters on this exact combination
@@ -438,6 +466,9 @@ enum PaymentStatus {
   PENDING
   SUCCESS
   FAILED
+  // A SUCCESS payment that was cancelled afterwards (see lib/fees.js reversePayment). Kept as a
+  // row so the history stays; every total only counts SUCCESS, so it drops out of them.
+  REVERSED
 }
 
 // A template, scoped to a school + academic session + class — NOT a real
@@ -535,12 +566,22 @@ enum DiscountType {
   PERCENT
 }
 
+// Late-fee columns are a snapshot of the FeeStructureItem's config at
+// generation time (see lib/fees.js's generateStudentFees) — same "frozen
+// copy, never live" reasoning as name/amount above. An item generated
+// before this feature existed simply has lateFeeEnabled false (the column
+// default), so it never starts accruing retroactively.
 model StudentFeeItem {
-  id           String     @id @default(cuid())
-  studentFeeId String
-  studentFee   StudentFee @relation(fields: [studentFeeId], references: [id], onDelete: Cascade)
-  name         String
-  amount       Int
+  id               String       @id @default(cuid())
+  studentFeeId     String
+  studentFee       StudentFee   @relation(fields: [studentFeeId], references: [id], onDelete: Cascade)
+  name             String
+  amount           Int
+  lateFeeEnabled   Boolean      @default(false)
+  lateFeeGraceDays Int?
+  lateFeeType      LateFeeType?
+  lateFeeAmount    Int?
+  lateFeeMaxAmount Int?
 }
 
 // MVP: no partial payments, so one successful Payment always pays a
@@ -572,62 +613,72 @@ enum TeacherAccountStatus {
 // loginAccess.password) into a real bcrypt hash, matching
 // SchoolAdmin.passwordHash / Student.portalPasswordHash.
 model Teacher {
-  id                 String               @id @default(cuid())
-  schoolId           String
-  school             School               @relation(fields: [schoolId], references: [id])
-  employeeId         String
-  firstName          String
-  middleName         String               @default("")
-  lastName           String
-  initials           String
-  dob                String               @default("")
-  gender             String
-  bloodGroup         String               @default("")
-  phone              String               @default("")
-  email              String               @default("")
-  aadhaarNumber      String               @default("")
-  aadhaarDocumentName String              @default("")
+  id                        String                @id @default(cuid())
+  schoolId                  String
+  school                    School                @relation(fields: [schoolId], references: [id])
+  employeeId                String
+  firstName                 String
+  middleName                String                @default("")
+  lastName                  String
+  initials                  String
+  dob                       String                @default("")
+  gender                    String
+  bloodGroup                String                @default("")
+  phone                     String                @default("")
+  email                     String                @default("")
+  aadhaarNumber             String                @default("")
+  aadhaarDocumentName       String                @default("")
   // The actual uploaded file for the teacher's Aadhaar — DocumentName above
   // is just the filename shown in the form, kept for backward compatibility
   // with rows saved before this existed.
-  aadhaarDocumentUrl String?
-  maritalStatus      String               @default("")
-  nationality        String               @default("")
-  panNumber          String               @default("")
-  isFresher          Boolean              @default(false)
-  education          Json?
-  bankDetails        Json?
-  emergencyContact   Json?
+  aadhaarDocumentUrl        String?
+  maritalStatus             String                @default("")
+  nationality               String                @default("")
+  religion                  String                @default("")
+  caste                     String                @default("")
+  panNumber                 String                @default("")
+  isFresher                 Boolean               @default(false)
+  education                 Json?
+  bankDetails               Json?
+  emergencyContact          Json?
+  // Parents Info (TeacherForm.jsx) — Father/Mother auto-linked by
+  // relationship (never user-picked), Guardian is the only one with a
+  // user-picked relationship (Father/Mother excluded from its options).
+  // All three optional: this is the teacher's own family, not a hiring
+  // requirement the way a student's guardians are.
+  father                    Json?
+  mother                    Json?
+  guardian                  Json?
   // 10th / 12th / Graduation / Work Experience certificates — grouped as one
   // flexible bag (tenthCertificateUrl, twelfthCertificateUrl,
   // graduationCertificateUrl, workExperienceCertificateUrl), same convention
   // as education/bankDetails/emergencyContact above.
-  documents          Json?
-  joiningDate        String
-  relievingDate      String               @default("")
-  qualification      String               @default("")
-  specialization     String               @default("")
-  experience         String               @default("")
-  employmentType     String               @default("Full Time")
-  status             TeacherStatus        @default(Active)
-  designation        String               @default("Teacher")
-  address            Json?
-  assignments        Json?
-  loginEnabled       Boolean              @default(false)
-  loginEmail         String               @default("")
-  loginPasswordHash  String?
-  loginAccountStatus TeacherAccountStatus @default(Suspended)
-  passwordSetToken   String?              @unique
+  documents                 Json?
+  joiningDate               String
+  relievingDate             String                @default("")
+  qualification             String                @default("")
+  specialization            String                @default("")
+  experience                String                @default("")
+  employmentType            String                @default("Full Time")
+  status                    TeacherStatus         @default(Active)
+  designation               String                @default("Teacher")
+  address                   Json?
+  assignments               Json?
+  loginEnabled              Boolean               @default(false)
+  loginEmail                String                @default("")
+  loginPasswordHash         String?
+  loginAccountStatus        TeacherAccountStatus  @default(Suspended)
+  passwordSetToken          String?               @unique
   passwordSetTokenExpiresAt DateTime?
-  photoUrl           String?
-  createdAt          DateTime             @default(now())
-  classTeacherOf     Section[]
-  notifications      TeacherNotification[]
-  leaveRequests      TeacherLeave[]
-  subjectTests       SubjectTest[]
+  photoUrl                  String?
+  createdAt                 DateTime              @default(now())
+  classTeacherOf            Section[]
+  notifications             TeacherNotification[]
+  leaveRequests             TeacherLeave[]
+  subjectTests              SubjectTest[]
   // RBAC migration (Option B) — see SuperAdmin.userId's comment.
-  userId             String?              @unique
-  user               User?                @relation(fields: [userId], references: [id])
+  userId                    String?               @unique
+  user                      User?                 @relation(fields: [userId], references: [id])
 
   @@unique([schoolId, employeeId])
   @@map("Teachers")
@@ -697,22 +748,23 @@ enum SectionStatus {
 // native Postgres `String[]` (not Json) since it's always just a flat list
 // of subject-name strings, never a nested shape.
 model Class {
-  id              String      @id @default(cuid())
+  id              String              @id @default(cuid())
   schoolId        String
-  school          School      @relation(fields: [schoolId], references: [id])
+  school          School              @relation(fields: [schoolId], references: [id])
   name            String
   level           String
   academicSession String
-  status          ClassStatus @default(Active)
+  status          ClassStatus         @default(Active)
   subjects        String[]
   // Manual drag-to-reorder position in the Classes & Sections list (see
   // ClassesGrid.jsx) — lower sorts first. Backfilled to match the previous
   // fixed grade-level order (Nursery..Class 12) the first time this was
   // added, so existing schools see no visual change until an admin
   // actually drags a row.
-  displayOrder    Int         @default(0)
-  createdAt       DateTime    @default(now())
+  displayOrder    Int                 @default(0)
+  createdAt       DateTime            @default(now())
   sections        Section[]
+  enrollments     StudentEnrollment[]
 
   @@unique([schoolId, academicSession, name])
   @@map("Classes")
@@ -731,13 +783,13 @@ enum SubjectType {
 }
 
 model Subject {
-  id        String      @id @default(cuid())
-  schoolId  String
-  school    School      @relation(fields: [schoolId], references: [id])
-  name      String
-  code      String      @default("")
-  type      SubjectType @default(Theory)
-  createdAt DateTime    @default(now())
+  id           String        @id @default(cuid())
+  schoolId     String
+  school       School        @relation(fields: [schoolId], references: [id])
+  name         String
+  code         String        @default("")
+  type         SubjectType   @default(Theory)
+  createdAt    DateTime      @default(now())
   subjectTests SubjectTest[]
 
   @@unique([schoolId, name])
@@ -770,6 +822,17 @@ model TimeTable {
   @@map("TimeTables")
 }
 
+// Login / password-reset attempt counters (lib/auth/loginRateLimit.js). One row per
+// key (an account or an IP); the counter restarts when its 15-minute window ends.
+// Kept in the database so the limit holds across serverless instances and restarts.
+model RateLimitCounter {
+  key         String   @id
+  count       Int
+  windowStart DateTime @default(now())
+
+  @@map("RateLimitCounter")
+}
+
 // `classTeacherId` is a real foreign key into Teacher — both sides are now
 // migrated (see lib/teachers.js), so unlike the old in-memory version (a
 // bare string id with no relational integrity, which could and did go stale
@@ -781,21 +844,22 @@ model TimeTable {
 // (lib/classes.js's assignSectionTeacher), not a DB constraint — Postgres/
 // Prisma has no native partial-unique-index support here.
 model Section {
-  id              String        @id @default(cuid())
+  id              String              @id @default(cuid())
   schoolId        String
-  school          School        @relation(fields: [schoolId], references: [id])
+  school          School              @relation(fields: [schoolId], references: [id])
   classId         String
-  class           Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class           Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
   name            String
   academicSession String
   classTeacherId  String?
-  classTeacher    Teacher?      @relation(fields: [classTeacherId], references: [id], onDelete: SetNull)
-  room            String        @default("")
-  capacity        Int           @default(0)
-  boys            Int           @default(0)
-  girls           Int           @default(0)
-  status          SectionStatus @default(Active)
-  createdAt       DateTime      @default(now())
+  classTeacher    Teacher?            @relation(fields: [classTeacherId], references: [id], onDelete: SetNull)
+  room            String              @default("")
+  capacity        Int                 @default(0)
+  boys            Int                 @default(0)
+  girls           Int                 @default(0)
+  status          SectionStatus       @default(Active)
+  createdAt       DateTime            @default(now())
+  enrollments     StudentEnrollment[]
 
   @@unique([classId, academicSession, name])
   @@map("Sections")
@@ -842,25 +906,25 @@ model Attendance {
 // source of truth. color defaults from category (see CATEGORY_COLOR_MAP) but
 // is independently overridable via the drawer's own Color Selector.
 model CalendarEvent {
-  id               String   @id @default(cuid())
-  schoolId         String
-  school           School   @relation(fields: [schoolId], references: [id])
-  title            String
-  category         String
-  color            String
-  startDate        String
-  endDate          String
-  appliesToType    String   @default("Whole School")
+  id                String   @id @default(cuid())
+  schoolId          String
+  school            School   @relation(fields: [schoolId], references: [id])
+  title             String
+  category          String
+  color             String
+  startDate         String
+  endDate           String
+  appliesToType     String   @default("Whole School")
   // Multiple classes ('Specific Class': string[] of class names) or multiple
   // class+section pairs ('Specific Section': {class, section}[]) — replaced
   // the old single appliesToClass/appliesToSection strings so one event can
   // target more than one class/section at once.
-  appliesToClasses  Json    @default("[]")
-  appliesToSections Json    @default("[]")
-  description      String   @default("")
-  isVisible        Boolean  @default(true)
-  academicSession  String   @default("")
-  createdAt        DateTime @default(now())
+  appliesToClasses  Json     @default("[]")
+  appliesToSections Json     @default("[]")
+  description       String   @default("")
+  isVisible         Boolean  @default(true)
+  academicSession   String   @default("")
+  createdAt         DateTime @default(now())
 
   @@map("CalendarEvents")
 }
@@ -928,19 +992,88 @@ model Homework {
 // at a time (enforced in code by setActiveSession, not a DB constraint —
 // same tradeoff as Section's one-class-teacher-per-section rule).
 model AcademicSession {
-  id          String   @id @default(cuid())
+  id          String              @id @default(cuid())
   schoolId    String
-  school      School   @relation(fields: [schoolId], references: [id])
+  school      School              @relation(fields: [schoolId], references: [id])
   name        String
   startDate   String
   endDate     String
-  description String   @default("")
-  status      String   @default("Upcoming")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  description String              @default("")
+  status      String              @default("Upcoming")
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @default(now()) @updatedAt
+  enrollments StudentEnrollment[]
 
   @@unique([schoolId, name])
   @@map("AcademicSessions")
+}
+
+enum EnrollmentStatus {
+  Promoted
+  Repeat
+  TransferredOut
+  Inactive
+  Graduated
+}
+
+// One row per student per academic session — the historical source of
+// truth that Student.class/section/academicSession (the old plain-string
+// current-state fields, still maintained for every existing live-roster
+// query) never was: those get overwritten in place on promotion, so a past
+// session's class/section was lost the moment a student moved on. classId/
+// sectionId point at that SESSION's own Class/Section row (Class/Section are
+// already one row per session — see their own @@unique — so this is a
+// precise historical pointer, not a snapshot copy). sectionId nullable, same
+// as a student who was never assigned a section. Unique on
+// (studentId, academicSessionId) is both "one enrollment per student per
+// session" and what lets promote/retain upsert safely instead of creating
+// duplicates on a re-run.
+model StudentEnrollment {
+  id                String           @id @default(cuid())
+  schoolId          String
+  school            School           @relation(fields: [schoolId], references: [id])
+  studentId         String
+  student           Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicSessionId String
+  academicSession   AcademicSession  @relation(fields: [academicSessionId], references: [id])
+  classId           String
+  class             Class            @relation(fields: [classId], references: [id])
+  sectionId         String?
+  section           Section?         @relation(fields: [sectionId], references: [id])
+  status            EnrollmentStatus @default(Promoted)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
+
+  @@unique([studentId, academicSessionId])
+  @@index([schoolId, academicSessionId])
+  @@map("StudentEnrollments")
+}
+
+// Append-only action trail for Promote Students (same convention as
+// ExamAuditLog — every row a fact that happened, never updated/deleted).
+// Kept separate from StudentEnrollment (the current historical STATE) so
+// the full timeline survives even if a later correction overwrites that
+// session's enrollment row.
+model StudentPromotionLog {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  action      String
+  fromSession String
+  fromClass   String
+  fromSection String   @default("")
+  toSession   String
+  toClass     String
+  toSection   String   @default("")
+  actorId     String?
+  actorRole   String   @default("")
+  actorName   String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId, studentId, createdAt])
+  @@map("StudentPromotionLogs")
 }
 
 enum ExamStatus {
@@ -955,17 +1088,17 @@ enum ExamStatus {
 // read as a whole list, never filtered element-by-element in a query.
 // Per-class/section/subject scheduling lives in ExamSchedule, not here.
 model Exam {
-  id              String         @id @default(cuid())
-  schoolId        String
-  school          School         @relation(fields: [schoolId], references: [id])
-  name            String
-  academicSession String
-  examType        String
-  startDate       String
-  endDate         String
-  classes         String[]
-  description     String         @default("")
-  status          ExamStatus     @default(Draft)
+  id                 String         @id @default(cuid())
+  schoolId           String
+  school             School         @relation(fields: [schoolId], references: [id])
+  name               String
+  academicSession    String
+  examType           String
+  startDate          String
+  endDate            String
+  classes            String[]
+  description        String         @default("")
+  status             ExamStatus     @default(Draft)
   // A Re-Test/Improvement/Supplementary exam (whatever the admin types into
   // examType, e.g. "Re-Exam") is just an ordinary Exam row that additionally
   // points at the exam it's retaking — its own ExamSchedule rows only ever
@@ -975,16 +1108,16 @@ model Exam {
   // once both exist (see lib/examResults.js's getEffectiveExamResult) —
   // each exam's own ExamResult row is never rewritten by the other, this
   // only affects which one counts as "the" result when asked.
-  parentExamId    String?
-  parentExam      Exam?          @relation("ExamRetake", fields: [parentExamId], references: [id])
-  retakes         Exam[]         @relation("ExamRetake")
-  retakeResultPolicy String       @default("Latest")
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  schedules       ExamSchedule[]
-  marks           ExamMark[]
-  results         ExamResult[]
-  auditLogs       ExamAuditLog[]
+  parentExamId       String?
+  parentExam         Exam?          @relation("ExamRetake", fields: [parentExamId], references: [id])
+  retakes            Exam[]         @relation("ExamRetake")
+  retakeResultPolicy String         @default("Latest")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  schedules          ExamSchedule[]
+  marks              ExamMark[]
+  results            ExamResult[]
+  auditLogs          ExamAuditLog[]
 
   @@index([schoolId, academicSession])
   @@map("Exams")
@@ -996,48 +1129,48 @@ model Exam {
 // the exam doesn't need per-section date-sheet variation; ExamMark still
 // always resolves down to individual students regardless.
 model ExamSchedule {
-  id           String     @id @default(cuid())
-  schoolId     String
-  school       School     @relation(fields: [schoolId], references: [id])
-  examId       String
-  exam         Exam       @relation(fields: [examId], references: [id], onDelete: Cascade)
-  subject      String
-  className    String
-  sectionName  String     @default("")
-  examDate     String
-  startTime    String     @default("")
-  endTime      String     @default("")
-  maxMarks     Int
-  passingMarks Int
-  examMode     String     @default("Theory")
-  room         String     @default("")
-  invigilator  String     @default("")
+  id                    String                   @id @default(cuid())
+  schoolId              String
+  school                School                   @relation(fields: [schoolId], references: [id])
+  examId                String
+  exam                  Exam                     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject               String
+  className             String
+  sectionName           String                   @default("")
+  examDate              String
+  startTime             String                   @default("")
+  endTime               String                   @default("")
+  maxMarks              Int
+  passingMarks          Int
+  examMode              String                   @default("Theory")
+  room                  String                   @default("")
+  invigilator           String                   @default("")
   // How this subject is marked — "Numeric" (the original/default, feeds
   // ExamMark.marksObtained) vs "Grade" (ExamMark.gradeValue, e.g. A/B/C) vs
   // "Remarks" (ExamMark.remarksValue, e.g. "Excellent"/"Good"). Non-Numeric
   // schedules still go through the same Draft→Submitted→Approved pipeline,
   // they just aren't counted in generateExamResults' numeric total/%.
-  markingType  String     @default("Numeric")
+  markingType           String                   @default("Numeric")
   // True when this row also carries a separate practical component, entered
   // and passed independently of the theory marksObtained above (see
   // ExamMark.practicalMarksObtained) — "Theory + Practical pass separately"
   // rather than one combined number.
-  hasPractical            Boolean @default(false)
-  practicalMaxMarks       Int     @default(0)
-  practicalPassingMarks   Int     @default(0)
+  hasPractical          Boolean                  @default(false)
+  practicalMaxMarks     Int                      @default(0)
+  practicalPassingMarks Int                      @default(0)
   // True when only some students in the class take this subject (Class
   // 11/12-style optional/elective) — which ones is recorded in
   // ExamOptionalEnrollment; a non-optional schedule (the default) still
   // applies to every student in className+sectionName, unchanged.
-  isOptional   Boolean    @default(false)
+  isOptional            Boolean                  @default(false)
   // Multiplier applied to both marksObtained and maxMarks when
   // generateExamResults sums a student's total — default 1 for every
   // existing/new row leaves today's equal-weighted sum untouched; only an
   // admin explicitly setting a different weight changes the calculation.
-  weight       Float      @default(1)
-  createdAt    DateTime   @default(now())
-  marks        ExamMark[]
-  optionalEnrollments ExamOptionalEnrollment[]
+  weight                Float                    @default(1)
+  createdAt             DateTime                 @default(now())
+  marks                 ExamMark[]
+  optionalEnrollments   ExamOptionalEnrollment[]
 
   @@unique([examId, className, sectionName, subject])
   @@index([schoolId, examId])
@@ -1088,16 +1221,16 @@ enum ExamMarkStatus {
 // Submitted → Approved → Published) and per-student verification/rejection,
 // not just a snapshot written once and read back whole.
 model ExamMark {
-  id                 String         @id @default(cuid())
-  schoolId           String
-  school             School         @relation(fields: [schoolId], references: [id])
-  examId             String
-  exam               Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
-  examScheduleId     String
-  examSchedule       ExamSchedule   @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
-  studentId          String
-  student            Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  marksObtained      Float?
+  id                     String         @id @default(cuid())
+  schoolId               String
+  school                 School         @relation(fields: [schoolId], references: [id])
+  examId                 String
+  exam                   Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examScheduleId         String
+  examSchedule           ExamSchedule   @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
+  studentId              String
+  student                Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  marksObtained          Float?
   // "Absent" here has never meant "scored 0" — marksObtained stays null
   // whenever isAbsent is true (see lib/examMarks.js's saveExamMarks), so a
   // genuine zero score and an absence were always distinguishable in the
@@ -1105,24 +1238,24 @@ model ExamMark {
   // attendanceStatus (true for anything other than "Present" — Absent,
   // Medical, Exempted, ReExam), kept so every existing isAbsent-only reader
   // (grid displays, generateExamResults) keeps working unchanged.
-  isAbsent           Boolean        @default(false)
-  attendanceStatus   String         @default("Present")
+  isAbsent               Boolean        @default(false)
+  attendanceStatus       String         @default("Present")
   // Only meaningful when the parent ExamSchedule.markingType is "Grade" or
   // "Remarks" respectively — marksObtained/practicalMarksObtained stay null
   // for those rows, this is what actually got entered instead.
-  gradeValue         String         @default("")
-  remarksValue       String         @default("")
+  gradeValue             String         @default("")
+  remarksValue           String         @default("")
   // Only meaningful when the parent ExamSchedule.hasPractical is true —
   // graded and passed independently of marksObtained (the theory mark).
   practicalMarksObtained Float?
-  status             ExamMarkStatus @default(Draft)
-  rejectionReason    String         @default("")
-  enteredByTeacherId String?
-  enteredAt          DateTime?
-  verifiedByAdminId  String?
-  verifiedAt         DateTime?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  status                 ExamMarkStatus @default(Draft)
+  rejectionReason        String         @default("")
+  enteredByTeacherId     String?
+  enteredAt              DateTime?
+  verifiedByAdminId      String?
+  verifiedAt             DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
   @@unique([examScheduleId, studentId])
   @@index([schoolId, examId])
@@ -1308,28 +1441,62 @@ model AdminNotification {
 }
 
 model Payment {
-  id                 String        @id @default(cuid())
-  schoolId           String
-  school             School        @relation(fields: [schoolId], references: [id])
-  studentId          String
-  student            Student       @relation(fields: [studentId], references: [id])
-  studentFeeId       String
-  studentFee         StudentFee    @relation(fields: [studentFeeId], references: [id])
-  amount             Int
-  method             PaymentMethod
-  status             PaymentStatus @default(PENDING)
-  razorpayOrderId    String?       @unique
-  razorpayPaymentId  String?       @unique
-  paidAt             DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                String        @id @default(cuid())
+  schoolId          String
+  school            School        @relation(fields: [schoolId], references: [id])
+  studentId         String
+  student           Student       @relation(fields: [studentId], references: [id])
+  studentFeeId      String
+  studentFee        StudentFee    @relation(fields: [studentFeeId], references: [id])
+  amount            Int
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?       @unique
+  paidAt            DateTime?
+  // Who recorded the money (the signed-in staff member; "Online" for Razorpay).
+  collectedById     String?
+  collectedByName   String?
+  // Per-school running receipt number, given when the payment becomes SUCCESS
+  // (see lib/fees.js nextReceiptNumber). Null for PENDING/FAILED and old payments.
+  receiptNumber     Int?
+  reversedAt        DateTime?
+  reversedByName    String?
+  reversalReason    String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([schoolId, receiptNumber])
+}
+
+// One row per school: the last receipt number handed out. Incremented atomically.
+model ReceiptCounter {
+  schoolId   String @id
+  lastNumber Int    @default(0)
+}
+
+// Append-only record of money actions: payment collected / reversed, discount applied / removed.
+// Written in the same transaction as the change it describes.
+model FeeAuditLog {
+  id           String   @id @default(cuid())
+  schoolId     String
+  school       School   @relation(fields: [schoolId], references: [id])
+  action       String
+  studentId    String?
+  studentFeeId String?
+  paymentId    String?
+  actorId      String?
+  actorRole    String   @default("")
+  actorName    String   @default("")
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+  @@index([studentFeeId])
 }
 
 // ============================================================
-// Monthly + Yearly Performance Report module (deliberately separate
-// from StudentAssessment above — see the decision log in the project's
-// planning conversation: kept as its own parallel system rather than
-// extending StudentAssessment, both stay in use).
+// Monthly + Yearly Performance Report module.
 // ============================================================
 
 // Lightweight test entity for the Monthly Report's Academic Performance
@@ -1420,9 +1587,9 @@ model MonthlyReport {
   studentId       String
   student         Student        @relation(fields: [studentId], references: [id])
   academicSession String
-  month           String         // 'YYYY-MM'
-  className       String         // snapshot at generation time — a later
-  sectionName     String         // class transfer doesn't move a past report
+  month           String // 'YYYY-MM'
+  className       String // snapshot at generation time — a later
+  sectionName     String // class transfer doesn't move a past report
   status          ReportStatus   @default(DRAFT)
   overallRating   OverallRating?
   // Frozen at lock time: academic performance (subject averages/status),
@@ -1462,7 +1629,7 @@ model MonthlyReportHolistic {
   monthlyReportId      String         @unique
   monthlyReport        MonthlyReport  @relation(fields: [monthlyReportId], references: [id], onDelete: Cascade)
   discipline           HolisticRating
-  homeworkCompletion    HolisticRating
+  homeworkCompletion   HolisticRating
   englishCommunication HolisticRating
   punctuality          HolisticRating
   hygiene              HolisticRating
@@ -1530,12 +1697,15 @@ enum ReportKind {
 // schema, but a shared audit table across two report types needs it here).
 model ReportLock {
   id         String     @id @default(cuid())
+  schoolId   String
+  school     School     @relation(fields: [schoolId], references: [id])
   reportKind ReportKind
   reportId   String
   action     LockAction
   userId     String
   createdAt  DateTime   @default(now())
 
+  @@index([schoolId])
   @@index([reportKind, reportId])
   @@map("ReportLocks")
 }
@@ -1563,7 +1733,7 @@ model GeneratedReportJob {
   requestedByUserId String
   reportKind        ReportKind
   scope             GenerationScope
-  targetIds         String[]         // studentIds or monthlyReportIds, per scope
+  targetIds         String[] // studentIds or monthlyReportIds, per scope
   status            GenerationStatus @default(QUEUED)
   totalCount        Int
   completedCount    Int              @default(0)
@@ -1574,4 +1744,85 @@ model GeneratedReportJob {
 
   @@index([schoolId, status])
   @@map("GeneratedReportJobs")
+}
+
+// ---- Support (School -> Platform) ----
+// A school's staff (Admin/Principal/Teacher/Accountant — never Parent, see
+// components/parent/ParentSidebar.jsx, which has no Support entry at all)
+// raising an issue to the platform team. Deliberately NOT scoped to a single
+// SuperAdmin id — SuperAdmin.schoolId doesn't exist (see that model), and
+// the schema permits several SuperAdmin accounts, so a ticket is visible to
+// every SuperAdmin rather than routed to one.
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketCategory {
+  TECHNICAL
+  BILLING
+  FEATURE_REQUEST
+  OTHER
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+model SupportTicket {
+  id              String                @id @default(cuid())
+  // Human-friendly "#TK-1024" display id (see lib/support.js's
+  // formatTicketNumber) — a real sequential counter, unlike the cuid `id`
+  // above which stays the actual primary key/URL param everywhere.
+  ticketNumber    Int                   @unique @default(autoincrement())
+  schoolId        String
+  school          School                @relation(fields: [schoolId], references: [id])
+  // Not a FK — the raising actor can be a legacy SchoolAdmin row (no User
+  // table entry at all), a User-table Principal/Accountant, or a Teacher
+  // table row (see lib/iam.js's getCurrentUserInfo) — three different
+  // tables with no common id space to point a single relation at. Kept as
+  // a plain reference string for display/debugging only.
+  raisedByUserId  String?
+  raisedByName    String
+  raisedByRoleKey String
+  subject         String
+  category        SupportTicketCategory @default(OTHER)
+  priority        SupportTicketPriority @default(NORMAL)
+  message         String
+  attachmentUrl   String?
+  status          SupportTicketStatus   @default(OPEN)
+  replies         SupportTicketReply[]
+  // When each side last actually looked at this ticket (see
+  // lib/support.js's markTicketSeen) — a ticket is "unread" for a side when
+  // this is null or older than `updatedAt`. Updated via raw SQL there
+  // specifically so viewing a ticket never itself bumps `updatedAt` (that
+  // would make a ticket you just read look newly-updated to the OTHER
+  // side, a false "unread" for them).
+  lastSeenBySchoolAt     DateTime?
+  lastSeenBySuperAdminAt DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([schoolId, status])
+  @@map("SupportTickets")
+}
+
+model SupportTicketReply {
+  id           String        @id @default(cuid())
+  ticketId     String
+  ticket       SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorName   String
+  // true = a SuperAdmin wrote this reply (rendered on the opposite side of
+  // the thread from the school's own messages) — same reasoning as
+  // raisedByUserId above for not FK-ing the author.
+  isSuperAdmin Boolean       @default(false)
+  message      String
+  attachmentUrl String?
+  createdAt    DateTime      @default(now())
+
+  @@map("SupportTicketReplies")
 }

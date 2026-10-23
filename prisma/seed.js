@@ -80,6 +80,16 @@ const schools = [
 ];
 
 async function main() {
+  // One password for every demo account this seed creates (school admins, demo
+  // teachers, the demo parent). It is never written in this file: set
+  // SEED_DEMO_PASSWORD to choose it, otherwise a random one is generated and
+  // printed once. teacherSeedData.js reads it from the same variable.
+  const demoPassword = process.env.SEED_DEMO_PASSWORD || crypto.randomBytes(9).toString('base64url');
+  process.env.SEED_DEMO_PASSWORD = demoPassword;
+  if (!process.argv.includes('--quiet')) {
+    console.log('Demo account password for this seed run (school admins, demo teachers, demo parent):', demoPassword);
+  }
+
   // Real production credential — not a placeholder demo value. Set via
   // SUPER_ADMIN_SEED_PASSWORD so this file never has to hold it in plain
   // text; falls back to a random one-time password only for a fresh local
@@ -109,8 +119,8 @@ async function main() {
   }
 
   const schoolAdmins = [
-    { schoolId: 'school-1', name: 'Dr. Radhika Sharma', email: 'info@abcpublicschool.edu', password: 'Welcome@123' },
-    { schoolId: 'school-2', name: 'Mr. Arvind Rao', email: 'admin@greenwoodhigh.edu', password: 'Welcome@123' },
+    { schoolId: 'school-1', name: 'Dr. Radhika Sharma', email: 'info@abcpublicschool.edu', password: demoPassword },
+    { schoolId: 'school-2', name: 'Mr. Arvind Rao', email: 'admin@greenwoodhigh.edu', password: demoPassword },
   ];
 
   for (const admin of schoolAdmins) {
@@ -145,7 +155,7 @@ async function main() {
   // "Test parent credentials" box on the login page (components/LoginForm.jsx)
   // — every other student has no portalPasswordHash until a school admin
   // issues one (lib/students.js's setParentPortalPassword).
-  const parentPortalPasswordHash = await bcrypt.hash('Parent@123', 10);
+  const parentPortalPasswordHash = await bcrypt.hash(demoPassword, 10);
   await prisma.student.updateMany({
     where: { schoolId: 'school-1', admissionId: 'ADM-2026-1048' }, // Reyansh Joshi
     data: { portalPasswordHash: parentPortalPasswordHash },

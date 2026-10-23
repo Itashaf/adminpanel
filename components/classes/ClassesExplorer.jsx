@@ -13,7 +13,7 @@ export default function ClassesExplorer({ classes, selectedSession }) {
   const [toastMessage, setToastMessage] = useState('');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:pb-12">
       <ClassesHeader onAddClass={() => setShowAddModal(true)} />
       <ClassesGrid classes={classes} academicSession={selectedSession} onAddClass={() => setShowAddModal(true)} />
 

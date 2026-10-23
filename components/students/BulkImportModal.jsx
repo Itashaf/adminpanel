@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { FiUploadCloud, FiDownload, FiFileText, FiCheckCircle, FiAlertTriangle, FiFile, FiX, FiUsers, FiCheck } from 'react-icons/fi';
 import Modal from '@/components/Modal';
 import Button from '@/components/Button';
-import { parseSheetNameForClassSection, normalizeRow, isRowBlank } from '@/lib/bulkImportColumns';
+import { parseSheetNameForClassSection, normalizeRow, isRowBlank, BULK_IMPORT_MAX_ROWS } from '@/lib/bulkImportColumns';
 import { buildBulkImportRowSchema } from '@/lib/schemas';
 import { bulkImportStudents } from '@/lib/api';
 import { useClassSections } from '@/lib/hooks/useClassSections';
@@ -84,6 +84,10 @@ export default function BulkImportModal({ isOpen, onClose, onImported }) {
       const rows = parseWorkbook(workbook);
       if (rows.length === 0) {
         setParseError('No student rows found in this file — check the sheet has data below the header row.');
+        return;
+      }
+      if (rows.length > BULK_IMPORT_MAX_ROWS) {
+        setParseError(`This file has ${rows.length} students. Import at most ${BULK_IMPORT_MAX_ROWS} at a time: split the file and import it in parts.`);
         return;
       }
       setParsedRows(validateRows(rows, classSections));

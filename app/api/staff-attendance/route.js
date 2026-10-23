@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/rbac';
 import { getTeacherAttendanceForDate, saveTeacherAttendance } from '@/lib/teacherAttendance';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { readJson } from '@/lib/http';
 
 // GET /api/staff-attendance?date=YYYY-MM-DD — admin-only, same as the
 // student Daily Attendance module's marking screen. Not a Teacher-facing
@@ -35,7 +36,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { date, records } = await request.json();
+  const { date, records } = await readJson(request);
 
   try {
     const result = await saveTeacherAttendance(date, records, user.name);

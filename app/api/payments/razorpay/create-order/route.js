@@ -1,22 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createRazorpayOrder, getStudentFeeById } from '@/lib/fees';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function POST(request) {
-  const { studentFeeId } = await request.json();
+  const { studentFeeId } = await readJson(request);
 
   if (!studentFeeId) {
     return NextResponse.json({ error: 'Missing studentFeeId' }, { status: 400 });
   }
 
-  // A Parent must only ever be able to open a checkout for their own
-  // child's fee — never anyone else's, no matter what studentFeeId is sent.
+  // Signed-in callers only. A Parent must only ever be able to open a checkout
+  // for their own child's fee — never anyone else's, no matter what
+  // studentFeeId is sent. Everyone else needs the fees.collect permission.
   const actor = await getCurrentUserInfo();
-  if (actor?.role === 'Parent') {
+  if (!actor) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  if (actor.role === 'Parent') {
     const fee = await getStudentFeeById(studentFeeId);
     if (!fee || fee.studentId !== actor.studentId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+  } else {
+    const { error: authError } = await requirePermission('fees.collect');
+    if (authError) return authError;
   }
 
   try {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 // Task 19 — full-replace: sets a role's permission set to exactly the
 // given list (delete-then-recreate, same convention as this app's Fee
@@ -12,9 +13,15 @@ import { requirePermission } from '@/lib/rbac';
 export async function POST(request, { params }) {
   const { user, error } = await requirePermission('permissions.manage');
   if (error) return error;
+  // Roles and their permission sets are shared by every school, so only the Super
+  // Admin may change them: a Principal editing a role here would change it for
+  // all schools (API-004).
+  if (user.roleKey !== 'SuperAdmin') {
+    return NextResponse.json({ error: 'Only the Super Admin can change role permissions.' }, { status: 403 });
+  }
 
   const { id } = await params;
-  const { permissionKeys } = await request.json();
+  const { permissionKeys } = await readJson(request);
   if (!Array.isArray(permissionKeys)) {
     return NextResponse.json({ error: 'permissionKeys must be an array' }, { status: 400 });
   }

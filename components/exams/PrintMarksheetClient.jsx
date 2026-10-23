@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { FiLayers, FiGrid, FiPrinter } from 'react-icons/fi';
+import { FiLayers, FiGrid, FiPrinter, FiUsers } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
+import EmptyState from '@/components/EmptyState';
 import { getPrintableRoster } from '@/lib/api';
 import { useSubjects, useSubjectCodes } from '@/lib/hooks/useSubjects';
 
@@ -55,8 +56,8 @@ export default function PrintMarksheetClient({ classSections, isTeacher }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="print:hidden">
+    <div className="flex flex-col h-full">
+      <div className="print:hidden shrink-0 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Print Marksheet</h1>
         <p className="text-sm text-gray-500 mt-1">
           {isTeacher
@@ -65,7 +66,7 @@ export default function PrintMarksheetClient({ classSections, isTeacher }) {
         </p>
       </div>
 
-      <div className="print:hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <div className="print:hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 shrink-0 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Class</label>
@@ -133,16 +134,17 @@ export default function PrintMarksheetClient({ classSections, isTeacher }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 print:border-0 print:shadow-none print:rounded-none print:p-2">
-        {!selectedClass || !selectedSection ? (
-          <p className="print:hidden text-sm text-gray-500 text-center py-12">Pick a class and section to load the roster.</p>
-        ) : isLoading ? (
-          <p className="print:hidden text-sm text-gray-500 text-center py-12">Loading...</p>
-        ) : roster && roster.students.length === 0 ? (
-          <p className="print:hidden text-sm text-gray-500 text-center py-12">No students found for this class and section.</p>
-        ) : roster && subjects.length === 0 ? (
-          <p className="print:hidden text-sm text-gray-500 text-center py-12">Add at least one subject above to build the sheet.</p>
-        ) : roster ? (
+      <div className="flex-1 min-h-0 flex flex-col print:block">
+      {!selectedClass || !selectedSection ? (
+        <EmptyState icon={FiLayers} description="Pick a class and section to load the roster." />
+      ) : isLoading ? (
+        <p className="text-sm text-gray-500 text-center py-12">Loading...</p>
+      ) : roster && roster.students.length === 0 ? (
+        <EmptyState icon={FiUsers} description="No students found for this class and section." />
+      ) : roster && subjects.length === 0 ? (
+        <EmptyState icon={FiGrid} description="Add at least one subject above to build the sheet." />
+      ) : roster ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 print:border-0 print:shadow-none print:rounded-none print:p-2">
           <>
             {/* Blank underline for the admin to hand-write the marksheet's
                 title (e.g. "Half Yearly Examination Mark Sheet") — centered
@@ -193,7 +195,8 @@ export default function PrintMarksheetClient({ classSections, isTeacher }) {
               </table>
             </div>
           </>
-        ) : null}
+        </div>
+      ) : null}
       </div>
     </div>
   );

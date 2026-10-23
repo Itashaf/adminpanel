@@ -5,10 +5,22 @@ import { useRouter } from 'next/navigation';
 import Toast from '@/components/Toast';
 import TeacherForm from './TeacherForm';
 import { updateTeacher } from '@/lib/api';
+import { RELIGIONS } from '@/lib/teacherConstants';
+
+const EMPTY_PARENT = { relationship: '', fullName: '', phone: '', email: '', occupation: '', aadhaarNumber: '' };
+
+function parentDefaults(person) {
+  return person ? { ...EMPTY_PARENT, ...person } : EMPTY_PARENT;
+}
 
 export default function EditTeacherForm({ teacher }) {
   const router = useRouter();
   const [showToast, setShowToast] = useState(false);
+
+  // A saved religion that isn't one of the preset options was typed in
+  // directly (the dropdown's `creatable` mode) — show it back as "Other" +
+  // the actual text in the reveal field, same as EditStudentForm.jsx.
+  const isCustomReligion = Boolean(teacher.religion) && !RELIGIONS.includes(teacher.religion);
 
   const defaultValues = {
     photoUrl: teacher.photoUrl || null,
@@ -31,16 +43,20 @@ export default function EditTeacherForm({ teacher }) {
     aadhaarDocument: teacher.aadhaarDocumentUrl || teacher.aadhaarDocumentName || '',
     maritalStatus: teacher.maritalStatus || '',
     nationality: teacher.nationality || '',
+    religion: isCustomReligion ? 'Other' : teacher.religion || '',
+    religionOther: isCustomReligion ? teacher.religion : '',
+    caste: teacher.caste || '',
     panNumber: teacher.panNumber || '',
     employeeId: teacher.employeeId,
     joiningDate: teacher.joiningDate,
     relievingDate: teacher.relievingDate || '',
-    qualification: teacher.qualification,
-    specialization: teacher.specialization || '',
     experience: teacher.experience || '',
     employmentType: teacher.employmentType,
-    status: teacher.status,
     isFresher: teacher.isFresher ?? true,
+    father: parentDefaults(teacher.father),
+    mother: parentDefaults(teacher.mother),
+    guardian: parentDefaults(teacher.guardian),
+    otherEducation: teacher.education?.other?.length ? teacher.education.other : [],
     tenthPercentage: teacher.education?.tenthPercentage || '',
     twelfthPercentage: teacher.education?.twelfthPercentage || '',
     graduationDegree: teacher.education?.graduationDegree || '',
@@ -52,7 +68,6 @@ export default function EditTeacherForm({ teacher }) {
     emergencyContactName: teacher.emergencyContact?.name || '',
     emergencyContactPhone: teacher.emergencyContact?.phone || '',
     emergencyContactRelationship: teacher.emergencyContact?.relationship || '',
-    accountStatus: teacher.loginAccess?.accountStatus || 'Active',
     addressLine1: teacher.address?.line1 || '',
     addressLine2: teacher.address?.line2 || '',
     city: teacher.address?.city || '',

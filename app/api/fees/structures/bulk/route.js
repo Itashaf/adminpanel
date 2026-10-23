@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createFeeStructuresForClasses } from '@/lib/fees';
 import { requirePermission } from '@/lib/rbac';
+import { readJson } from '@/lib/http';
 
 export async function POST(request) {
   const { error } = await requirePermission('fees.create');
   if (error) return error;
 
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.academicSession || !Array.isArray(data.classNames) || data.classNames.length === 0) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

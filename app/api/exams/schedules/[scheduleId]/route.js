@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { deleteExamSchedule, updateExamSchedule } from '@/lib/examSchedules';
 import { getCurrentUserInfo } from '@/lib/iam';
+import { readJson } from '@/lib/http';
 
 // Any signed-in user may PUT/DELETE here — updateExamSchedule/
 // deleteExamSchedule themselves enforce the real rule (admin, or the Class
@@ -12,7 +13,7 @@ export async function PUT(request, { params }) {
   }
 
   const { scheduleId } = await params;
-  const data = await request.json();
+  const data = await readJson(request);
 
   if (!data.subject || !data.className || !data.examDate || !data.maxMarks) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

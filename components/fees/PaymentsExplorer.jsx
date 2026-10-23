@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiSearch } from 'react-icons/fi';
 import Dropdown from '@/components/Dropdown';
+import Input from '@/components/Input';
 import FixedPaginationBar from '@/components/FixedPaginationBar';
 import PaymentsTable from './PaymentsTable';
 import { getPayments } from '@/lib/api';
@@ -20,57 +21,59 @@ const STATUS_OPTIONS = [
   { value: 'SUCCESS', label: 'Success' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'FAILED', label: 'Failed' },
+  { value: 'REVERSED', label: 'Reversed' },
 ];
 
 const PAGE_SIZE = 10;
 
-export default function PaymentsExplorer({ initialResult, students }) {
+export default function PaymentsExplorer({ initialResult }) {
   const [method, setMethod] = useState('');
   const [status, setStatus] = useState('');
-  const [studentId, setStudentId] = useState('');
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(initialResult);
   const [isLoading, setIsLoading] = useState(false);
 
-  const studentOptions = [{ value: '', label: 'All Students' }, ...students.map((s) => ({ value: s.id, label: `${s.firstName} ${s.lastName}` }))];
-
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
-    getPayments({ studentId, method, status, page, pageSize: PAGE_SIZE })
-      .then((data) => {
-        if (!cancelled) setResult(data);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+    const timeout = setTimeout(() => {
+      getPayments({ search, method, status, page, pageSize: PAGE_SIZE })
+        .then((data) => {
+          if (!cancelled) setResult(data);
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+    }, 300);
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentId, method, status, page]);
+  }, [search, method, status, page]);
 
   const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
   return (
     <div className="space-y-4 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Payment History</h1>
-        <p className="text-sm text-gray-500 mt-1">Every fee payment collected, manual or online.</p>
-      </div>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="shrink-0">
+          <h1 className="text-2xl font-bold text-gray-900">Payment History</h1>
+          <p className="text-sm text-gray-500 mt-1">Every fee payment collected, manual or online.</p>
+        </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <Dropdown
-            options={studentOptions}
-            value={studentId}
-            onChange={(v) => {
-              setStudentId(v);
+        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="w-full sm:w-96">
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Filter by student"
+            placeholder="Search by name or transaction ID..."
             icon={<FiSearch />}
-            searchable
+            className="bg-white text-sm"
           />
         </div>
         <div className="w-full sm:w-48">
@@ -92,6 +95,7 @@ export default function PaymentsExplorer({ initialResult, students }) {
               setPage(1);
             }}
           />
+        </div>
         </div>
       </div>
 

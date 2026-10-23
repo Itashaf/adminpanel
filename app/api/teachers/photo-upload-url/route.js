@@ -3,6 +3,7 @@ import { requireAnyPermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
 import { getPresignedUploadUrl, buildPublicUrl } from '@/lib/storage';
 import { MAX_STUDENT_PHOTO_BYTES, STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
+import { readJson } from '@/lib/http';
 
 // Step 1 of the admin-driven Teacher photo upload (Add/Edit Teacher form) —
 // same presign-then-PUT-direct-to-R2 pattern as
@@ -15,7 +16,7 @@ export async function POST(request) {
   const { error } = await requireAnyPermission(['teachers.create', 'teachers.update']);
   if (error) return error;
 
-  const { fileName, fileType, fileSize } = await request.json();
+  const { fileName, fileType, fileSize } = await readJson(request);
 
   if (!STUDENT_PHOTO_ACCEPT_TYPES.includes(fileType)) {
     return NextResponse.json({ error: 'Only JPG, PNG, or WEBP images are allowed.' }, { status: 400 });

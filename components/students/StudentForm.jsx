@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  FiPlus,
-  FiX,
   FiUser,
   FiDroplet,
   FiCalendar,
@@ -17,7 +15,6 @@ import {
   FiFlag,
   FiBook,
   FiUsers,
-  FiDollarSign,
 } from 'react-icons/fi';
 import Input from '@/components/Input';
 import Dropdown from '@/components/Dropdown';
@@ -30,12 +27,12 @@ import { buildStudentSchema } from '@/lib/schemas';
 import {
   GENDERS,
   BLOOD_GROUPS,
+  RELIGIONS,
   ACADEMIC_SESSIONS,
   STATUSES,
   SCHOOL_BOARDS,
+  OTHER_GUARDIAN_RELATIONSHIPS,
   EMERGENCY_CONTACT_RELATIONSHIPS,
-  FEE_STRUCTURE_TYPES,
-  FEE_PAYMENT_STATUSES,
 } from '@/lib/students';
 import { MAX_STUDENT_PHOTO_BYTES, STUDENT_PHOTO_ACCEPT_TYPES } from '@/lib/studentConstants';
 import { MAX_DOCUMENT_BYTES, DOCUMENT_ACCEPT_TYPES } from '@/lib/documentConstants';
@@ -47,9 +44,6 @@ const INDIAN_STATES = getIndianStates();
 const NATIONALITY_OPTIONS = getNationalityOptions();
 
 export default function StudentForm({ classOptions, defaultValues, onSubmit: onSubmitProp, submitLabel = 'Save Student', cancelHref = '/dashboard/students' }) {
-  const [showSecondaryGuardian, setShowSecondaryGuardian] = useState(
-    Boolean(defaultValues?.secondaryGuardian?.fullName)
-  );
   const [selectedStateCode, setSelectedStateCode] = useState(() => getStateCodeByName(defaultValues?.state));
   const [formError, setFormError] = useState('');
   const [photo, setPhoto] = useState(defaultValues?.photoUrl || null);
@@ -76,6 +70,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
   } = useForm({ resolver, defaultValues });
 
   const selectedClass = watch('class');
+  const religion = watch('religion');
   const cityOptions = getCitiesForState(selectedStateCode);
   const sectionOptions = getSectionOptions(classSections, selectedClass);
 
@@ -90,7 +85,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
   // re-uploading anything that's already sitting in R2.
   const resolvedDocumentUrl = (value) => {
     if (value instanceof File) return undefined; // uploaded separately in onSubmit
-    if (typeof value === 'string' && /^https?:\/\//.test(value)) return value;
+    if (typeof value === 'string' && /^(https?:\/\/|\/api\/documents\/)/.test(value)) return value;
     return null;
   };
 
@@ -147,7 +142,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         photo instanceof File ? uploadStudentPhoto(photo) : Promise.resolve(photo),
         uploadIfFile(data.aadhaarDocument),
         uploadIfFile(data.guardian?.aadhaarDocument),
-        data.secondaryGuardian ? uploadIfFile(data.secondaryGuardian.aadhaarDocument) : Promise.resolve(undefined),
+        uploadIfFile(data.secondaryGuardian?.aadhaarDocument),
         uploadIfFile(fatherPhoto),
         uploadIfFile(motherPhoto),
         uploadIfFile(birthCertificate),
@@ -157,21 +152,22 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
 
       await onSubmitProp({
         ...data,
+        religion: data.religion === 'Other' ? data.religionOther?.trim() || '' : data.religion,
         photoUrl,
         aadhaarDocument: toFileName(data.aadhaarDocument),
         aadhaarDocumentUrl,
         guardian: {
           ...data.guardian,
+          relationship: 'Father',
           aadhaarDocument: toFileName(data.guardian.aadhaarDocument),
           aadhaarDocumentUrl: guardianAadhaarDocumentUrl,
         },
-        secondaryGuardian: data.secondaryGuardian
-          ? {
-              ...data.secondaryGuardian,
-              aadhaarDocument: toFileName(data.secondaryGuardian.aadhaarDocument),
-              aadhaarDocumentUrl: secondaryGuardianAadhaarDocumentUrl,
-            }
-          : data.secondaryGuardian,
+        secondaryGuardian: {
+          ...data.secondaryGuardian,
+          relationship: 'Mother',
+          aadhaarDocument: toFileName(data.secondaryGuardian.aadhaarDocument),
+          aadhaarDocumentUrl: secondaryGuardianAadhaarDocumentUrl,
+        },
         fatherPhotoUrl,
         motherPhotoUrl,
         birthCertificateUrl,
@@ -191,7 +187,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         </p>
       )}
 
-      <FormSection title="Basic Information" description="Student's personal details">
+      <FormSection title="Basic Information">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             First Name <span className="text-red-500">*</span>
@@ -286,6 +282,37 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         </div>
 
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Religion</label>
+          <Controller
+            name="religion"
+            control={control}
+            render={({ field }) => (
+              <Dropdown
+                placeholder="Select or type religion"
+                icon={<FiFlag className="w-4 h-4" />}
+                options={RELIGIONS.map((r) => ({ value: r, label: r }))}
+                searchable
+                creatable
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+
+        {religion === 'Other' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Specify Religion</label>
+            <Input placeholder="Type religion" {...register('religionOther')} />
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Caste</label>
+          <Input placeholder="e.g. General" {...register('caste')} />
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Aadhaar Card Number <span className="text-red-500">*</span>
           </label>
@@ -302,7 +329,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         </div>
       </FormSection>
 
-      <FormSection title="Academic Information" description="Admission and class details">
+      <FormSection title="Academic Information">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Admission Number <span className="text-red-500">*</span>
@@ -416,7 +443,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         </div>
       </FormSection>
 
-      <FormSection title="Previous School Details" description="Optional — details of the student's last school">
+      <FormSection title="Previous School Details (Optional)">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Previous School Name</label>
           <Input placeholder="Enter previous school name" {...register('previousSchoolName')} />
@@ -445,34 +472,32 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         </div>
       </FormSection>
 
-      <FormSection title="Parent / Guardian" description="Primary contact for this student">
-        <GuardianFields register={register} control={control} errors={errors.guardian} prefix="guardian" required />
+      <FormSection title="Father Details">
+        <GuardianFields register={register} control={control} errors={errors.guardian} prefix="guardian" required hideRelationship />
       </FormSection>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-base font-semibold text-indigo-700">Secondary Parent/Guardian</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Optional — add another guardian for this student</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowSecondaryGuardian((prev) => !prev)}
-            className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 cursor-pointer"
-          >
-            {showSecondaryGuardian ? <FiX className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
-            {showSecondaryGuardian ? 'Remove' : 'Add Guardian'}
-          </button>
-        </div>
+      <FormSection title="Mother Details">
+        <GuardianFields
+          register={register}
+          control={control}
+          errors={errors.secondaryGuardian}
+          prefix="secondaryGuardian"
+          required
+          hideRelationship
+        />
+      </FormSection>
 
-        {showSecondaryGuardian && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <GuardianFields register={register} control={control} errors={errors.secondaryGuardian} prefix="secondaryGuardian" />
-          </div>
-        )}
-      </div>
+      <FormSection title="Guardian Details (Optional)">
+        <GuardianFields
+          register={register}
+          control={control}
+          errors={errors.otherGuardian}
+          prefix="otherGuardian"
+          relationshipOptions={OTHER_GUARDIAN_RELATIONSHIPS}
+        />
+      </FormSection>
 
-      <FormSection title="Emergency Contacts" description="Who to reach in case of an emergency">
+      <FormSection title="Emergency Contacts (Optional)">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Primary Contact Name</label>
           <Input placeholder="Enter contact name" {...register('primaryEmergencyName')} />
@@ -533,7 +558,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         </div>
       </FormSection>
 
-      <FormSection title="Address" description="Student's residential address">
+      <FormSection title="Address">
         <div className="sm:col-span-2 lg:col-span-3">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Address Line 1 <span className="text-red-500">*</span>
@@ -606,71 +631,8 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
         </div>
       </FormSection>
 
-      <FormSection title="Fee Details" description="Admission fee, fee structure, and payment status">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Admission Fee Paid Date</label>
-          <Controller
-            name="admissionFeePaidDate"
-            control={control}
-            render={({ field }) => (
-              <DatePicker value={field.value} onChange={field.onChange} placeholder="Select paid date" />
-            )}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Admission Fee Amount</label>
-          <Input placeholder="e.g. 15000" {...register('admissionFeeAmount')} />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Fee Structure</label>
-          <Controller
-            name="feeStructureType"
-            control={control}
-            render={({ field }) => (
-              <Dropdown
-                placeholder="Monthly / Annual"
-                icon={<FiDollarSign className="w-4 h-4" />}
-                options={FEE_STRUCTURE_TYPES.map((t) => ({ value: t, label: t }))}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Fee Amount</label>
-          <Input placeholder="e.g. 6500" {...register('feeStructureAmount')} />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Fee Payment Status</label>
-          <Controller
-            name="feePaymentStatus"
-            control={control}
-            render={({ field }) => (
-              <Dropdown
-                placeholder="Select status"
-                icon={<FiCheckSquare className="w-4 h-4" />}
-                options={FEE_PAYMENT_STATUSES.map((s) => ({ value: s, label: s }))}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Outstanding Dues</label>
-          <Input placeholder="e.g. 0" {...register('outstandingDues')} />
-        </div>
-      </FormSection>
-
       <FormSection
         title="Documents and Photos"
-        description="Aadhaar cards are mandatory; other documents and photos are optional"
         contentClassName="flex flex-wrap gap-4"
       >
         <Controller
@@ -708,6 +670,7 @@ export default function StudentForm({ classOptions, defaultValues, onSubmit: onS
             <FileDropzone
               label="Mother Aadhaar"
               accept="application/pdf,image/*"
+              required
               value={field.value}
               onFileSelect={field.onChange}
               error={errors.secondaryGuardian?.aadhaarDocument?.message}

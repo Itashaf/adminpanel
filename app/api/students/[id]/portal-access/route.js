@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { linkOrCreateParentAccount, getParentAccountForStudent, unlinkStudentFromParent } from '@/lib/parentAccounts';
-import { requirePermission } from '@/lib/rbac';
+import { requirePermission, requireStaffPermission } from '@/lib/rbac';
 import { resolveSchoolId } from '@/lib/auth/schoolContext';
+import { readJson } from '@/lib/http';
 
 export async function GET(request, { params }) {
-  const { user, error } = await requirePermission('students.view');
+  const { user, error } = await requireStaffPermission('students.view');
   if (error) return error;
 
   // Same reasoning as GET /api/students/[id] — students.view is shared with
@@ -25,7 +26,7 @@ export async function POST(request, { params }) {
 
   const { id } = await params;
   try {
-    const data = await request.json();
+    const data = await readJson(request);
     const result = await linkOrCreateParentAccount(id, data, await resolveSchoolId());
     return NextResponse.json(result);
   } catch (err) {

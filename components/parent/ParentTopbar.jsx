@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiLogOut, FiMenu, FiChevronDown, FiBell } from 'react-icons/fi';
+import { FiLogOut, FiMenu, FiChevronDown, FiBell, FiSearch } from 'react-icons/fi';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import DropdownMenu from '@/components/DropdownMenu';
 import { logoutAction, switchActiveChildAction } from '@/app/actions/auth';
@@ -144,6 +144,15 @@ export default function ParentTopbar({ students = [], activeStudentId, onMenuCli
       <button type="button" onClick={onMenuClick} className="lg:hidden text-gray-400 hover:text-gray-600 cursor-pointer">
         <FiMenu className="w-5 h-5" />
       </button>
+
+      <div className="hidden sm:flex items-center gap-2.5 flex-1 max-w-xl bg-gray-50 rounded-full px-4 py-2.5">
+        <FiSearch className="w-4 h-4 text-gray-400 shrink-0" />
+        <input
+          type="text"
+          placeholder="Search notices, homework, exams..."
+          className="flex-1 min-w-0 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none"
+        />
+      </div>
 
       <div className="ml-auto flex items-center gap-4">
         <div className="relative" ref={panelRef}>
