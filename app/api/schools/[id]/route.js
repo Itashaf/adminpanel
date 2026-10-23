@@ -16,6 +16,9 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
+  const { error } = await requireSuperAdmin();
+  if (error) return error;
+
   const { id } = await params;
   const data = await readJson(request);
 
