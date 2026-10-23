@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import NextTopLoader from 'nextjs-toploader';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import SessionWatcher from '@/components/SessionWatcher';
 import { getSchoolSettings } from '@/lib/schoolSettings';
@@ -48,6 +49,8 @@ export default async function DashboardLayout({ children }) {
   }
 
   return (
+    <>
+    <NextTopLoader color="#4F46E5" height={3} showSpinner={false} />
     <DashboardShell
       school={school}
       activeSession={activeSession}
@@ -62,5 +65,6 @@ export default async function DashboardLayout({ children }) {
       <SessionWatcher />
       {children}
     </DashboardShell>
+    </>
   );
 }
