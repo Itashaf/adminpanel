@@ -306,6 +306,8 @@ model ParentStudentLink {
 
   @@unique([parentAccountId, studentId])
   @@index([schoolId])
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([studentId])
 }
 
 enum SchoolStatus {
@@ -559,6 +561,8 @@ model StudentFee {
   updatedAt       DateTime         @updatedAt
 
   @@unique([studentId, academicSession, term])
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([schoolId, academicSession])
 }
 
 enum DiscountType {
@@ -582,6 +586,9 @@ model StudentFeeItem {
   lateFeeType      LateFeeType?
   lateFeeAmount    Int?
   lateFeeMaxAmount Int?
+
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([studentFeeId])
 }
 
 // MVP: no partial payments, so one successful Payment always pays a
@@ -710,6 +717,9 @@ model TeacherLeave {
   reviewedAt     DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([schoolId, status])
 }
 
 // One row per school per date, same convention as the Student Attendance
@@ -862,6 +872,8 @@ model Section {
   enrollments     StudentEnrollment[]
 
   @@unique([classId, academicSession, name])
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([classTeacherId])
   @@map("Sections")
 }
 
@@ -891,6 +903,8 @@ model Attendance {
   createdAt        DateTime @default(now())
 
   @@unique([schoolId, academicSession, date, className, sectionName])
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([records(ops: JsonbPathOps)], type: Gin)
   @@map("Attendance")
 }
 
@@ -926,6 +940,8 @@ model CalendarEvent {
   academicSession   String   @default("")
   createdAt         DateTime @default(now())
 
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([schoolId])
   @@map("CalendarEvents")
 }
 
@@ -961,6 +977,8 @@ model Notice {
   attachmentSize    Int?
   createdAt         DateTime @default(now())
 
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([schoolId])
   @@map("Notices")
 }
 
@@ -1467,6 +1485,11 @@ model Payment {
   updatedAt         DateTime      @updatedAt
 
   @@unique([schoolId, receiptNumber])
+  // Performance audit: Postgres doesn't index foreign keys on its own.
+  @@index([schoolId, status, paidAt])
+  @@index([schoolId, createdAt])
+  @@index([studentId])
+  @@index([studentFeeId])
 }
 
 // One row per school: the last receipt number handed out. Incremented atomically.
@@ -1774,28 +1797,28 @@ enum SupportTicketPriority {
 }
 
 model SupportTicket {
-  id              String                @id @default(cuid())
+  id                     String                @id @default(cuid())
   // Human-friendly "#TK-1024" display id (see lib/support.js's
   // formatTicketNumber) — a real sequential counter, unlike the cuid `id`
   // above which stays the actual primary key/URL param everywhere.
-  ticketNumber    Int                   @unique @default(autoincrement())
-  schoolId        String
-  school          School                @relation(fields: [schoolId], references: [id])
+  ticketNumber           Int                   @unique @default(autoincrement())
+  schoolId               String
+  school                 School                @relation(fields: [schoolId], references: [id])
   // Not a FK — the raising actor can be a legacy SchoolAdmin row (no User
   // table entry at all), a User-table Principal/Accountant, or a Teacher
   // table row (see lib/iam.js's getCurrentUserInfo) — three different
   // tables with no common id space to point a single relation at. Kept as
   // a plain reference string for display/debugging only.
-  raisedByUserId  String?
-  raisedByName    String
-  raisedByRoleKey String
-  subject         String
-  category        SupportTicketCategory @default(OTHER)
-  priority        SupportTicketPriority @default(NORMAL)
-  message         String
-  attachmentUrl   String?
-  status          SupportTicketStatus   @default(OPEN)
-  replies         SupportTicketReply[]
+  raisedByUserId         String?
+  raisedByName           String
+  raisedByRoleKey        String
+  subject                String
+  category               SupportTicketCategory @default(OTHER)
+  priority               SupportTicketPriority @default(NORMAL)
+  message                String
+  attachmentUrl          String?
+  status                 SupportTicketStatus   @default(OPEN)
+  replies                SupportTicketReply[]
   // When each side last actually looked at this ticket (see
   // lib/support.js's markTicketSeen) — a ticket is "unread" for a side when
   // this is null or older than `updatedAt`. Updated via raw SQL there
@@ -1804,25 +1827,25 @@ model SupportTicket {
   // side, a false "unread" for them).
   lastSeenBySchoolAt     DateTime?
   lastSeenBySuperAdminAt DateTime?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
   @@index([schoolId, status])
   @@map("SupportTickets")
 }
 
 model SupportTicketReply {
-  id           String        @id @default(cuid())
-  ticketId     String
-  ticket       SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  authorName   String
+  id            String        @id @default(cuid())
+  ticketId      String
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorName    String
   // true = a SuperAdmin wrote this reply (rendered on the opposite side of
   // the thread from the school's own messages) — same reasoning as
   // raisedByUserId above for not FK-ing the author.
-  isSuperAdmin Boolean       @default(false)
-  message      String
+  isSuperAdmin  Boolean       @default(false)
+  message       String
   attachmentUrl String?
-  createdAt    DateTime      @default(now())
+  createdAt     DateTime      @default(now())
 
   @@map("SupportTicketReplies")
 }

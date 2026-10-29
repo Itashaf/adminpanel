@@ -12,7 +12,6 @@ import {
   FiFileText,
   FiUser,
   FiX,
-  FiArrowRight,
 } from 'react-icons/fi';
 
 // A dedicated sidebar (not the shared admin/teacher components/dashboard/
@@ -95,18 +94,6 @@ export default function ParentSidebar({ school, isOpen, onClose }) {
             );
           })}
         </nav>
-
-        <div className="p-4">
-          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-4">
-            <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-600 text-white shrink-0">
-              <FiBook className="w-4 h-4" />
-            </span>
-            <p className="flex-1 text-sm font-semibold text-white leading-snug">Education Builds a Brighter Tomorrow</p>
-            <span className="flex items-center justify-center w-8 h-8 rounded-full border border-white/20 text-white shrink-0">
-              <FiArrowRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
       </aside>
     </>
   );

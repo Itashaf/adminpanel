@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { FiUploadCloud, FiImage, FiX, FiRefreshCw, FiLoader } from 'react-icons/fi';
+import { FiUploadCloud, FiImage, FiX, FiRefreshCw } from 'react-icons/fi';
 import { uploadSchoolLogo } from '@/lib/api';
 import { STUDENT_PHOTO_ACCEPT_TYPES, MAX_STUDENT_PHOTO_BYTES } from '@/lib/studentConstants';
 
@@ -59,9 +59,7 @@ export default function LogoUploader({ value, onChange, error }) {
           >
             <img src={value} alt="School logo" className="w-full h-full object-contain p-3" />
             {isUploading && (
-              <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                <FiLoader className="w-6 h-6 text-violet-600 animate-spin" />
-              </div>
+              <div className="absolute inset-0 bg-gray-200/80 animate-pulse" />
             )}
           </div>
         ) : (
@@ -82,7 +80,7 @@ export default function LogoUploader({ value, onChange, error }) {
             }`}
           >
             {isUploading ? (
-              <FiLoader className="w-7 h-7 text-violet-600 animate-spin" />
+              <div className="w-full h-full rounded-2xl bg-gray-200 animate-pulse" />
             ) : (
               <>
                 <FiUploadCloud className="w-7 h-7 text-gray-400" />

@@ -1,26 +1,33 @@
-import { FiLoader } from 'react-icons/fi';
-
-// One reusable full-page loading state — used as the `loading.jsx` fallback
-// for routes that don't have a bespoke skeleton (see app/dashboard/classes,
-// homework, notices, sessions for the custom-skeleton alternative; use
-// that pattern instead of this one when a page's layout is stable enough
-// to be worth mimicking exactly). Also reusable inline wherever a client
-// component needs the same look for a client-side fetch (e.g.
-// StudentsExplorer.jsx refetching a page — pass `fullScreen={false}` and
-// position it with a wrapping `relative`/`absolute` container there).
-export default function PageLoader({ label = 'Loading...', fullScreen = true }) {
-  return (
-    <div
-      className={
-        fullScreen
-          ? 'fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm'
-          : 'flex flex-col items-center justify-center gap-3 py-20'
-      }
-    >
-      <span className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 shadow-sm">
-        <FiLoader className="w-6 h-6 text-white animate-spin" />
-      </span>
-      {label && <p className="text-sm font-medium text-gray-500">{label}</p>}
+// One reusable full-page loading state, shown as a shimmer skeleton (heading, stat cards, a list
+// card) instead of a spinner. Used as the `loading.jsx` fallback for routes that don't have a
+// bespoke skeleton (see app/dashboard/classes, homework, notices, sessions, leave for the
+// custom-skeleton alternative; use that pattern when a page's layout is stable enough to be worth
+// mimicking exactly). Also reusable inline wherever a client component needs the same look for a
+// client-side fetch — pass `fullScreen={false}` and position it with a wrapping container.
+// `label` is accepted for older callers and is not shown.
+export default function PageLoader({ fullScreen = true }) {
+  const skeleton = (
+    <div className="space-y-6 w-full animate-pulse">
+      <div className="h-8 w-56 bg-gray-100 rounded" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-24 rounded-xl bg-gray-100" />
+        ))}
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gray-100 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3.5 w-1/3 bg-gray-100 rounded" />
+              <div className="h-2.5 w-1/5 bg-gray-50 rounded" />
+            </div>
+            <div className="h-6 w-16 bg-gray-100 rounded-full shrink-0" />
+          </div>
+        ))}
+      </div>
     </div>
   );
+
+  return fullScreen ? <div className="fixed inset-0 z-50 overflow-hidden bg-white/90 p-6 backdrop-blur-sm">{skeleton}</div> : skeleton;
 }

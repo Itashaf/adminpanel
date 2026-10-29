@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FiLoader } from 'react-icons/fi';
 import TeachersToolbar from './TeachersToolbar';
 import TeacherBulkActionsBar from './TeacherBulkActionsBar';
 import TeachersTable from './TeachersTable';
@@ -120,8 +119,14 @@ export default function TeachersExplorer({ initialTeachers, initialTotal, classO
 
       <div className="relative hidden sm:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading && (
-          <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10">
-            <FiLoader className="w-5 h-5 text-indigo-600 animate-spin" />
+          <div className="absolute inset-0 bg-white/70 z-10 p-5 space-y-4 animate-pulse">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gray-100 shrink-0" />
+                <div className="h-3.5 flex-1 bg-gray-100 rounded" />
+                <div className="h-3.5 w-20 bg-gray-100 rounded" />
+              </div>
+            ))}
           </div>
         )}
 
