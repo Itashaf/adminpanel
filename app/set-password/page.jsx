@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { FiAlertCircle } from 'react-icons/fi';
 import SetPasswordForm from '@/components/SetPasswordForm';
 import { getTeacherByPasswordToken } from '@/lib/teachers';
+import { getUserByPasswordToken } from '@/lib/userPasswords';
 
 export const metadata = {
   title: 'Set Password | SchoolApp 360',
@@ -10,11 +11,17 @@ export const metadata = {
 export default async function SetPasswordPage({ searchParams }) {
   const { token } = await searchParams;
   const teacher = token ? await getTeacherByPasswordToken(token) : null;
+  // A link sent from the Super Admin's Users page belongs to a User row instead of a Teacher.
+  const user = token && !teacher ? await getUserByPasswordToken(token) : null;
+  // Super Admin signs in at '/', everyone else on /login.
+  const userRedirect = user?.roleKey === 'SuperAdmin' ? '/' : user?.roleKey === 'Parent' ? '/login?role=Parent' : '/login';
 
   return (
     <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-50 px-4 py-4 overflow-y-auto">
       {teacher ? (
         <SetPasswordForm token={token} teacherName={`${teacher.firstName} ${teacher.lastName}`} />
+      ) : user ? (
+        <SetPasswordForm token={token} teacherName={user.name} redirectTo={userRedirect} />
       ) : (
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-10">
           <div className="flex flex-col items-center text-center">

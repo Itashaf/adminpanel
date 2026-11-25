@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { FiUsers, FiUserPlus, FiSearch, FiFilter, FiMoreVertical, FiRefreshCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiUsers, FiUserPlus, FiSearch, FiMoreVertical, FiRefreshCw, FiKey, FiMail, FiEye, FiEyeOff } from 'react-icons/fi';
 import Button from '@/components/Button';
+import FixedPaginationBar from '@/components/FixedPaginationBar';
 import Modal from '@/components/Modal';
 import Toast from '@/components/Toast';
 import Dropdown from '@/components/Dropdown';
 import Input from '@/components/Input';
 import DropdownMenu from '@/components/DropdownMenu';
-import { getUsers, createUser, updateUserRole, searchSchools } from '@/lib/api';
+import { getUsers, createUser, updateUserRole, searchSchools, setUserPassword, sendUserResetLink } from '@/lib/api';
 import { assignableRoles, ROLE_KEYS } from '@/lib/rbacConstants';
-import { ROLE_BADGE_STYLES, Avatar, timeAgo } from '@/components/settings/RolesPermissionsExplorer';
+import { ROLE_BADGE_STYLES, timeAgo } from '@/components/settings/RolesPermissionsExplorer';
 
 const PAGE_SIZE = 10;
 // Only these can be created directly (bare identity, no rich profile) —
@@ -39,9 +40,10 @@ export default function SuperAdminUsersExplorer() {
   const [roleFilter, setRoleFilter] = useState(() => searchParams.get('role') || 'All');
   const [schoolFilter, setSchoolFilter] = useState(() => searchParams.get('school') || 'All');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [showFilters, setShowFilters] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState(null);
+  const [passwordTarget, setPasswordTarget] = useState(null);
+  const [resetLinkTarget, setResetLinkTarget] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
   const [formError, setFormError] = useState('');
   const [page, setPage] = useState(1);
@@ -86,8 +88,6 @@ export default function SuperAdminUsersExplorer() {
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
   const pagedUsers = filteredUsers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const rangeStart = filteredUsers.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, filteredUsers.length);
 
   const changeFilter = (setter) => (value) => {
     setter(value);
@@ -110,189 +110,178 @@ export default function SuperAdminUsersExplorer() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-12">
       {formError && (
         <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{formError}</p>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
-        <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700">
-              <FiUsers className="w-5 h-5" />
-            </span>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">Users</h3>
-              <p className="text-sm text-gray-500">Everyone with a login, across every school.</p>
-            </div>
+      {/* Heading row: title on the left, the one primary action on the right. */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="flex items-center justify-center w-11 h-11 rounded-xl bg-indigo-100 text-indigo-700 shrink-0">
+            <FiUsers className="w-5 h-5" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 leading-tight">Users</h1>
+            <p className="text-sm text-gray-500">Everyone with a login, across every school.</p>
+          </div>
+        </div>
+        <Button label="Add User" icon={<FiUserPlus className="w-4 h-4" />} onClick={() => setShowAddUser(true)} />
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Filters: three equal-height controls on one grid, so their edges line up. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_16rem_11rem] gap-3 p-4 sm:p-5 border-b border-gray-100">
+          <div className="relative">
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={search}
+              onChange={(e) => changeFilter(setSearch)(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-full border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search users by name or email..."
-                value={search}
-                onChange={(e) => changeFilter(setSearch)(e.target.value)}
-                className="pl-9 pr-3 py-2 w-64 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+          <Dropdown
+            placeholder="All Schools"
+            value={schoolFilter === 'All' ? '' : schoolFilter}
+            onChange={(v) => changeFilter(setSchoolFilter)(v || 'All')}
+            options={[{ value: '', label: 'All Schools' }, ...(schools || []).map((s) => ({ value: s.id, label: s.name }))]}
+            searchable
+          />
 
-            <div className="w-[22rem]">
-              <Dropdown
-                placeholder="All Schools"
-                value={schoolFilter === 'All' ? '' : schoolFilter}
-                onChange={(v) => changeFilter(setSchoolFilter)(v || 'All')}
-                options={[{ value: '', label: 'All Schools' }, ...(schools || []).map((s) => ({ value: s.id, label: s.name }))]}
-                searchable
-              />
-            </div>
+          <Dropdown
+            placeholder="All Statuses"
+            value={statusFilter === 'All' ? '' : statusFilter}
+            onChange={(v) => changeFilter(setStatusFilter)(v || 'All')}
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'Active', label: 'Active' },
+              { value: 'Inactive', label: 'Inactive' },
+            ]}
+          />
+        </div>
 
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowFilters((v) => !v)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium border cursor-pointer transition ${
-                  statusFilter !== 'All' ? 'border-indigo-200 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <FiFilter className="w-4 h-4" />
-                Filters
-              </button>
-              {showFilters && (
-                <div className="absolute right-0 mt-2 w-44 bg-white rounded-lg border border-gray-100 shadow-lg py-1 z-20">
-                  {['All', 'Active', 'Inactive'].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => {
-                        changeFilter(setStatusFilter)(s);
-                        setShowFilters(false);
-                      }}
-                      className={`w-full text-left px-3.5 py-2 text-sm cursor-pointer hover:bg-gray-50 ${
-                        statusFilter === s ? 'text-indigo-700 font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {s === 'All' ? 'All Statuses' : s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <Button label="Add User" icon={<FiUserPlus className="w-4 h-4" />} onClick={() => setShowAddUser(true)} />
-          </div>
+        {/* Role tabs */}
+        <div className="flex items-center gap-1 px-4 sm:px-5 py-3 border-b border-gray-100 overflow-x-auto">
+          {['All', ...ROLE_KEYS].map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => changeFilter(setRoleFilter)(key)}
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition cursor-pointer ${
+                roleFilter === key ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-gray-600 border border-transparent hover:bg-gray-50'
+              }`}
+            >
+              {key} ({tabCounts[key] || 0})
+            </button>
+          ))}
         </div>
 
         {!users || !schools ? (
-          <p className="text-sm text-gray-400 text-center py-8">Loading...</p>
+          <div className="p-5 space-y-4 animate-pulse">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="h-3.5 flex-1 bg-gray-100 rounded" />
+                <div className="h-3.5 w-24 bg-gray-100 rounded" />
+                <div className="h-3.5 w-20 bg-gray-100 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-12">No users match this search/filter.</p>
         ) : (
           <>
-            <div className="flex items-center gap-1 mb-4 overflow-x-auto">
-              {['All', ...ROLE_KEYS].map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => changeFilter(setRoleFilter)(key)}
-                  className={`px-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition cursor-pointer ${
-                    roleFilter === key ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-gray-600 border border-transparent hover:bg-gray-50'
-                  }`}
-                >
-                  {key === 'All' ? 'All' : key} ({tabCounts[key] || 0})
-                </button>
-              ))}
+            {/* Fixed column widths (table-fixed + colgroup) so the header and every row share the
+                same columns; long values are cut with an ellipsis instead of pushing columns around. */}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[960px] table-fixed text-sm">
+                <colgroup>
+                  <col className="w-[24%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[5%]" />
+                </colgroup>
+                <thead>
+                  <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <th className="py-3 pl-5 pr-4">User</th>
+                    <th className="py-3 px-4">Role</th>
+                    <th className="py-3 px-4">School</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Last Login</th>
+                    <th className="py-3 pl-4 pr-5 text-right">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {pagedUsers.map((u) => (
+                    <tr key={u.id} className="hover:bg-gray-50/60 transition">
+                      <td className="py-3 pl-5 pr-4 align-middle">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{u.name}</p>
+                          {u.phone && <p className="text-xs text-gray-400 truncate">{u.phone}</p>}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 align-middle">
+                        <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${ROLE_BADGE_STYLES[u.roleKey] || 'bg-gray-100 text-gray-700'}`}>
+                          {u.roleKey}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 align-middle text-gray-600">
+                        <span className="block truncate" title={u.roleKey === 'SuperAdmin' ? '' : schoolNameOf(u.schoolId)}>
+                          {u.roleKey === 'SuperAdmin' ? '—' : schoolNameOf(u.schoolId)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 align-middle text-gray-500">
+                        <span className="block truncate" title={u.email}>{u.email}</span>
+                      </td>
+                      <td className="py-3 px-4 align-middle">
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                            u.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 align-middle text-gray-500 whitespace-nowrap">{timeAgo(u.lastLoginAt)}</td>
+                      <td className="py-3 pl-4 pr-5 align-middle text-right">
+                        <DropdownMenu
+                          trigger={<FiMoreVertical className="w-4 h-4" />}
+                          items={[
+                            // Nobody can change the platform Super Admin's role.
+                            ...(u.roleKey !== 'SuperAdmin'
+                              ? [{ label: 'Change Role', icon: <FiRefreshCw className="w-4 h-4" />, onClick: () => setRoleChangeTarget(u) }]
+                              : []),
+                            { label: 'Send Reset Link', icon: <FiMail className="w-4 h-4" />, onClick: () => setResetLinkTarget(u) },
+                            { label: 'Set Password', icon: <FiKey className="w-4 h-4" />, onClick: () => setPasswordTarget(u) },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {filteredUsers.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">No users match this search/filter.</p>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wide border-b border-gray-100">
-                        <th className="py-2 pr-4">User</th>
-                        <th className="py-2 pr-4">Role</th>
-                        <th className="py-2 pr-4">School</th>
-                        <th className="py-2 pr-4">Email</th>
-                        <th className="py-2 pr-4">Status</th>
-                        <th className="py-2 pr-4">Last Login</th>
-                        <th className="py-2 pr-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pagedUsers.map((u, i) => (
-                        <tr key={u.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
-                          <td className="py-3 pr-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar name={u.name} photoUrl={u.photoUrl} seed={i} />
-                              <div className="min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{u.name}</p>
-                                {u.phone && <p className="text-xs text-gray-400">{u.phone}</p>}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-4">
-                            <span className={`inline-block text-xs font-semibold px-2 py-1 rounded-full ${ROLE_BADGE_STYLES[u.roleKey] || 'bg-gray-100 text-gray-700'}`}>
-                              {u.roleKey}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 text-gray-600">{u.roleKey === 'SuperAdmin' ? '—' : schoolNameOf(u.schoolId)}</td>
-                          <td className="py-3 pr-4 text-gray-500">{u.email}</td>
-                          <td className="py-3 pr-4">
-                            <span className="inline-flex items-center gap-1.5 text-gray-600">
-                              <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                              {u.status}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 text-gray-500">{timeAgo(u.lastLoginAt)}</td>
-                          <td className="py-3 pr-4 text-right">
-                            {u.roleKey !== 'SuperAdmin' ? (
-                              <DropdownMenu
-                                trigger={<FiMoreVertical className="w-4 h-4" />}
-                                items={[
-                                  { label: 'Change Role', icon: <FiRefreshCw className="w-4 h-4" />, onClick: () => setRoleChangeTarget(u) },
-                                ]}
-                              />
-                            ) : (
-                              <span className="text-gray-300">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-400">
-                    {rangeStart}-{rangeEnd} of {filteredUsers.length}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                      className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      <FiChevronLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages}
-                      className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      <FiChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
           </>
         )}
       </div>
+
+      <FixedPaginationBar
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={filteredUsers.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="users"
+      />
 
       {showAddUser && (
         <AddUserModal schools={schools || []} onClose={() => setShowAddUser(false)} onCreated={handleUserCreated} />
@@ -303,6 +292,28 @@ export default function SuperAdminUsersExplorer() {
           user={roleChangeTarget}
           onClose={() => setRoleChangeTarget(null)}
           onChanged={(roleKey) => handleRoleChanged(roleChangeTarget.id, roleKey)}
+        />
+      )}
+
+      {passwordTarget && (
+        <SetPasswordModal
+          user={passwordTarget}
+          onClose={() => setPasswordTarget(null)}
+          onDone={() => {
+            setToastMessage(`Password updated for ${passwordTarget.name}.`);
+            setPasswordTarget(null);
+          }}
+        />
+      )}
+
+      {resetLinkTarget && (
+        <SendResetLinkModal
+          user={resetLinkTarget}
+          onClose={() => setResetLinkTarget(null)}
+          onDone={(email) => {
+            setToastMessage(`Reset link sent to ${email}.`);
+            setResetLinkTarget(null);
+          }}
         />
       )}
 
@@ -401,6 +412,117 @@ function ChangeRoleModal({ user, onClose, onChanged }) {
     >
       {error && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3 mb-3">{error}</p>}
       <Dropdown placeholder="New role" options={options} value={roleKey} onChange={setRoleKey} />
+    </Modal>
+  );
+}
+
+function SetPasswordModal({ user, onClose, onDone }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    setError('');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await setUserPassword(user.id, password);
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Set Password — ${user.name}`}
+      isOpen
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button label="Cancel" variant="secondary" onClick={onClose} />
+          <Button label={isSaving ? 'Saving...' : 'Set Password'} onClick={handleSubmit} disabled={isSaving} />
+        </div>
+      }
+    >
+      {error && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3 mb-3">{error}</p>}
+      <div>
+        <div className="py-1.5">
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="New password (min 8 characters)"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            endAdornment={
+              <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="pointer-events-auto cursor-pointer" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                {showPassword ? <FiEye /> : <FiEyeOff />}
+              </button>
+            }
+          />
+        </div>
+        <div className="py-1.5">
+          <Input
+            type={showConfirm ? 'text' : 'password'}
+            placeholder="Confirm new password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            endAdornment={
+              <button type="button" onClick={() => setShowConfirm((prev) => !prev)} className="pointer-events-auto cursor-pointer" aria-label={showConfirm ? 'Hide password' : 'Show password'}>
+                {showConfirm ? <FiEye /> : <FiEyeOff />}
+              </button>
+            }
+          />
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function SendResetLinkModal({ user, onClose, onDone }) {
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSend = async () => {
+    setError('');
+    setIsSending(true);
+    try {
+      const result = await sendUserResetLink(user.id);
+      onDone(result.email);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Send Reset Link — ${user.name}`}
+      description={`Emails a link to ${user.email} so they can choose a new password. The link works once and expires in 7 days.`}
+      isOpen
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button label="Cancel" variant="secondary" onClick={onClose} />
+          <Button label={isSending ? 'Sending...' : 'Send Link'} onClick={handleSend} disabled={isSending} />
+        </div>
+      }
+    >
+      {error && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{error}</p>}
     </Modal>
   );
 }

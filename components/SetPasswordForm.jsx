@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FiLock, FiCheck } from 'react-icons/fi';
+import { FiLock, FiCheck, FiEye, FiEyeOff } from 'react-icons/fi';
 import { FaGraduationCap } from 'react-icons/fa';
 import Button from './Button';
 import Input from './Input';
@@ -12,10 +12,12 @@ import Form from './Form';
 import { setPasswordSchema } from '@/lib/schemas';
 import { setPasswordAction } from '@/app/actions/auth';
 
-export default function SetPasswordForm({ token, teacherName }) {
+export default function SetPasswordForm({ token, teacherName, redirectTo = '/login?role=Teacher' }) {
   const router = useRouter();
   const [formError, setFormError] = useState('');
   const [isDone, setIsDone] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const {
     register,
@@ -31,7 +33,7 @@ export default function SetPasswordForm({ token, teacherName }) {
       return;
     }
     setIsDone(true);
-    setTimeout(() => router.push('/login?role=Teacher'), 1800);
+    setTimeout(() => router.push(redirectTo), 1800);
   };
 
   if (isDone) {
@@ -67,9 +69,14 @@ export default function SetPasswordForm({ token, teacherName }) {
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">New Password</label>
           <Input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="At least 8 characters"
             icon={<FiLock />}
+            endAdornment={
+            <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="pointer-events-auto cursor-pointer" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? <FiEye /> : <FiEyeOff />}
+            </button>
+          }
             error={errors.password?.message}
             {...register('password')}
           />
@@ -78,9 +85,14 @@ export default function SetPasswordForm({ token, teacherName }) {
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">Confirm Password</label>
           <Input
-            type="password"
+            type={showConfirm ? 'text' : 'password'}
             placeholder="Re-enter password"
             icon={<FiLock />}
+            endAdornment={
+            <button type="button" onClick={() => setShowConfirm((prev) => !prev)} className="pointer-events-auto cursor-pointer" aria-label={showConfirm ? 'Hide password' : 'Show password'}>
+              {showConfirm ? <FiEye /> : <FiEyeOff />}
+            </button>
+          }
             error={errors.confirmPassword?.message}
             {...register('confirmPassword')}
           />

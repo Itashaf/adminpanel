@@ -18,7 +18,8 @@
 // throw here for a truly unexpected failure (e.g. the DB is unreachable).
 import { validateSuperAdminCredentials } from '@/lib/auth';
 import { validateAdminCredentials } from '@/lib/admins';
-import { validateTeacherCredentials, requestTeacherPasswordReset, setTeacherPasswordViaToken } from '@/lib/teachers';
+import { validateTeacherCredentials, requestTeacherPasswordReset, setTeacherPasswordViaToken, getTeacherByPasswordToken } from '@/lib/teachers';
+import { setUserPasswordViaToken } from '@/lib/userPasswords';
 import { validateParentCredentials, verifyParentOwnsStudent } from '@/lib/parentAccounts';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -184,5 +185,7 @@ export async function requestPasswordResetAction({ email }) {
 
 export async function setPasswordAction({ token, password }) {
   if (!token || !password) return { error: 'Missing fields' };
-  return setTeacherPasswordViaToken(token, password);
+  // A teacher's own invite link keeps its old flow; any other link is a Super Admin reset link on a User row.
+  if (await getTeacherByPasswordToken(token)) return setTeacherPasswordViaToken(token, password);
+  return setUserPasswordViaToken(token, password);
 }
